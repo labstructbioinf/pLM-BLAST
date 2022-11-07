@@ -1,22 +1,23 @@
+'''pipeline for query - database search'''
+import os
 import sys
 import argparse
 import concurrent
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+print(os.path.dirname(__file__))
 
 import pandas as pd
 import numpy as np
-
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
-
 from tqdm import tqdm
-
 from Bio.Align import substitution_matrices
-blosum62 = substitution_matrices.load("BLOSUM62")
 
-# new version (branch main)
-sys.path.append('/home/users/sdunin')
-from calc.localaln_branches.localaln.alntools import density as ds
-from calc.localaln_branches.localaln import alntools as aln
+import alntools as aln
+from alntools import density as ds
+
+
+blosum62 = substitution_matrices.load("BLOSUM62")
 
 parser = argparse.ArgumentParser(description =  
 	"""

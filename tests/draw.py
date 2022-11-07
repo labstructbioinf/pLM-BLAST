@@ -51,7 +51,7 @@ def test_aln_draw(coords, seq1, seq2):
     
     result = draw_alignment(coords=coords, seq1=seq1, seq2=seq2)
     assert result is None, 'result should be None'
-    result = draw_alignment(coords=coords, seq1=seq1, seq2=seq2, as_string=True)
+    result = draw_alignment(coords=coords, seq1=seq1, seq2=seq2, output="str")
     
     if string_test != string_test:
         print(string_test)
@@ -62,9 +62,10 @@ def test_aln_draw(coords, seq1, seq2):
 @pytest.mark.parametrize("coords", [coords_test_invalid1, coords_test_invalid2])
 @pytest.mark.parametrize("seq1", [seq1_test, seq1_test])
 @pytest.mark.parametrize("seq2", [seq2_test, seq2_test])
-def test_aln_draw(coords, seq1, seq2):
+@pytest.mark.parametrize("output", [None, "html"])
+def test_aln_draw(coords, seq1, seq2, output):
     print(coords)
     try:
-        result = draw_alignment(coords=coords, seq1=seq1, seq2=seq2)
+        result = draw_alignment(coords=coords, seq1=seq1, seq2=seq2, output=output)
     except KeyError:
         pass

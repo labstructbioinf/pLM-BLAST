@@ -49,7 +49,6 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
     '''
     nrows : int = a.shape[0] + 1
     ncols : int = a.shape[1] + 1
-    gap : int = 0
     H : np.ndarray = np.zeros((nrows, ncols), dtype=np.float32)
     h_tmp : np.ndarray = np.zeros(4, dtype=np.float32)
     for i in range(1, nrows):

@@ -9,8 +9,6 @@ import pandas as pd
 from tqdm import tqdm
 
 from alntools.base import Extractor
-from alntools.density import embedding_similarity
-from alntools import gather_all_paths, search_paths
 from alntools.postprocess import measure_aln_overlap_with_pdblist, filter_result_dataframe
 
 # prequisitions
@@ -115,4 +113,3 @@ if VERBOSE:
     print('matches: ', num_matches)
 datastack = pd.DataFrame(records_stack)
 datastack.to_pickle(PATH_RESULTS)
-

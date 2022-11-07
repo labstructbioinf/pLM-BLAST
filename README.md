@@ -10,11 +10,6 @@ numpy
 numba
 ```
 
-* `embedding.py` - generate embeddings from sequences, type `python embeddings.py -h` for use examples 
-* `search_parallel.py` script for all vs all search over `datafull.p` rosmmann dataset. Change `limit_records` to increase search range.
-* `explore_results.ipynb` - analysis of `search_rossmanns.py` results
-* `example_low.ipynb`  usage example with description
-
 ### get embeddings
 
 obtain sequence embeddings, use `-cname` to specify in which column sequence is stored if other then `seq`
