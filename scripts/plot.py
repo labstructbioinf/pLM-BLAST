@@ -97,9 +97,9 @@ else:
 
 # PLOT
 
-tick_font_size = 15 # 10
-label_font_size = 15 # 9
-bar_size = 10 # 5
+tick_font_size = 10 # 10
+label_font_size = 12 # 9
+bar_size = 5 # 5
 
 fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*(bar_size*2)/100), dpi=200)
 
@@ -140,9 +140,9 @@ for _ in range(len(hits_idx_sorted)):
 	else:
 		c = (next_hit.score - hits_idx_sorted.score.min()) / (hits_idx_sorted.score.max() - hits_idx_sorted.score.min())
 		a = {"color":cmap(c)}
-		
-	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=bar_size, 
-			solid_capstyle='round', **a)
+	
+	# solid_capstyle='round'
+	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=bar_size, **a)
 	
 	hits_idx_sorted.at[next_hit.name, 'done'] = True
 	if hits_idx_sorted.done.all(): break
