@@ -95,12 +95,13 @@ if args.ecod:
 else:
 	cmap = pl.cm.get_cmap('coolwarm')
 
-# plot
+# PLOT
 
-tick_font_size = 10
-label_font_size = 9
+tick_font_size = 15 # 10
+label_font_size = 15 # 9
+bar_size = 10 # 5
 
-fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*10/100), dpi=200)
+fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*(bar_size*2)/100), dpi=200)
 
 if args.mode == 'score':
 	by = 'score'
@@ -140,21 +141,28 @@ for _ in range(len(hits_idx_sorted)):
 		c = (next_hit.score - hits_idx_sorted.score.min()) / (hits_idx_sorted.score.max() - hits_idx_sorted.score.min())
 		a = {"color":cmap(c)}
 		
-	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=5, **a)
+	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=bar_size, 
+			solid_capstyle='round', **a)
 	
 	hits_idx_sorted.at[next_hit.name, 'done'] = True
 	if hits_idx_sorted.done.all(): break
+
+
+ax.spines.top.set_visible(False)
+ax.spines.left.set_visible(False)
+ax.spines.right.set_visible(False)
 
 if args.mode in ['qend', 'qstart', 'score']:	
 	ax.invert_yaxis()
 
 #	order = order[::-1]
-ax.set_xlim(1, len(query_seq))
+ax.set_xlim(0, len(query_seq)+1)
 ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
 
 if args.ecod:
 	h = [mpatches.Patch(color=colors[d], label=d) for d in order]  
-	pl.legend(handles=h, bbox_to_anchor=(0.8, -0.2), fontsize=label_font_size)
+	pl.legend(handles=h, loc='upper center', bbox_to_anchor=(0.5, -0.15), fontsize=label_font_size,
+	shadow=False)
 	
 pl.gca().axes.get_yaxis().set_visible(False)
 pl.savefig(args.output, bbox_inches='tight')

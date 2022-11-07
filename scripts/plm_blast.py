@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import argparse
 import concurrent
 
@@ -14,7 +14,7 @@ from Bio.Align import substitution_matrices
 blosum62 = substitution_matrices.load("BLOSUM62")
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-import density as ds
+import alntools.density as ds
 import alntools as aln
 
 parser = argparse.ArgumentParser(description =  
@@ -38,53 +38,53 @@ def range_limited_float_type(arg, MIN, MAX):
 range01 = lambda f:range_limited_float_type(f, 0, 1)
 range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
-parser.add_argument('db', help='database embeddings and index',
+parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 				    type=str)
 				    				    
-parser.add_argument('query', help='query embedding and index',
+parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 				    type=str)
 				    				    
-parser.add_argument('output', help='output CSV',
+parser.add_argument('output', help='Output csv file',
 				    type=str)
 				    			    
 group = parser.add_mutually_exclusive_group()
 				    
-group.add_argument('-cosine_cutoff', help='pre-filter cosine similarity cut-off (0..1)',
+group.add_argument('-cosine_cutoff', help='Cosine similarity cut-off (0..1)',
 					 type=range01, default=None, dest='COS_SIM_CUT')	
 					 
-group.add_argument('-cosine_percentile_cutoff', help='pre-filter cosine similarity percentile cut-off (0-100)',
+group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
 					 type=range0100, default=None, dest='COS_PER_CUT')						 
 					 		 
-parser.add_argument('-alignment_cutoff', help='alignment score cut-off (default: %(default)s)',
+parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
 					 type=float, default=0.4, dest='ALN_CUT')		
 					 
-parser.add_argument('-sigma_factor', help='sf (default: %(default)s)',
+parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
 					 type=float, default=1, dest='SIGMA_FACTOR')		    			    
 				    
-parser.add_argument('-win', help='window length (default: %(default)s)',
+parser.add_argument('-win', help='Window length (default: %(default)s)',
 					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WIN')				    
 
-parser.add_argument('-span', help='min match length (default: %(default)s)',
+parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
 					 type=int, default=15, dest='SPAN')
 					 
-parser.add_argument('-max_targets', help='maximal number of targets reported in output (default: %(default)s)',
+parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
 					 type=int, default=500, dest='MAX_TARGETS')
 					 
-parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
-					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
+#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
+#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
 					 
-parser.add_argument('-workers', help='number of CPU workers (default: %(default)s)',
+parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
 					 type=int, default=1, choices=range(1,6), metavar="[1-5]", dest='MAX_WORKERS')			    
 					    
-parser.add_argument('-gap_open', help='gap opening penality (default: %(default)s)',
-					 type=float, default=0, metavar="[0-1]", dest='GAP_OPEN')				    
+parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
+					 type=float, default=0, dest='GAP_OPEN')				    
 				    
-parser.add_argument('-gap_ext', help='gap extrnsion penality (default: %(default)s)',
-					 type=float, default=0, metavar="[0-1]", dest='GAP_EXT')				    
+parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
+					 type=float, default=0, dest='GAP_EXT')				    
 
 args = parser.parse_args()
 
-assert args.SPAN >= args.WIN, 'span has to be >= window'
+assert args.SPAN >= args.WIN, 'Span has to be >= window!'
 assert args.MAX_TARGETS > 0
 
 assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'please define COS_PER_CUT _or_ COS_SIM_CUT'
@@ -115,7 +115,7 @@ def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_ext
      
 def full_compare(emb1, emb2, i):   
     res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
-                       bfactor=args.BF, 
+                       bfactor=3, 
                        gap_opening=args.GAP_OPEN,
                        gap_extension=args.GAP_EXT,
                        sigma_factor=args.SIGMA_FACTOR)
