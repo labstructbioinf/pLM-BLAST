@@ -1,0 +1,352 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.12, pytest-7.1.3, pluggy-1.0.0
+rootdir: /home/users/kkaminski/apps/localaln/tests
+plugins: anyio-3.6.1, flaky-3.7.0
+collected 86 items
+
+numeric.py .....................................F...................F.F. [ 70%]
+..F.....F.....F.F.F.F.F.F                                                [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_fill_score_matrix ____________________________
+
+    def test_fill_score_matrix():
+    
+        # convert to numpy
+        densitymap = densitymap_test['densitymap']
+    
+>       score_matrix = fill_score_matrix(densitymap)
+
+numeric.py:62: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../alntools/numeric.py:71: in fill_score_matrix
+    score_matrix = fill_matrix(sub_matrix, gap_penalty=gap_penalty)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+a = array([[ 0.49878508,  0.21799478,  0.15614781, ...,  0.05736109,
+         0.07411522,  0.11213736],
+       [ 0.2015831...2],
+       [ 0.06985007,  0.04532434,  0.00713081, ...,  0.16775082,
+         0.24327448,  0.2530995 ]], dtype=float32)
+gap_penalty = 0.0
+
+    @numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True, fastmath=True, cache=True)
+    def fill_matrix(a: np.ndarray, gap_penalty: float):
+        '''
+        fill score matrix
+        Params:
+            a: (np.array)
+            gap_penalty (float)
+        Return:
+            b: (np.array)
+        '''
+        nrows : int = a.shape[0] + 1
+        ncols : int = a.shape[1] + 1
+        gap : int = 0
+        H : np.ndarray = np.zeros((nrows, ncols), dtype=np.float32)
+        h_tmp : np.ndarray = np.zeros(3, dtype=np.float32)
+        for i in range(1, nrows):
+            for j in range(1, ncols):
+                #gap = abs(i - j)*gap_penalty
+>               h_tmp[0] = H[i-1,j-1] + a[i,j]
+E               IndexError: index 504 is out of bounds for axis 1 with size 504
+
+../alntools/numeric.py:48: IndexError
+_____________________ test_borderline_extraction[2-0-arr3] _____________________
+
+arr = array([[0.03902121, 0.06687298, 0.36683296, ..., 0.77842829, 0.23636304,
+        0.28962886],
+       [0.32798878, 0.73...84,
+        0.29082682],
+       [0.26587929, 0.18270901, 0.49943826, ..., 0.2022603 , 0.13024877,
+        0.24209659]])
+cutoff = 0, factor = 2
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef611b0>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef611b0> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef42090>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef42090> = array([[ 0, 4...    [99,  2]]) == array([[99, 49]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[2-1-arr1] _____________________
+
+arr = array([[0.04575693, 0.43750326, 0.74691982, 0.31545658, 0.32268246,
+        0.04995931, 0.07976328, 0.73312771, 0.6468..., 0.14228458, 0.15794313, 0.57712178, 0.94762761,
+        0.28177098, 0.85529232, 0.16000104, 0.45427109, 0.46069651]])
+cutoff = 1, factor = 2
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61870>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61870> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef61810>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef61810> = array([[ 1, 1...    [24,  2]]) == array([[24, 19]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[2-5-arr1] _____________________
+
+arr = array([[0.04575693, 0.43750326, 0.74691982, 0.31545658, 0.32268246,
+        0.04995931, 0.07976328, 0.73312771, 0.6468..., 0.14228458, 0.15794313, 0.57712178, 0.94762761,
+        0.28177098, 0.85529232, 0.16000104, 0.45427109, 0.46069651]])
+cutoff = 5, factor = 2
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61690>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61690> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef61ab0>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef61ab0> = array([[ 6, 1...    [24,  5]]) == array([[24, 19]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+____________________ test_borderline_extraction[2-10-arr3] _____________________
+
+arr = array([[0.03902121, 0.06687298, 0.36683296, ..., 0.77842829, 0.23636304,
+        0.28962886],
+       [0.32798878, 0.73...84,
+        0.29082682],
+       [0.26587929, 0.18270901, 0.49943826, ..., 0.2022603 , 0.13024877,
+        0.24209659]])
+cutoff = 10, factor = 2
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61cf0>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61cf0> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False]) = <built-in method all of numpy.ndarray object at 0x7f038ef61990>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef61990> = array([[11, 4...    [99, 11]]) == array([[99, 49]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[3-1-arr1] _____________________
+
+arr = array([[0.04575693, 0.43750326, 0.74691982, 0.31545658, 0.32268246,
+        0.04995931, 0.07976328, 0.73312771, 0.6468..., 0.14228458, 0.15794313, 0.57712178, 0.94762761,
+        0.28177098, 0.85529232, 0.16000104, 0.45427109, 0.46069651]])
+cutoff = 1, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61f90>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61f90> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef615d0>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef615d0> = array([[ 1, 1...    [24,  2]]) == array([[24, 19]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[3-1-arr3] _____________________
+
+arr = array([[0.03902121, 0.06687298, 0.36683296, ..., 0.77842829, 0.23636304,
+        0.28962886],
+       [0.32798878, 0.73...84,
+        0.29082682],
+       [0.26587929, 0.18270901, 0.49943826, ..., 0.2022603 , 0.13024877,
+        0.24209659]])
+cutoff = 1, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef1c210>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef1c210> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False,\n       False, False, False, False, False, False, False, False, False,\n       False, False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef1c030>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef1c030> = array([[ 3, 4...    [99,  3]]) == array([[99, 49]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[3-5-arr1] _____________________
+
+arr = array([[0.04575693, 0.43750326, 0.74691982, 0.31545658, 0.32268246,
+        0.04995931, 0.07976328, 0.73312771, 0.6468..., 0.14228458, 0.15794313, 0.57712178, 0.94762761,
+        0.28177098, 0.85529232, 0.16000104, 0.45427109, 0.46069651]])
+cutoff = 5, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f04eddfe5d0>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f04eddfe5d0> = array([False, False, False, False, False, False, False, False, False,\n       False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False]) = <built-in method all of numpy.ndarray object at 0x7f038efc03f0>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038efc03f0> = array([[ 7, 1...    [24,  8]]) == array([[24, 19]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+_____________________ test_borderline_extraction[3-5-arr3] _____________________
+
+arr = array([[0.03902121, 0.06687298, 0.36683296, ..., 0.77842829, 0.23636304,
+        0.28962886],
+       [0.32798878, 0.73...84,
+        0.29082682],
+       [0.26587929, 0.18270901, 0.49943826, ..., 0.2022603 , 0.13024877,
+        0.24209659]])
+cutoff = 5, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61e10>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61e10> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False,\n       False, False, False, False, False, False, False, False, False,\n       False]) = <built-in method all of numpy.ndarray object at 0x7f03bdd094b0>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f03bdd094b0> = array([[ 6, 4...    [99,  6]]) == array([[99, 49]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+____________________ test_borderline_extraction[3-10-arr1] _____________________
+
+arr = array([[0.04575693, 0.43750326, 0.74691982, 0.31545658, 0.32268246,
+        0.04995931, 0.07976328, 0.73312771, 0.6468..., 0.14228458, 0.15794313, 0.57712178, 0.94762761,
+        0.28177098, 0.85529232, 0.16000104, 0.45427109, 0.46069651]])
+cutoff = 10, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef61b70>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef61b70> = array([False, False, False, False, False, False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef61ed0>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef61ed0> = array([[12, 1...    [24, 10]]) == array([[24, 19]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+____________________ test_borderline_extraction[3-10-arr3] _____________________
+
+arr = array([[0.03902121, 0.06687298, 0.36683296, ..., 0.77842829, 0.23636304,
+        0.28962886],
+       [0.32798878, 0.73...84,
+        0.29082682],
+       [0.26587929, 0.18270901, 0.49943826, ..., 0.2022603 , 0.13024877,
+        0.24209659]])
+cutoff = 10, factor = 3
+
+    @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+    @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
+    @pytest.mark.parametrize("factor", [1, 2, 3])
+    def test_borderline_extraction(arr, cutoff, factor):
+    
+        borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
+        if factor == 1:
+            assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+    
+        bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
+>       assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
+E       AssertionError: missing last diagnal index
+E       assert False
+E        +  where False = <built-in method any of numpy.ndarray object at 0x7f038ef1c630>()
+E        +    where <built-in method any of numpy.ndarray object at 0x7f038ef1c630> = array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False]).any
+E        +      where array([False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False,...False, False, False, False, False, False, False, False, False,\n       False, False, False, False, False, False, False]) = <built-in method all of numpy.ndarray object at 0x7f038ef61570>(1)
+E        +        where <built-in method all of numpy.ndarray object at 0x7f038ef61570> = array([[11, 4...    [99, 11]]) == array([[99, 49]])
+E                 Use -v to get more diff.all
+
+numeric.py:82: AssertionError
+=========================== short test summary info ============================
+FAILED numeric.py::test_fill_score_matrix - IndexError: index 504 is out of b...
+FAILED numeric.py::test_borderline_extraction[2-0-arr3] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[2-1-arr1] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[2-5-arr1] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[2-10-arr3] - AssertionError: mi...
+FAILED numeric.py::test_borderline_extraction[3-1-arr1] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[3-1-arr3] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[3-5-arr1] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[3-5-arr3] - AssertionError: mis...
+FAILED numeric.py::test_borderline_extraction[3-10-arr1] - AssertionError: mi...
+FAILED numeric.py::test_borderline_extraction[3-10-arr3] - AssertionError: mi...
+======================== 11 failed, 75 passed in 1.74s =========================
