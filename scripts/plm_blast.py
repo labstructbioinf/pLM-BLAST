@@ -1,27 +1,25 @@
-'''pipeline for query - database search'''
-import os
 import sys
 import argparse
 import concurrent
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-print(os.path.dirname(__file__))
 
 import pandas as pd
 import numpy as np
+
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
+
 from tqdm import tqdm
+
 from Bio.Align import substitution_matrices
-
-import alntools as aln
-from alntools import density as ds
-
-
 blosum62 = substitution_matrices.load("BLOSUM62")
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import density as ds
+import alntools as aln
 
 parser = argparse.ArgumentParser(description =  
 	"""
-	Searches a database of enbeddings with a query embedding
+	Searches a database of embeddings with a query embedding
 	""",
 	formatter_class=argparse.RawDescriptionHelpFormatter
 	)
@@ -58,7 +56,10 @@ group.add_argument('-cosine_percentile_cutoff', help='pre-filter cosine similari
 					 type=range0100, default=None, dest='COS_PER_CUT')						 
 					 		 
 parser.add_argument('-alignment_cutoff', help='alignment score cut-off (default: %(default)s)',
-					 type=float, default=0.4, dest='ALN_CUT')				    			    
+					 type=float, default=0.4, dest='ALN_CUT')		
+					 
+parser.add_argument('-sigma_factor', help='sf (default: %(default)s)',
+					 type=float, default=1, dest='SIGMA_FACTOR')		    			    
 				    
 parser.add_argument('-win', help='window length (default: %(default)s)',
 					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WIN')				    
@@ -94,7 +95,7 @@ def check(df, embs):
     for seq, emb in zip(df.sequence.tolist(), embs):
         assert len(seq) == len(emb), 'index and embeddings files differ'
 
-def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_extension=0):
+def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_extension=0, sigma_factor=1):
     
     densitymap = ds.embedding_similarity(emb1, emb2)
     arr = densitymap.cpu().numpy()
@@ -106,6 +107,7 @@ def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_ext
     spans_locations = aln.prepare.search_paths(arr,
                                                 paths=paths,
                                                 window=window,
+                                                sigma_factor=sigma_factor,
                                                 min_span=min_span)
     results = pd.DataFrame(spans_locations.values())
     
@@ -115,7 +117,8 @@ def full_compare(emb1, emb2, i):
     res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
                        bfactor=args.BF, 
                        gap_opening=args.GAP_OPEN,
-                       gap_extension=args.GAP_EXT)
+                       gap_extension=args.GAP_EXT,
+                       sigma_factor=args.SIGMA_FACTOR)
     if len(res)>0:
         res['i'] = i
     return res
@@ -249,7 +252,7 @@ else:
 			tmp_aln=aln.alignment.draw_alignment(row.indices, 
 										   db_df.iloc[row.i].sequence,
 										   query_seq,
-										   as_string=True)
+										   output='str')
 	
 			tmp_aln=tmp_aln.split('\n')
 			res_df.at[idx, 'qseq'] = tmp_aln[2]

@@ -21,15 +21,18 @@ parser.add_argument('output', help='output PNG plot',
 			
 parser.add_argument('-score', help='score cut-off',
 					type=float, default=0)
+					
+parser.add_argument('-maxseqs', help='the maximal number of sequences to plot (0=plot all)',
+					type=int, default=0)
 				
 parser.add_argument('-mode', help='plot mode',
 					type=str, default='qend', choices=('score', 'qstart', 'qend'))
 
 parser.add_argument('-ecod', help='parse ECOD headers', action='store_true')
-
-				
-			
+		
 args = parser.parse_args()
+
+assert args.maxseqs >= 0
 
 ### FUNCTIONS
 
@@ -53,6 +56,13 @@ print(f'query sequence length is {len(query_seq)}')
 # read results
 hits_df = pd.read_csv(args.csv)
 hits_df = hits_df[hits_df.score >= args.score]
+hits_df['len'] = hits_df['qend'] - hits_df['qstart']
+
+
+if args.maxseqs > 0:
+	hits_df = hits_df.head(args.maxseqs)
+	print(f'only top {len(hits_df)} hits will be ploted')
+
 
 if args.ecod:
 
@@ -61,7 +71,7 @@ if args.ecod:
 
 	# group X/T ECOD groups
 	print('-'*20)
-	cmap = pl.cm.get_cmap('tab20')
+	cmap = pl.cm.get_cmap('tab10')
 	colors={}
 	cidx=0
 	order = []
@@ -87,22 +97,32 @@ else:
 
 # plot
 
-fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*7/100), dpi=100)
+tick_font_size = 10
+label_font_size = 9
+
+fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*10/100), dpi=200)
 
 if args.mode == 'score':
+	by = 'score'
 	a = False
 else:
+	by = 'qend'
 	a = True
 
-hits_idx_sorted = hits_df.sort_values(by=args.mode, ascending=a).copy()
+hits_idx_sorted = hits_df.sort_values(by=by, ascending=a).copy()
 
 hits_idx_sorted['score'] = hits_idx_sorted['score'].astype(float)
 hits_idx_sorted['done'] = False
+
+assert all(hits_idx_sorted.qstart>=0)
+
 pos=0
 lastend=0
 
 for _ in range(len(hits_idx_sorted)):
+	
 	while True:
+		assert not hits_idx_sorted.done.all()
 		next_hit = hits_idx_sorted[(hits_idx_sorted.qstart >= lastend) & 
 								   (~hits_idx_sorted.done)]
 		if len(next_hit) == 0:
@@ -113,10 +133,7 @@ for _ in range(len(hits_idx_sorted)):
 
 	next_hit = next_hit.iloc[0]
 	lastend = next_hit.qend
-
-	hits_idx_sorted.at[next_hit.name, 'done'] = True
-	if hits_idx_sorted.done.all(): break
-	
+		
 	if args.ecod:
 		a = {"color":colors[next_hit['T']]}
 	else:
@@ -124,16 +141,20 @@ for _ in range(len(hits_idx_sorted)):
 		a = {"color":cmap(c)}
 		
 	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=5, **a)
+	
+	hits_idx_sorted.at[next_hit.name, 'done'] = True
+	if hits_idx_sorted.done.all(): break
 
 if args.mode in ['qend', 'qstart', 'score']:	
 	ax.invert_yaxis()
 
 #	order = order[::-1]
 ax.set_xlim(1, len(query_seq))
+ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
 
 if args.ecod:
 	h = [mpatches.Patch(color=colors[d], label=d) for d in order]  
-	pl.legend(handles=h, bbox_to_anchor=(1, -0.1))
+	pl.legend(handles=h, bbox_to_anchor=(0.8, -0.2), fontsize=label_font_size)
 	
 pl.gca().axes.get_yaxis().set_visible(False)
 pl.savefig(args.output, bbox_inches='tight')
