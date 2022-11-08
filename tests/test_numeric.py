@@ -5,8 +5,7 @@ os.environ['NUMBA_DEBUGINFO'] = '1'
 os.environ['NUMBA_DISABLE_JIT'] = '1'
 import sys
 import time
-import faulthandler 
-sys.path.append('..')
+import faulthandler
 import pytest
 import numpy as np
 import torch
@@ -17,8 +16,8 @@ from alntools.numeric import fill_score_matrix
 from alntools.alignment import border_argmaxpool
 
 faulthandler.enable()
-
-densitymap_test = torch.load('test_data/densitymap_example.pt')
+#path are relative to project root dir
+densitymap_test = torch.load('tests/test_data/densitymap_example.pt')
 
 noise_low = -0.1
 noise_high = 0.1
@@ -39,7 +38,7 @@ noise_high = 0.1
     13,
     20])
 def test_move_mean(arr, window):
-    
+    arr = arr.astype(np.float32)
     result = move_mean(arr, window)
     assert arr.shape[0] == result.shape[0], 'invalid shape'
     assert not np.isnan(result).any(), 'nan values'

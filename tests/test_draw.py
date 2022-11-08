@@ -1,9 +1,4 @@
 '''drawing function tests'''
-import os
-import sys
-import time
-import faulthandler 
-sys.path.append('..')
 import pytest
 
 from alntools import draw_alignment
