@@ -1,5 +1,6 @@
 import sys
 import os
+import argparse
 # add one level up directory
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 print(os.path.dirname(__file__))
@@ -7,9 +8,25 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 
+from alntools.base import Extractor
 from alntools.density import embedding_similarity
 from alntools import gather_all_paths, search_paths
 from alntools.postprocess import measure_aln_overlap_with_pdblist, filter_result_dataframe
+
+parser = argparse.ArgumentParser(description =  
+	"""
+	All vs all search for a given dataframe
+	""",
+	formatter_class=argparse.RawDescriptionHelpFormatter
+	)
+parser.add_argument('-i', '-in', help='path to dataframe input file',
+                    required=True, dest='infile', type=str)
+parser.add_argument('-o', '-out', help='path to search results',
+                    required=False, dest='outfile', type=str)
+
+args = parser.parse_args()
+
+
 
 # prequisitions
 # how many records from dataframe should be processed in negative - uses all
@@ -28,26 +45,48 @@ SIGMA_FACTOR = 1
 MEASURE_ALIGNMENT_WITH_TEMP = True
 RAW = True
 VERBOSE = False
-INPUTFILE = "datafull"
-PATH_DATAFRAME = f"{INPUTFILE}.p"
+INPUTFILE = args.infile.replace('.p', '')
+#PATH_DATAFRAME = f"{INPUTFILE}.p"
+PATH_DATAFRAME = args.infile
 PATH_EMBEDDINGS = f"{INPUTFILE}.emb.prottrans"
-PATH_RESULTS = f"{INPUTFILE}.results.csv"
+if args.outfile == '':
+    PATH_RESULTS = f"{INPUTFILE}.results.csv"
+else:
+    PATH_RESULTS = args.outfile
 
 
 def main():
-    if not os.path.isfile(PATH_DATAFRAME):
-        raise FileNotFoundError(f'input dataframe path is invalid: {PATH_DATAFRAME}')
-    if not os.path.isfile(PATH_EMBEDDINGS):
-        raise FileNotFoundError(f'input embedding path is invalid: {PATH_EMBEDDINGS}')
+    global PATH_DATAFRAME, PATH_EMBEDDINGS, limit_records
+    if os.path.isabs(PATH_DATAFRAME):
+        if not os.path.isfile(PATH_DATAFRAME):
+            raise FileNotFoundError(f'input dataframe path is invalid: {PATH_DATAFRAME}')
+        if not os.path.isfile(PATH_EMBEDDINGS):
+            raise FileNotFoundError(f'input embedding path is invalid: {PATH_EMBEDDINGS}')
+    else:
+        PATH_DATAFRAME = os.path.join(os.getcwd(), PATH_DATAFRAME)
+        PATH_EMBEDDINGS = os.path.join(os.getcwd(), PATH_EMBEDDINGS)
+
     rtbdf = pd.read_pickle(PATH_DATAFRAME)
+    print(f'input frame records: {rtbdf.shape[0]}')
     rtbdf['idx'] = list(range(rtbdf.shape[0]))
     rtbdf['len_chain'] = rtbdf['seq_chain'].apply(len)
-    rtbdf = rtbdf.head(limit_records)
+    if limit_records > 0:
+        rtbdf = rtbdf.head(limit_records)
+    else:
+        limit_records = rtbdf.shape[0]
     num_records = rtbdf.shape[0]
     num_iterations = int(num_records*(num_records-1)/2)
     # load embeddings
-    print('embeddings loaded')
+    
     embeddings = torch.load(PATH_EMBEDDINGS)
+    print(f'loaded {len(embeddings)} embeddings')
+
+    module = Extractor()
+    module.LIMIT_RECORDS = limit_records
+    module.MIN_SPAN_LEN = MIN_SPAN_LEN
+    module.WINDOW_SIZE = MA_WINDOW
+    module.BFACTOR = BFACTOR
+    module.SIGMA_FACTOR = SIGMA_FACTOR
 
     records_stack = list()
     with tqdm(total=num_iterations) as progress_bar:
@@ -59,14 +98,7 @@ def main():
                 # TODO Wrap into function
                 target_embedding = embeddings[target_idx]
                 # generate similarity matrix
-                densitymap = embedding_similarity(query_embedding, target_embedding)
-                paths = gather_all_paths(densitymap, bfactor=BFACTOR)
-                results = search_paths(densitymap.cpu().numpy(),
-                                        paths=paths,
-                                        window=MA_WINDOW,
-                                        min_span=MIN_SPAN_LEN,
-                                        sigma_factor=SIGMA_FACTOR,
-                                        as_df=True)
+                results = module.embedding_to_span(query_embedding, target_embedding)
                 # find unique alignments
                 # if no alignment is found move to the next iteration
                 ################################
