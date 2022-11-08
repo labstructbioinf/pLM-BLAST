@@ -1,0 +1,29 @@
+# python cache
+**.so
+**.py[cod]
+.pytest_cache
+**.ipynb_checkpoints
+**__pycache__
+
+# torch embeddings
+**.pt
+**.pth
+**.emb
+**.emb.*
+**.emb*
+
+/*.csv
+/*.p
+**.txt
+*.png
+# tests
+.pytest_cache
+# code profiler
+profile*.txt
+# line profiler
+**.lprof
+
+# results cache
+results.*
+
+temp
