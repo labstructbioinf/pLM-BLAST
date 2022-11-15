@@ -2,8 +2,8 @@
 **.so
 **.py[cod]
 .pytest_cache
-**.ipynb_checkpoints
-**__pycache__
+.ipynb_checkpoints
+__pycache__
 
 # torch embeddings
 **.pt
