@@ -74,7 +74,7 @@ parser.add_argument('-max_targets', help='Maximal number of targets that will be
 #					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
 					 
 parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-					 type=int, default=1, choices=range(1,6), metavar="[1-5]", dest='MAX_WORKERS')			    
+					 type=int, default=1, dest='MAX_WORKERS')			    
 					    
 parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
 					 type=float, default=0, dest='GAP_OPEN')				    
@@ -86,8 +86,9 @@ args = parser.parse_args()
 
 assert args.SPAN >= args.WIN, 'Span has to be >= window!'
 assert args.MAX_TARGETS > 0
+assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
 
-assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'please define COS_PER_CUT _or_ COS_SIM_CUT'
+assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
 
 ### FUNCTIONS
 
@@ -114,14 +115,23 @@ def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_ext
     return results
      
 def full_compare(emb1, emb2, i):   
-    res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
-                       bfactor=3, 
-                       gap_opening=args.GAP_OPEN,
-                       gap_extension=args.GAP_EXT,
-                       sigma_factor=args.SIGMA_FACTOR)
-    if len(res)>0:
-        res['i'] = i
-    return res
+	res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
+					   bfactor=3, 
+					   gap_opening=args.GAP_OPEN,
+					   gap_extension=args.GAP_EXT,
+					   sigma_factor=args.SIGMA_FACTOR)
+
+	if len(res)>0:
+		if res.score.max() >= args.ALN_CUT:
+			# add referece index to each hit
+			res['i'] = i
+		
+			# filter out redundant hits
+			res = aln.postprocess.filter_result_dataframe(res)
+		
+			return res
+		
+	return []
     
 def calc_con(s1, s2):
 	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
@@ -199,8 +209,8 @@ if cos_count==0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
-# Search
-with concurrent.futures.ThreadPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
+# Multi-CPU search
+with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
     iter_id = 0
     job_stack = {}
     records_stack = []
@@ -213,9 +223,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=args.MAX_WORKERS) as exec
         for job in concurrent.futures.as_completed(job_stack):
             res = job.result()
             if len(res) > 0:
-            	if res.score.max() >= args.ALN_CUT:
-                	res = aln.postprocess.filter_result_dataframe(res)
-                	records_stack.append(res)
+            	records_stack.append(res)
             progress_bar.update(1)
 
 # Prepare output

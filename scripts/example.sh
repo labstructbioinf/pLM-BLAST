@@ -16,7 +16,7 @@ export OMP_NUM_THREADS=1
 # from a one-sequence FASTA file use `query_emb.py`
 
 # example cases `A9A4Y8`, `cupredoxin`
-case='apaf1'
+case='A9A4Y8'
 
 # data paths
 INDIR="./input"
@@ -38,8 +38,9 @@ if [ ! -f $OUTFILE ]; then
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
-		-cosine_percentile_cutoff 99 \
-		-alignment_cutoff 0.35
+		-cosine_percentile_cutoff 95 \
+		-alignment_cutoff 0.35 \
+		-workers 20
 fi
 
 # pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
