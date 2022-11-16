@@ -3,6 +3,7 @@ import os
 import gc
 import argparse
 import concurrent
+import math
 
 import pandas as pd
 import numpy as np
@@ -19,79 +20,82 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.density as ds
 import alntools as aln
 
-parser = argparse.ArgumentParser(description =  
-	"""
-	Searches a database of embeddings with a query embedding
-	""",
-	formatter_class=argparse.RawDescriptionHelpFormatter
-	)
-
 
 def range_limited_float_type(arg, MIN, MAX):
-    """ Type function for argparse - a float within some predefined bounds """
-    try:
-        f = float(arg)
-    except ValueError:    
-        raise argparse.ArgumentTypeError("Must be a floating point number")
-    if f <= MIN or f >= MAX :
-        raise argparse.ArgumentTypeError("Argument must be <= " + str(MAX) + " and >= " + str(MIN))
-    return f
+	""" Type function for argparse - a float within some predefined bounds """
+	try:
+		f = float(arg)
+	except ValueError:    
+		raise argparse.ArgumentTypeError("Must be a floating point number")
+	if f <= MIN or f >= MAX :
+		raise argparse.ArgumentTypeError("Argument must be <= " + str(MAX) + " and >= " + str(MIN))
+	return f
 
-range01 = lambda f:range_limited_float_type(f, 0, 1)
-range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
-parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
-				    type=str)
-				    				    
-parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
-				    type=str)
-				    				    
-parser.add_argument('output', help='Output csv file',
-				    type=str)
-				    			    
-group = parser.add_mutually_exclusive_group()
-				    
-group.add_argument('-cosine_cutoff', help='Cosine similarity cut-off (0..1)',
-					 type=range01, default=None, dest='COS_SIM_CUT')	
-					 
-group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
-					 type=range0100, default=None, dest='COS_PER_CUT')						 
-					 		 
-parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
-					 type=float, default=0.4, dest='ALN_CUT')		
-					 
-parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
-					 type=float, default=1, dest='SIGMA_FACTOR')		    			    
-				    
-parser.add_argument('-win', help='Window length (default: %(default)s)',
-					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')				    
+def get_parser():
+	parser = argparse.ArgumentParser(description =  
+		"""
+		Searches a database of embeddings with a query embedding
+		""",
+		formatter_class=argparse.RawDescriptionHelpFormatter
+		)
+	range01 = lambda f:range_limited_float_type(f, 0, 1)
+	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
-parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
-					 type=int, default=15, dest='MIN_SPAN_LEN')
-					 
-parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
-					 type=int, default=500, dest='MAX_TARGETS')
-					 
-#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
-#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
-					 
-parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-					 type=int, default=1, dest='MAX_WORKERS')			    
-					    
-parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
-					 type=float, default=0, dest='GAP_OPEN')				    
-				    
-parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
-					 type=float, default=0, dest='GAP_EXT')				    
+	parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+						type=str)
+											
+	parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+						type=str)
+											
+	parser.add_argument('output', help='Output csv file',
+						type=str)
+										
+	group = parser.add_mutually_exclusive_group()
+						
+	group.add_argument('-cosine_cutoff', help='Cosine similarity cut-off (0..1)',
+						type=range01, default=None, dest='COS_SIM_CUT')	
+						
+	group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
+						type=range0100, default=None, dest='COS_PER_CUT')						 
+								
+	parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
+						type=float, default=0.4, dest='ALN_CUT')		
+						
+	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
+						type=float, default=1, dest='SIGMA_FACTOR')		    			    
+						
+	parser.add_argument('-win', help='Window length (default: %(default)s)',
+						type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')				    
 
-args = parser.parse_args()
+	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
+						type=int, default=15, dest='MIN_SPAN_LEN')
+						
+	parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
+						type=int, default=500, dest='MAX_TARGETS')
+						
+	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
+	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
+						
+	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
+						type=int, default=1, dest='MAX_WORKERS')			    
+							
+	parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
+						type=float, default=0, dest='GAP_OPEN')				    
+						
+	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
+						type=float, default=0, dest='GAP_EXT')				    
 
-assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
-assert args.MAX_TARGETS > 0
-assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
+	args = parser.parse_args()
 
-assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
+	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
+	assert args.MAX_TARGETS > 0
+	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
+	assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
 
+	return args
+
+args = get_parser()
 ### FUNCTIONS
 
 def check(df, embs):
@@ -195,22 +199,31 @@ module.BFACTOR = 3
 module.SIGMA_FACTOR = args.SIGMA_FACTOR
 module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
+
 # Multi-CPU search
 with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
 	iter_id = 0
 	job_stack = {}
 	records_stack = []
-	for i in np.where(cos_sim >= defined_COS_CUT)[0]:
-		job = executor.submit(full_compare, query_emb, db_embs[i], i)
-		job_stack[job] = iter_id
+	indices = np.where(cos_sim >= defined_COS_CUT).ravel()
+	num_indices = indices.size
+	batch_start = 0
+	batch_size = 10*args.MAX_WORKERS
+	num_batch = max(math.floor(num_indices/batch_size), 1)
+	with tqdm(total=num_indices) as progress_bar:
+		for batch_start in range(0, num_batch):
+			batch_start = batch_start*batch_size
+			# submit a batch of jobs
+			for i in slice(indices, batch_start, batch_start + batch_size):
+				job = executor.submit(full_compare, query_emb, db_embs[i], i)
+				job_stack[job] = iter_id
+				for job in concurrent.futures.as_completed(job_stack):
+					res = job.result()
+					if len(res) > 0:
+						records_stack.append(res)
+					progress_bar.update(1)
+					gc.collect()
 
-	with tqdm(total=len(job_stack)) as progress_bar:
-		for job in concurrent.futures.as_completed(job_stack):
-			res = job.result()
-			if len(res) > 0:
-				records_stack.append(res)
-			progress_bar.update(1)
-			gc.collect()
 
 # Prepare output
 if len(records_stack)==0:
@@ -258,13 +271,10 @@ else:
 		# reset index
 		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
 		res_df.index.name = 'index'
- 
 		# order columns
 		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend']]
-	
 		# clip df
 		res_df = res_df.head(args.MAX_TARGETS)
-	
 		# save
 		res_df.to_csv(args.output)
 

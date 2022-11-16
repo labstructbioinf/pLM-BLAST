@@ -25,7 +25,9 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
-DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
+DB_PATH="/home/nfs/sdunin/db/localaln/ecod70db_20220902"
+
+NUM_WORKERS=6
 
 mkdir -p $OUTDIR
 if [ ! -f $QUERY_INDEX ]; then
@@ -41,7 +43,7 @@ if [ ! -f $OUTFILE ]; then
 		$OUTFILE \
 		-cosine_percentile_cutoff 95 \
 		-alignment_cutoff 0.35 \
-		-workers 20
+		-workers $NUM_WORKERS
 fi
 
 # pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
