@@ -25,9 +25,9 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
-DB_PATH="/home/nfs/sdunin/db/localaln/ecod70db_20220902"
+DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
 
-NUM_WORKERS=6
+NUM_WORKERS=5
 
 mkdir -p $OUTDIR
 if [ ! -f $QUERY_INDEX ]; then
@@ -41,7 +41,7 @@ if [ ! -f $OUTFILE ]; then
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
-		-cosine_percentile_cutoff 95 \
+		-cosine_percentile_cutoff 99 \
 		-alignment_cutoff 0.35 \
 		-workers $NUM_WORKERS
 fi
