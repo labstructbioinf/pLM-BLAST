@@ -1,5 +1,6 @@
 import torch
 
+torch.set_num_threads(1)
 @torch.jit.script
 def embedding_similarity(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
     '''

@@ -1,11 +1,10 @@
 '''array calculations'''
-import numpy as np
+
 from typing import Tuple, List, Union
 
-
+import numpy as np
 import numba
 from numba import types
-numba.set_num_threads(4)
 
 
 @numba.jit(nopython=True, fastmath=True, cache=True)

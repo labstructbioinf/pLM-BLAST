@@ -1,3 +1,11 @@
+#!/bin/bash
+
+set -e
+# limit threads for numba/numpy/torch
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+
 # Databases comprise two files, an index file (.csv) containing sequences and their descriptions,
 # and an embeddings file (.pt_emb.p) containing PT5 embeddings of sequences listed in the index.
 
@@ -17,6 +25,7 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
+DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
 
 if [ ! -f $QUERY_INDEX ]; then
 	# calculate query embedding
@@ -26,7 +35,7 @@ fi
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database
 	python plm_blast.py \
-		/ssd/users/sdunin/db/localaln/ecod70db_20220902 \
+		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
 		-cosine_percentile_cutoff 90 \
