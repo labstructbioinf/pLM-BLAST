@@ -3,7 +3,9 @@ from Bio import SeqIO
 import pandas as pd
 
 ### CONFIGURATION ###
-emb_scr = '/home/users/sdunin/calc/localaln_branches/localaln/embeddings.py'
+emb_scr = '../embeddings.py'
+#os.environ['TRANSFORMERS_CACHE'] = '/ebio/abt1_share/toolkit_support1/code/bioprogs/tools/pLM-BLAST/cache'
+#os.environ['TRANSFORMERS_OFFLINE']= "1"
 
 parser = argparse.ArgumentParser(description =  
 	"""

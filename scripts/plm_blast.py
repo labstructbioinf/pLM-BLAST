@@ -1,9 +1,6 @@
-import sys
-import os
-import gc
+import sys, os, gc, math
 import argparse
 import concurrent
-import math
 
 import pandas as pd
 import numpy as np
@@ -18,8 +15,18 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.density as ds
 import alntools as aln
 
+import datetime
+
+parser = argparse.ArgumentParser(description =  
+	"""
+	Searches a database of embeddings with a query embedding
+	""",
+	formatter_class=argparse.RawDescriptionHelpFormatter
+	)
+
 
 def range_limited_float_type(arg, MIN, MAX):
+<<<<<<< HEAD
 	""" Type function for argparse - a float within some predefined bounds """
 	try:
 		f = float(arg)
@@ -94,25 +101,114 @@ def get_parser():
 	return args
 
 args = get_parser()
+=======
+    """ Type function for argparse - a float within some predefined bounds """
+    try:
+        f = float(arg)
+    except ValueError:    
+        raise argparse.ArgumentTypeError("Must be a floating point number")
+    if f <= MIN or f >= MAX :
+        raise argparse.ArgumentTypeError("Argument must be <= " + str(MAX) + " and >= " + str(MIN))
+    return f
+
+range01 = lambda f:range_limited_float_type(f, 0, 1)
+range0100 = lambda f:range_limited_float_type(f, 0, 100)
+
+parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+				    type=str)
+				    				    
+parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+				    type=str)
+				    				    
+parser.add_argument('output', help='Output csv file',
+				    type=str)
+				    			    
+group = parser.add_mutually_exclusive_group()
+				    
+group.add_argument('-cosine_cutoff', help='Cosine similarity cut-off (0..1)',
+					 type=range01, default=None, dest='COS_SIM_CUT')	
+					 
+group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
+					 type=range0100, default=None, dest='COS_PER_CUT')						 
+					 		 
+parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
+					 type=float, default=0.4, dest='ALN_CUT')		
+					 
+parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
+					 type=float, default=1, dest='SIGMA_FACTOR')		    			    
+				    
+parser.add_argument('-win', help='Window length (default: %(default)s)',
+					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WIN')				    
+
+parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
+					 type=int, default=15, dest='SPAN')
+					 
+parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
+					 type=int, default=500, dest='MAX_TARGETS')
+					 
+#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
+#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')		
+					 
+parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
+					 type=int, default=1, dest='MAX_WORKERS')			    
+					    
+parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
+					 type=float, default=0, dest='GAP_OPEN')				    
+				    
+parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
+					 type=float, default=0, dest='GAP_EXT')				    
+
+args = parser.parse_args()
+
+assert args.SPAN >= args.WIN, 'Span has to be >= window!'
+assert args.MAX_TARGETS > 0
+assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
+
+assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
+
+>>>>>>> 97605347f0b5e93626cf5b9a30c57993d090b0fb
 ### FUNCTIONS
 
 def check(df, embs):
     for seq, emb in zip(df.sequence.tolist(), embs):
         assert len(seq) == len(emb), 'index and embeddings files differ'
 
+def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_extension=0, sigma_factor=1):
+    
+    densitymap = ds.embedding_similarity(emb1, emb2)
+    arr = densitymap.cpu().numpy()
+    
+    paths = aln.alignment.gather_all_paths(densitymap, bfactor=bfactor, 
+                                           gap_opening=gap_opening, 
+                                           gap_extension=gap_extension)
+    
+    spans_locations = aln.prepare.search_paths(arr,
+                                                paths=paths,
+                                                window=window,
+                                                sigma_factor=sigma_factor,
+                                                min_span=min_span)
+    results = pd.DataFrame(spans_locations.values())
+    
+    return results
+     
+def full_compare(emb1, emb2, i):   
+	res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
+					   bfactor=3, 
+					   gap_opening=args.GAP_OPEN,
+					   gap_extension=args.GAP_EXT,
+					   sigma_factor=args.SIGMA_FACTOR)
 
-def full_compare(emb1, emb2, i):
-	global module
-	res = module.embedding_to_span(emb1, emb2)
 	if len(res)>0:
 		if res.score.max() >= args.ALN_CUT:
 			# add referece index to each hit
 			res['i'] = i
+		
 			# filter out redundant hits
 			res = aln.postprocess.filter_result_dataframe(res)
+		
 			return res
-	else:
-		return []
+		
+	return []
     
 def calc_con(s1, s2):
 	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
@@ -148,6 +244,7 @@ def calc_ident(s1, s2):
     return np.mean(res)     
     
 ### MAIN
+
 # read database 
 db_index = args.db+'.csv'
 db_emb = args.db+'.pt_emb.p'
@@ -172,12 +269,18 @@ print(f'query sequence length is {len(query_seq)}')
 check(query_df, query_embs)
 
 # Cosine similarity pre-screening
+<<<<<<< HEAD
 print("cosine similarity pre-screening")
 all_embs = [i.mean(0) for i in db_embs]
 query_emb_mean = query_emb.mean(0)
 cos_sim = [cosine_similarity(query_emb_mean, emb, dim=0).item() for emb in all_embs]
 cos_sim = np.asarray(cos_sim)
 print('cos sim shape', cos_sim.shape)
+=======
+print('Calculating cosine similarity...')
+all_embs = np.array([i.numpy().mean(0) for i in db_embs])
+cos_sim = cosine_similarity(query_emb.numpy().mean(0).reshape(1, -1), all_embs)[0]
+>>>>>>> 97605347f0b5e93626cf5b9a30c57993d090b0fb
 
 if args.COS_PER_CUT:
 	defined_COS_CUT = np.percentile(cos_sim, float(args.COS_PER_CUT))
@@ -193,15 +296,25 @@ if cos_count == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
+            
+# Multi-CPU search
+time_start = datetime.datetime.now()
 
-module = aln.base.Extractor()
-module.MIN_SPAN_LEN = args.MIN_SPAN_LEN
-module.WINDOW_SIZE = args.WINDOW_SIZE
-module.BFACTOR = 3
-module.SIGMA_FACTOR = args.SIGMA_FACTOR
-module.GAP_OPEN = args.GAP_OPEN
-module.GAP_EXT = args.GAP_EXT
+iter_id = 0
+records_stack = []
+indices = np.where(cos_sim >= defined_COS_CUT)[0]
 
+# batching 
+#num_indices = indices.size
+#batch_size = 200 # 10*args.MAX_WORKERS
+#num_batch = max(math.floor(num_indices/batch_size), 1)
+#print(f'{num_batch} chunks:')
+
+#for chunk in np.array_split(indices, num_batch):
+
+with concurrent.futures.ThreadPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
+
+<<<<<<< HEAD
 
 iter_id = 0
 records_stack = []
@@ -232,7 +345,26 @@ with tqdm(total=num_indices) as progress_bar:
 						records_stack.append(res)
 					progress_bar.update(1)
 		gc.collect()
+=======
+	job_stack = {}
+					
+	for i in indices: # use chunk for batching
+		job = executor.submit(full_compare, query_emb, db_embs[i], i)
+		job_stack[job] = iter_id
 
+	with tqdm(total=len(indices)) as progress_bar:
+		for job in concurrent.futures.as_completed(job_stack):
+			res = job.result()
+			if len(res) > 0:
+				records_stack.append(res)
+			progress_bar.update(1)
+>>>>>>> 97605347f0b5e93626cf5b9a30c57993d090b0fb
+
+	gc.collect()
+		
+time_end = datetime.datetime.now()
+
+print(f'Time {time_end-time_start}')
 
 # Prepare output
 if len(records_stack)==0:
@@ -280,10 +412,12 @@ else:
 		# reset index
 		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
 		res_df.index.name = 'index'
+ 
 		# order columns
 		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend']]
+	
 		# clip df
 		res_df = res_df.head(args.MAX_TARGETS)
+	
 		# save
 		res_df.to_csv(args.output)
-

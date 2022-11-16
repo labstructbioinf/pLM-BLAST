@@ -39,8 +39,9 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int)
             for i, (idx, row) in enumerate(df.iterrows()):
                 # use only current batch sequences
                 if batch_id*args.batch_size <= i < (batch_id + 1)*args.batch_size:
-                    sequence = row.seq
-                    sequence = regex_aa.sub("X", row.seq)
+                    # cast to string 
+                    sequence = str(row.seq)
+                    sequence = regex_aa.sub("X", sequence)
                     sequence_len = len(sequence)
                     lenlist.append(sequence_len)
                     sequence = " ".join(list(sequence))

@@ -2,6 +2,7 @@ import os
 import argparse
 from typing import List, Union
 
+from Bio import SeqIO
 import pandas as pd
 import torch
 
@@ -65,6 +66,13 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
         df = pd.read_csv(args.input)
     elif args.input.endswith('.p'):
         df = pd.read_pickle(args.input)
+    elif args.input.endswith('.fas') or args.input.endswith('.fasta'):
+        # convert fasta file to df
+        data = SeqIO.parse(args.input, 'fasta')
+        # unpack
+        data = [[record.description, record.seq] for record in data]
+        df = pd.DataFrame(data, columns=['desc', 'seq'])
+        df.set_index('desc', inplace=True)
     else:
         raise FileNotFoundError(f'invalid input infile extension {args.input}')
 
