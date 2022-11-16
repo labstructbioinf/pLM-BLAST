@@ -1,4 +1,6 @@
-import sys, os
+import sys
+import os
+import gc
 import argparse
 import concurrent
 
@@ -62,10 +64,10 @@ parser.add_argument('-sigma_factor', help='The Sigma factor defines the greedine
 					 type=float, default=1, dest='SIGMA_FACTOR')		    			    
 				    
 parser.add_argument('-win', help='Window length (default: %(default)s)',
-					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WIN')				    
+					 type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')				    
 
 parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
-					 type=int, default=15, dest='SPAN')
+					 type=int, default=15, dest='MIN_SPAN_LEN')
 					 
 parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
 					 type=int, default=500, dest='MAX_TARGETS')
@@ -84,7 +86,7 @@ parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)
 
 args = parser.parse_args()
 
-assert args.SPAN >= args.WIN, 'Span has to be >= window!'
+assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
 assert args.MAX_TARGETS > 0
 assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
 
@@ -96,42 +98,19 @@ def check(df, embs):
     for seq, emb in zip(df.sequence.tolist(), embs):
         assert len(seq) == len(emb), 'index and embeddings files differ'
 
-def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_extension=0, sigma_factor=1):
-    
-    densitymap = ds.embedding_similarity(emb1, emb2)
-    arr = densitymap.cpu().numpy()
-    
-    paths = aln.alignment.gather_all_paths(densitymap, bfactor=bfactor, 
-                                           gap_opening=gap_opening, 
-                                           gap_extension=gap_extension)
-    
-    spans_locations = aln.prepare.search_paths(arr,
-                                                paths=paths,
-                                                window=window,
-                                                sigma_factor=sigma_factor,
-                                                min_span=min_span)
-    results = pd.DataFrame(spans_locations.values())
-    
-    return results
-     
-def full_compare(emb1, emb2, i):   
-	res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
-					   bfactor=3, 
-					   gap_opening=args.GAP_OPEN,
-					   gap_extension=args.GAP_EXT,
-					   sigma_factor=args.SIGMA_FACTOR)
 
+def full_compare(emb1, emb2, i):
+	global module
+	res = module.embedding_to_span(emb1, emb2)
 	if len(res)>0:
 		if res.score.max() >= args.ALN_CUT:
 			# add referece index to each hit
 			res['i'] = i
-		
 			# filter out redundant hits
 			res = aln.postprocess.filter_result_dataframe(res)
-		
 			return res
-		
-	return []
+	else:
+		return []
     
 def calc_con(s1, s2):
 	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
@@ -167,7 +146,6 @@ def calc_ident(s1, s2):
     return np.mean(res)     
     
 ### MAIN
-
 # read database 
 db_index = args.db+'.csv'
 db_emb = args.db+'.pt_emb.p'
@@ -209,22 +187,30 @@ if cos_count==0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
+
+module = aln.base.Extractor()
+module.MIN_SPAN_LEN = args.MIN_SPAN_LEN
+module.WINDOW_SIZE = args.WINDOW_SIZE
+module.BFACTOR = 3
+module.SIGMA_FACTOR = args.SIGMA_FACTOR
+module.GAP_OPEN = args.GAP_OPEN
+module.GAP_EXT = args.GAP_EXT
 # Multi-CPU search
 with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
-    iter_id = 0
-    job_stack = {}
-    records_stack = []
+	iter_id = 0
+	job_stack = {}
+	records_stack = []
+	for i in np.where(cos_sim >= defined_COS_CUT)[0]:
+		job = executor.submit(full_compare, query_emb, db_embs[i], i)
+		job_stack[job] = iter_id
 
-    for i in np.where(cos_sim >= defined_COS_CUT)[0]:
-            job = executor.submit(full_compare, query_emb, db_embs[i], i)
-            job_stack[job] = iter_id
-    
-    with tqdm(total=len(job_stack)) as progress_bar:
-        for job in concurrent.futures.as_completed(job_stack):
-            res = job.result()
-            if len(res) > 0:
-            	records_stack.append(res)
-            progress_bar.update(1)
+	with tqdm(total=len(job_stack)) as progress_bar:
+		for job in concurrent.futures.as_completed(job_stack):
+			res = job.result()
+			if len(res) > 0:
+				records_stack.append(res)
+			progress_bar.update(1)
+			gc.collect()
 
 # Prepare output
 if len(records_stack)==0:

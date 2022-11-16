@@ -27,6 +27,7 @@ OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
 
+mkdir -p $OUTDIR
 if [ ! -f $QUERY_INDEX ]; then
 	# calculate query embedding
 	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX

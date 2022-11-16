@@ -18,7 +18,9 @@ class Extractor:
     LIMIT_RECORDS: int = 20
     BFACTOR: float = 1
     SIGMA_FACTOR: float = 1
-    def __init__(self):
+    GAP_OPEN: float = 0
+    GAP_EXT: float = 0
+    def __init__(self, *args, **kw_args):
         pass
 
     def nested_frame_generator(self, dataframe: pd.DataFrame, embeddings: List[torch.Tensor]) \
@@ -45,7 +47,9 @@ class Extractor:
         paths = gather_all_paths(densitymap,
          norm=self.NORM,
         minlen=self.MIN_SPAN_LEN,
-        bfactor=self.BFACTOR)
+        bfactor=self.BFACTOR,
+        gap_opening=self.GAP_OPEN,
+        gap_extension=self.GAP_EXT)
         results = search_paths(densitymap, 
             paths=paths,
             window=self.WINDOW_SIZE,
