@@ -17,12 +17,8 @@ import alntools as aln
 
 import datetime
 
-parser = argparse.ArgumentParser(description =  
-	"""
-	Searches a database of embeddings with a query embedding
-	""",
-	formatter_class=argparse.RawDescriptionHelpFormatter
-	)
+### FUNCTIONS
+
 
 
 def range_limited_float_type(arg, MIN, MAX):
@@ -95,52 +91,24 @@ def get_parser():
 	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
 	assert args.MAX_TARGETS > 0
 	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
-	assert args.COS_SIM_CUT!=None or args.COS_PER_CUT!=None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
+	assert args.COS_SIM_CUT != None or args.COS_PER_CUT != None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
 
 	return args
-
-args = get_parser()
-### FUNCTIONS
 
 def check(df, embs):
     for seq, emb in zip(df.sequence.tolist(), embs):
         assert len(seq) == len(emb), 'index and embeddings files differ'
 
-def compare(emb1, emb2, window=1, min_span=15, bfactor=3, gap_opening=0, gap_extension=0, sigma_factor=1):
-    
-    densitymap = ds.embedding_similarity(emb1, emb2)
-    arr = densitymap.cpu().numpy()
-    
-    paths = aln.alignment.gather_all_paths(densitymap, bfactor=bfactor, 
-                                           gap_opening=gap_opening, 
-                                           gap_extension=gap_extension)
-    
-    spans_locations = aln.prepare.search_paths(arr,
-                                                paths=paths,
-                                                window=window,
-                                                sigma_factor=sigma_factor,
-                                                min_span=min_span)
-    results = pd.DataFrame(spans_locations.values())
-    
-    return results
-     
-def full_compare(emb1, emb2, i):   
-	res = compare(emb1, emb2, window=args.WIN, min_span=args.SPAN, 
-					   bfactor=3, 
-					   gap_opening=args.GAP_OPEN,
-					   gap_extension=args.GAP_EXT,
-					   sigma_factor=args.SIGMA_FACTOR)
-
-	if len(res)>0:
+def full_compare(emb1, emb2, i):
+	global module   
+	res = module.embedding_to_span(emb1, emb2)
+	if len(res) > 0:
 		if res.score.max() >= args.ALN_CUT:
 			# add referece index to each hit
 			res['i'] = i
-		
 			# filter out redundant hits
 			res = aln.postprocess.filter_result_dataframe(res)
-		
 			return res
-		
 	return []
     
 def calc_con(s1, s2):
@@ -176,6 +144,16 @@ def calc_ident(s1, s2):
     res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
     return np.mean(res)     
     
+
+args = get_parser()
+module = aln.base.Extractor()
+module.SIGMA_FACTOR = args.SIGMA_FACTOR
+module.WINDOW_SIZE = args.WINDOW_SIZE
+module.GAP_OPEN = args.GAP_OPEN
+module.GAP_EXT = args.GAP_EXT
+module.BFACTOR = 1
+
+
 ### MAIN
 
 # read database 
@@ -207,7 +185,6 @@ all_embs = [i.mean(0) for i in db_embs]
 query_emb_mean = query_emb.mean(0)
 cos_sim = [cosine_similarity(query_emb_mean, emb, dim=0).item() for emb in all_embs]
 cos_sim = np.asarray(cos_sim)
-print('cos sim shape', cos_sim.shape)
 
 if args.COS_PER_CUT:
 	defined_COS_CUT = np.percentile(cos_sim, float(args.COS_PER_CUT))
