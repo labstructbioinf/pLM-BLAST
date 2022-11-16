@@ -216,11 +216,11 @@ if cos_count==0:
 # Multi-CPU search
 time_start = datetime.datetime.now()
 
-
 iter_id = 0
 records_stack = []
 indices = np.where(cos_sim >= defined_COS_CUT)[0]
 
+# batching 
 #num_indices = indices.size
 #batch_size = 200 # 10*args.MAX_WORKERS
 #num_batch = max(math.floor(num_indices/batch_size), 1)
@@ -230,20 +230,20 @@ indices = np.where(cos_sim >= defined_COS_CUT)[0]
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
 
-		job_stack = {}
-						
-		for i in indices:
-			job = executor.submit(full_compare, query_emb, db_embs[i], i)
-			job_stack[job] = iter_id
-	
-		with tqdm(total=len(indices)) as progress_bar:
-			for job in concurrent.futures.as_completed(job_stack):
-				res = job.result()
-				if len(res) > 0:
-					records_stack.append(res)
-				progress_bar.update(1)
+	job_stack = {}
+					
+	for i in indices: # use chunk for batching
+		job = executor.submit(full_compare, query_emb, db_embs[i], i)
+		job_stack[job] = iter_id
 
-gc.collect()
+	with tqdm(total=len(indices)) as progress_bar:
+		for job in concurrent.futures.as_completed(job_stack):
+			res = job.result()
+			if len(res) > 0:
+				records_stack.append(res)
+			progress_bar.update(1)
+
+	gc.collect()
 		
 time_end = datetime.datetime.now()
 
