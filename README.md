@@ -75,7 +75,6 @@ results = aln.postprocess.filter_result_dataframe(results)
 ```
 
 
-
 ### params explanation
 
 `window` - width of moving average sliding window when extracting alignment from the path. Kind of scale parameter - the bigger the window the wider context of the alignment etc. Different window values will lead to various results. 
