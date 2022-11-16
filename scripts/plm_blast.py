@@ -7,10 +7,8 @@ import math
 
 import pandas as pd
 import numpy as np
-
 import torch
-from sklearn.metrics.pairwise import cosine_similarity
-
+from torch.nn.functional import cosine_similarity
 from tqdm import tqdm
 
 from Bio.Align import substitution_matrices
@@ -87,7 +85,7 @@ def get_parser():
 						type=float, default=0, dest='GAP_EXT')				    
 
 	args = parser.parse_args()
-
+	# validate provided parameters
 	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
 	assert args.MAX_TARGETS > 0
 	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
@@ -167,15 +165,19 @@ query_emb = args.query+'.pt_emb.p'
 print('Loading query...')
 query_df = pd.read_csv(query_index)
 query_embs = torch.load(query_emb)
-assert len(query_embs)==1
+assert len(query_embs) == 1
 query_emb = query_embs[0]
 query_seq = query_df.iloc[0].sequence
 print(f'query sequence length is {len(query_seq)}')
 check(query_df, query_embs)
 
 # Cosine similarity pre-screening
-all_embs = np.array([i.numpy().mean(0) for i in db_embs])
-cos_sim = cosine_similarity(query_emb.numpy().mean(0).reshape(1, -1), all_embs)[0]
+print("cosine similarity pre-screening")
+all_embs = [i.mean(0) for i in db_embs]
+query_emb_mean = query_emb.mean(0)
+cos_sim = [cosine_similarity(query_emb_mean, emb, dim=0).item() for emb in all_embs]
+cos_sim = np.asarray(cos_sim)
+print('cos sim shape', cos_sim.shape)
 
 if args.COS_PER_CUT:
 	defined_COS_CUT = np.percentile(cos_sim, float(args.COS_PER_CUT))
@@ -187,7 +189,7 @@ print(f'using {np.round(defined_COS_CUT, 2)} cosine similarity cut-off')
 cos_count = np.sum(cos_sim >= defined_COS_CUT)
 print(f'{cos_count} hits after pre-filtering')
 
-if cos_count==0:
+if cos_count == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
@@ -200,21 +202,28 @@ module.SIGMA_FACTOR = args.SIGMA_FACTOR
 module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
 
+
+iter_id = 0
+records_stack = []
+indices = np.flatnonzero(cos_sim >= defined_COS_CUT)
+num_indices = indices.size
+batch_start = 0
+batch_size = 20*args.MAX_WORKERS
+batch_size = min(300, batch_size)
+num_batch = max(math.floor(num_indices/batch_size), 1)
 # Multi-CPU search
-with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
-	iter_id = 0
-	job_stack = {}
-	records_stack = []
-	indices = np.where(cos_sim >= defined_COS_CUT).ravel()
-	num_indices = indices.size
-	batch_start = 0
-	batch_size = 10*args.MAX_WORKERS
-	num_batch = max(math.floor(num_indices/batch_size), 1)
-	with tqdm(total=num_indices) as progress_bar:
-		for batch_start in range(0, num_batch):
-			batch_start = batch_start*batch_size
-			# submit a batch of jobs
-			for i in slice(indices, batch_start, batch_start + batch_size):
+with tqdm(total=num_indices) as progress_bar:
+	for batch_start in range(0, num_batch):
+		batch_start_idx = batch_start*batch_size
+		batch_end_idx = batch_start_idx + batch_size
+		# batch indices should not exeed num_indices
+		batch_end_idx = min(batch_end_idx, num_indices)
+		# submit a batch of jobs
+		# concurrent poolexecutor may spawn to many processes which will lead 
+		# to OS error batching should fix this issue
+		job_stack = {}
+		with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
+			for i in indices[batch_start_idx:batch_end_idx]:
 				job = executor.submit(full_compare, query_emb, db_embs[i], i)
 				job_stack[job] = iter_id
 				for job in concurrent.futures.as_completed(job_stack):
@@ -222,7 +231,7 @@ with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as exe
 					if len(res) > 0:
 						records_stack.append(res)
 					progress_bar.update(1)
-					gc.collect()
+		gc.collect()
 
 
 # Prepare output

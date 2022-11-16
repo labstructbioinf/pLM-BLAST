@@ -30,9 +30,10 @@ DB_PATH="/home/nfs/sdunin/db/localaln/ecod70db_20220902"
 NUM_WORKERS=6
 
 mkdir -p $OUTDIR
-if [ ! -f $QUERY_INDEX ]; then
-	# calculate query embedding
-	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX
+
+if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
+	echo "calculate query embedding"
+	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p
 fi
 
 if [ ! -f $OUTFILE ]; then

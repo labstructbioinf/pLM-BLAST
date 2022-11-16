@@ -24,7 +24,7 @@ parser.add_argument('query_index_file', help='output index CSV',
 args = parser.parse_args()
 
 seqs = list(SeqIO.parse(args.query_file, 'fasta'))
-assert len(seqs)==1, 'please provide a FASTA file with 1 sequence'
+assert len(seqs) == 1, 'please provide a FASTA file with 1 sequence'
 seq = seqs[0]
 
 df = pd.DataFrame([[seq.description, seq.seq]], columns=['desc', 'sequence'])
