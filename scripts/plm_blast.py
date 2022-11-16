@@ -226,11 +226,11 @@ with tqdm(total=num_indices) as progress_bar:
 			for i in indices[batch_start_idx:batch_end_idx]:
 				job = executor.submit(full_compare, query_emb, db_embs[i], i)
 				job_stack[job] = iter_id
-				for job in concurrent.futures.as_completed(job_stack):
-					res = job.result()
-					if len(res) > 0:
-						records_stack.append(res)
-					progress_bar.update(1)
+			for job in concurrent.futures.as_completed(job_stack):
+				res = job.result()
+				if len(res) > 0:
+					records_stack.append(res)
+				progress_bar.update(1)
 		gc.collect()
 		
 time_end = datetime.datetime.now()
