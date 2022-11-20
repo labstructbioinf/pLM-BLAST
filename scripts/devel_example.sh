@@ -26,12 +26,13 @@ QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
-NUM_WORKERS=5
+NUM_WORKERS=20
 
 mkdir -p $OUTDIR
-if [ ! -f $QUERY_INDEX ]; then
-	# calculate query embedding
-	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX
+
+if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
+	echo "calculate query embedding"
+	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p
 fi
 
 if [ ! -f $OUTFILE ]; then
@@ -52,3 +53,4 @@ python merge.py $OUTFILE $OUTFILE_MERGED -score 0.35 # 0.39
 # plot hits
 python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod
 python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_qend_ecod.png -mode qend -ecod
+

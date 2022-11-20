@@ -55,6 +55,6 @@ class Extractor:
             window=self.WINDOW_SIZE,
             min_span=self.MIN_SPAN_LEN,
             sigma_factor=self.SIGMA_FACTOR,
-            as_df=True)
+            as_df=False)
 
         return results
