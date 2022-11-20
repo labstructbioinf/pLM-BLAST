@@ -56,25 +56,19 @@ Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude
 To search a pre-calculated or custom database, follow `scripts/example.sh` 
 
 ### Use in Python
-All steps at once:
-```python
+```
 import torch
 import alntools as aln
+from alntools.base import Extractor
+import pandas as pd
 
-# only embeddings are needed
-emb_file = ...# file in which embeddings are stored
-# load both
+# load the embedding; for the embedding calculation, refer to `scripts/example.sh`
+emb_file = './scripts/output/A9A4Y8.pt_emb.p'
 embs = torch.load(emb_file)
-seq1_emb, seq2_emb = embs[0], embs[1]
 
-# all at once 
-extractor = aln.Extractor()
-results = extractor.embedding_to_span(seq1_emb, seq2_emb)
-# remove redundant hits                                                    
-results = aln.postprocess.filter_result_dataframe(results)
-```
-Step by step:
-```python
+# a self-comparison will be performed
+seq1_emb, seq2_emb = embs[0], embs[0]
+
 # calculate embedding similarity aka substitution matrix
 densitymap = aln.density.embedding_similarity(seq1_emb, seq2_emb)
 # convert to numpy array
@@ -83,7 +77,7 @@ densitymap = densitymap.cpu().numpy()
 paths = aln.alignment.gather_all_paths(densitymap)
 # score those paths
 results = aln.prepare.search_paths(densitymap, paths=paths, as_df=True)
-# remove redundant hits                                                 
+# remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results)
 ```
 
