@@ -1,11 +1,5 @@
 #!/bin/bash
 
-set -e
-# limit threads for numba/numpy/torch
-export MKL_NUM_THREADS=1
-export NUMEXPR_NUM_THREADS=1
-export OMP_NUM_THREADS=1
-
 # Databases comprise two files, an index file (.csv) containing sequences and their descriptions,
 # and an embeddings file (.pt_emb.p) containing PT5 embeddings of sequences listed in the index.
 
@@ -33,6 +27,12 @@ if [ ! -f $QUERY_INDEX ]; then
 	# calculate query embedding
 	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX
 fi
+
+set -e
+# limit threads for numba/numpy/torch
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database

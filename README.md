@@ -13,7 +13,7 @@ For the local use, please use the requirements.txt file to create a new conda en
 conda create --name <env> --file requirements.txt
 ```
 
-Alternatively, the packages listed below can be installed manyally: 
+Alternatively, the packages listed below can be installed manually: 
 ```
 python==3.9
 pandas
@@ -27,8 +27,10 @@ sentencepiece
 matplotlib
 ```
 
-## usage
-### get embeddings
+## Usage
+### Databases
+
+Pre-calculated databases can be downloaded from (http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs)
 
 obtain sequence embeddings from dataframe
 use `-cname` to specify in which column residue sequence is stored (default `seq`)  \
