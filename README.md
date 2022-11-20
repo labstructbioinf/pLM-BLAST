@@ -49,7 +49,7 @@ Index can be generated from a FASTA file using `scripts/makeindex.py`.
 
 Use `-cname` to specify in which column of the `database.csv` file sequences are stored \
 The resulting embeddings will be stored in `database.pt_emb.p` \
-Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower) \
+Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower)
 
 ### Searching a database
 
