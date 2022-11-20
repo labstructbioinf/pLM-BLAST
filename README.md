@@ -1,21 +1,30 @@
-# plm-Blast
+# pLM-BLAST
 
-A New homology detection tool, utilizing protein language models. Uses a variation of Smith-Waterman algorithm over embedding based per-residue scoring matrix as a replacement for non-contexutal BLOSUM matrix. Algorithm can run on any embeddings represented as (seqlen, embsize) matrix. User can use custom embedders.
+pLM-BLAST is a sensitive remote homology detection tool that is based on the comparison of residue embeddings obtained from the protein language model ProtTrans5. It is available as a standalone package as well as an easy-to-use web server within the MPI Bioinformatics Toolkit, where several precomputed databases (e.g., ECOD, InterPro, and PDB) can be searched.
 
-## TOC
-* [ installation ](#installation)
-* [ usage ](#usage)
-* [ params explanation ](#params-explanation)
+## Table of contents
+* [ Installation ](#Installation)
+* [ Usage ](#usage)
+* [ Parameters ](#params-explanation)
 
-## installation
-Package dependencies are minimal, there is no heavy embedding package inside. All models are downloaded on the fly from torch.hub (#https://pytorch.org/docs/stable/hub.html#loading-models-from-hub) or transformer package.
-requirements: 
+## Installation
+For the local use, please use the requirements.txt file to create a new conda environment:
 ```
-pytorch
-transformers # for prottrans models
+conda create --name <env> --file requirements.txt
+```
+
+Alternatively, the packages listed below can be installed manyally: 
+```
+python==3.9
 pandas
-numpy
+pytorch
+scikit-learn
+biopython 
+tqdm
 numba
+transformers
+sentencepiece 
+matplotlib
 ```
 
 ## usage
