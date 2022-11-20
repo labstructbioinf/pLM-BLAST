@@ -4,13 +4,13 @@ pLM-BLAST is a sensitive remote homology detection tool that is based on the com
 
 ## Table of contents
 * [ Installation ](#Installation)
-* [ Usage ](#usage)
-* [ Parameters ](#params-explanation)
+* [ Usage ](#Usage)
+* [ Remarks ](#Remarks)
 
 ## Installation
 For the local use, use the requirements.txt file to create a new conda environment:
 ```
-conda create --name <env> --file requirements.txt
+conda create --name plm-blast --file requirements.txt
 ```
 
 Alternatively, the packages listed below can be installed manually: 
@@ -36,7 +36,7 @@ Pre-calculated databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/
 embeddings.py -embedder pt -cname column_name database.csv database.pt_emb.p --gpu
 ```
 
-`database.csv` is an index file defining sequences and their descriptions. For example, the first lines of the ECOD database:
+`database.csv` is an index file defining sequences and their descriptions. For example, the first lines of the ECOD database index are:
 
 ```
 ,id,description,sequence
@@ -45,22 +45,18 @@ embeddings.py -embedder pt -cname column_name database.csv database.pt_emb.p --g
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
-Use `-cname` to specify in which column of the `database.csv` file sequences are stored \ 
+Index can be generated from a FASTA file using `scripts/makeindex.py`. 
+
+Use `-cname` to specify in which column of the `database.csv` file sequences are stored \
 The resulting embeddings will be stored in `database.pt_emb.p` \
 Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower) \
 
-### other embeddings
+### Searching a database
 
-Method will work on any sequence based embeddings which can be converted to (n,m) array. To utilize other embedders store them as a python list of `torch.FloatTensor`, above examples should work with them as well.
+To search a pre-calculated or custom database, follow `scripts/example.sh` 
 
-
-### scripts
-When precalculed embeddings are available use the above
-* query - database search `scripts/example.sh`
-* all vs all search based on input dataframe and embeddings `scripts/search_frame.py`
-
-### use in python
-all steps at once
+### Use in Python
+All steps at once:
 ```python
 import torch
 import alntools as aln
@@ -77,7 +73,7 @@ results = extractor.embedding_to_span(seq1_emb, seq2_emb)
 # remove redundant hits                                                    
 results = aln.postprocess.filter_result_dataframe(results)
 ```
-step by step
+Step by step:
 ```python
 # calculate embedding similarity aka substitution matrix
 densitymap = aln.density.embedding_similarity(seq1_emb, seq2_emb)
@@ -91,20 +87,19 @@ results = aln.prepare.search_paths(densitymap, paths=paths, as_df=True)
 results = aln.postprocess.filter_result_dataframe(results)
 ```
 
+## Remarks
 
-### params explanation
+### How to cite?
+If you find the `pLM-BLAST` useful, please cite the preprint:
 
-`window` - width of moving average sliding window when extracting alignment from the path. Kind of scale parameter - the bigger the window the wider context of the alignment etc. Different window values will lead to various results. 
+"*pLM-BLAST – distant homology detection based on protein language models*" \
+Kamil Kaminski, Jan Ludwiczak, Vikram Alva, and Stanislaw Dunin-Horkawicz \
+bioRxiv ... \
 
-`min_span` - minimal width of the captured alignment, values below window - don't make sense.
+### Contact
+If you have any questions, problems or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
 
-`bfactor` - reside step when extracting paths, values should be integers bigger than zero. Because embedding values are continuous and embedding similarities are rather smooth there is no need in extracting a path from each possible alignment because close residues will generate almost the same alignments. For large scale runs bfactor > 1 will should improve speed.
-
-**not well tested yet**  \
-`gap_opening` - penalty for gap opening while generating path, this is one to one factor that is added function which defines route.
-
-`gap_extension` - multiplicative factor penalizing gap prolongation, the bigger values the bigger penalty for creating long gaps etc.
-
-
+### Funding
+This work was supported by the First TEAM program of the Foundation for Polish Science co-financed by the European Union under the European Regional Development Fund.
 
 

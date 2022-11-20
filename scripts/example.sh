@@ -47,7 +47,7 @@ fi
 
 # pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
 # with a single database sequence; additionally, a more strict score cut-off is used
-python merge.py $OUTFILE $OUTFILE_MERGED -score 0.35 # 0.39
+python merge.py $OUTFILE $OUTFILE_MERGED -score 0.35
 
 # plot hits
 python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod
