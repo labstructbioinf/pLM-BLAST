@@ -113,5 +113,5 @@ mhits_df = mhits_df.sort_values(by='score', ascending=False)
 mhits_df.drop(columns=['index'], inplace=True)
 mhits_df.index = np.arange(1,len(mhits_df)+1)
 mhits_df.index.name = 'index'
-mhits_df.to_csv(args.new_csv)
+mhits_df.to_csv(args.new_csv, sep=';')
 
