@@ -8,7 +8,7 @@ pLM-BLAST is a sensitive remote homology detection tool that is based on the com
 * [ Parameters ](#params-explanation)
 
 ## Installation
-For the local use, please use the requirements.txt file to create a new conda environment:
+For the local use, use the requirements.txt file to create a new conda environment:
 ```
 conda create --name <env> --file requirements.txt
 ```
@@ -30,18 +30,24 @@ matplotlib
 ## Usage
 ### Databases
 
-Pre-calculated databases can be downloaded from (http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs)
+Pre-calculated databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. To create a custom database, use `embeddings.py` script:
 
-obtain sequence embeddings from dataframe
-use `-cname` to specify in which column residue sequence is stored (default `seq`)  \
-use `-embedder` to tell which embedder to use, it will be automatically downloaded if nessesery
-specify it's full name or set `pt` for `prot_t5_xl_half_uniref50-enc` and `esm` for `esm2_t33_650M_UR50D`  \
-use `-gpu` to utilize cuda device is available  \
-example
-```bash
-python embeddings.py seq.csv seq.emb -cname sequence
 ```
-Type `-h` for more detail description
+embeddings.py -embedder pt -cname column_name database.csv database.pt_emb.p --gpu
+```
+
+`database.csv` is an index file defining sequences and their descriptions. For example, the first lines of the ECOD database:
+
+```
+,id,description,sequence
+0,ECOD_000151743_e4aybQ1,"ECOD_000151743_e4aybQ1 | 4146.1.1.2 | 4AYB Q:33-82 | A: alpha bundles, X: NO_X_NAME, H: NO_H_NAME, T: YqgQ-like, F: RNA_pol_Rpo13 | Protein: DNA-DIRECTED RNA POLYMERASE",FPKLSIQDIELLMKNTEIWDNLLNGKISVDEAKRLFEDNYKDYEKRDSRR
+1,ECOD_000399743_e3nmdE1,"ECOD_000399743_e3nmdE1 | 5027.1.1.3 | 3NMD E:3-53 | A: extended segments, X: NO_X_NAME, H: NO_H_NAME, T: Preprotein translocase SecE subunit, F: DD_cGKI-beta | Protein: cGMP Dependent PRotein Kinase",LRDLQYALQEKIEELRQRDALIDELELELDQKDELIQMLQNELDKYRSVI
+2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
+```
+
+Use `-cname` to specify in which column of the `database.csv` file sequences are stored \ 
+The resulting embeddings will be stored in `database.pt_emb.p` \
+Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower) \
 
 ### other embeddings
 
