@@ -266,6 +266,9 @@ else:
 
 		res_df['sid'] = res_df['i'].apply(lambda i:db_df.iloc[i]['id'])
 		res_df['sdesc'] = res_df['i'].apply(lambda i:db_df.iloc[i]['description'])
+		res_df['tlen'] = res_df['i'].apply(lambda i:len(db_df.iloc[i]['sequence']))
+		res_df['qlen'] = len(query_seq)
+		
 		res_df['qstart'] = res_df['indices'].apply(lambda i:i[0][1])
 		res_df['qend'] = res_df['indices'].apply(lambda i:i[-1][1])
 		res_df['tstart'] = res_df['indices'].apply(lambda i:i[0][0])
@@ -274,7 +277,6 @@ else:
 		assert all(res_df['qstart'].apply(lambda i: i <= len(query_seq)-1))
 		assert all(res_df['qend'].apply(lambda i: i <= len(query_seq)-1))
 
-	
 		res_df.sort_values(by='score', ascending=False, inplace=True)
 		res_df.reset_index(inplace=True)
 
@@ -297,10 +299,10 @@ else:
 		res_df.index.name = 'index'
  
 		# order columns
-		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend']]
+		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen']]
 	
 		# clip df
 		res_df = res_df.head(args.MAX_TARGETS)
 	
 		# save
-		res_df.to_csv(args.output)
+		res_df.to_csv(args.output, sep=';')

@@ -21,10 +21,8 @@ parser.add_argument('-score', help='score cut-off',
 				
 args = parser.parse_args()
 
-
-
 # get data
-hits_df = pd.read_csv(args.csv)
+hits_df = pd.read_csv(args.csv, sep=';')
 hits_df = hits_df[hits_df.score>=args.score]
 print(f'{len(hits_df)} hits after applying {args.score} score cut-off')
 
@@ -49,7 +47,9 @@ def merge(current_subg):
 				'',
 				'',
 				first_subg.tstart,
-				last_subg.tend
+				last_subg.tend,
+				first_subg.tlen,
+				first_subg.qlen
 						], dtype=object)
 						
 	return new_subg
