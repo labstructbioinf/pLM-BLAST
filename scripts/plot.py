@@ -1,4 +1,4 @@
-import argparse
+import argparse, os
 import pandas as pd
 import matplotlib.pylab as pl
 import matplotlib.patches as mpatches
@@ -101,8 +101,6 @@ tick_font_size = 10 # 10
 label_font_size = 12 # 9
 bar_size = 5 # 5
 
-fig, ax = pl.subplots(1, 1, figsize=(10, len(hits_df)*(bar_size*2)/100), dpi=200)
-
 if args.mode == 'score':
 	by = 'score'
 	a = False
@@ -119,6 +117,8 @@ assert all(hits_idx_sorted.qstart>=0)
 
 pos=0
 lastend=0
+
+rows=[]
 
 for _ in range(len(hits_idx_sorted)):
 	
@@ -141,12 +141,19 @@ for _ in range(len(hits_idx_sorted)):
 		c = (next_hit.score - hits_idx_sorted.score.min()) / (hits_idx_sorted.score.max() - hits_idx_sorted.score.min())
 		a = {"color":cmap(c)}
 	
-	# solid_capstyle='round'
-	ax.plot([next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], lw=bar_size, **a)
+	# 
+	
+	rows.append([[next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], a])
 	
 	hits_idx_sorted.at[next_hit.name, 'done'] = True
 	if hits_idx_sorted.done.all(): break
 
+total_pos = pos
+
+fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*4)/100), dpi=100)
+
+for row in rows:
+	ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2]) #solid_capstyle='round')
 
 ax.spines.top.set_visible(False)
 ax.spines.left.set_visible(False)
@@ -158,12 +165,22 @@ if args.mode in ['qend', 'qstart', 'score']:
 #	order = order[::-1]
 ax.set_xlim(0, len(query_seq)+1)
 ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
+axbox = ax.get_position()
+
+fig.gca().axes.get_yaxis().set_visible(False)
+fig.savefig(args.output, bbox_inches='tight')
+
+fig, ax = pl.subplots(1, 1, figsize=(10,10), dpi=100)
+pl.axis('off')
 
 if args.ecod:
 	h = [mpatches.Patch(color=colors[d], label=d) for d in order]  
-	pl.legend(handles=h, loc='upper center', bbox_to_anchor=(0.5, -0.15), fontsize=label_font_size,
-	shadow=False)
+	legend = fig.legend(handles=h, shadow=False, fontsize=label_font_size, frameon=False)
 	
-pl.gca().axes.get_yaxis().set_visible(False)
-pl.savefig(args.output, bbox_inches='tight')
+def export_legend(legend, filename="legend.png"):
+    fig  = legend.figure
+    fig.canvas.draw()
+    bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
+export_legend(legend, filename=os.path.splitext(args.output)[0]+'.legend.png')
