@@ -20,7 +20,7 @@ def test_embedding_generation(embedder, truncate):
     stderr=subprocess.PIPE,
     stdout=subprocess.PIPE)
     # check output
-    assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT}'
+    assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
     os.remove(EMBEDDING_OUTPUT)
     assert proc.returncode == 0, proc.stderr
 

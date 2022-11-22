@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import cosine_similarity
 
 torch.set_num_threads(1)
 @torch.jit.script
@@ -21,3 +22,15 @@ def embedding_similarity(X: torch.Tensor, Y: torch.Tensor) -> torch.Tensor:
     density = torch.matmul(emb1_normed, emb2_normed.T).T
 
     return density
+
+
+def cosim_query_db(query_emb : torch.Tensor, db_emb : torch.Tensor):
+
+    '''
+    Args:
+        query_emb: (torch.FloatTensor)
+        db_emb: (torch.FloatTensor)
+    '''
+    score = cosine_similarity(query_emb.view(-1, 1), db_emb)
+    score = score.numpy()
+    return score
