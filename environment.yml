@@ -1,0 +1,13 @@
+name: plmblast3
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas
+  - pytorch
+  - tqdm
+  - biopython
+  - numba
+  - transformers
+  - matplotlib
+  - sentencepiece

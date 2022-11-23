@@ -13,6 +13,11 @@ __pycache__/
 **.emb.*
 **.emb*
 
+# temp logs
+**.txt
+**.logs
+
+
 /*.csv
 /*.p
 **.txt

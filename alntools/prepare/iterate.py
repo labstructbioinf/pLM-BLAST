@@ -25,7 +25,7 @@ def mask_like(densitymap: np.array,
     return mask
 
 
-def search_paths(score_matrix: np.ndarray,
+def search_paths(submatrix: np.ndarray,
                 paths: Tuple[list, list],
                 window: int = 10,
                 min_span: int = 10,
@@ -34,26 +34,26 @@ def search_paths(score_matrix: np.ndarray,
     '''
     iterate over all paths and search for routes matching alignmnet criteria
     Args:
-        substitutionmatrix: (np.ndarray) score matrix
+        submatrix: (np.ndarray) score matrix
         paths: (list) list of paths to scan
         window: (int) size of moving average window
         min_span: (int) minimal length of alignment to collect
         as_df: (bool) when True, instead of dictionary dataframe is returned
-        
     Returns:
         record: (dict) alignment paths
     '''
     
-    assert isinstance(score_matrix, np.ndarray)
+    assert isinstance(submatrix, np.ndarray)
     assert isinstance(paths, list)
     assert isinstance(window, int) and window > 0
     assert isinstance(min_span, int) and min_span > -1
     assert isinstance(sigma_factor, (int, float))
+    assert isinstance(as_df, bool)
 
-    if not np.issubsctype(score_matrix, np.float32):
-        score_matrix = score_matrix.astype(np.float32)
+    if not np.issubsctype(submatrix, np.float32):
+        submatrix = submatrix.astype(np.float32)
     
-    arr_sigma = score_matrix.std()
+    arr_sigma = submatrix.std()
     path_threshold = sigma_factor*arr_sigma
     spans_locations = dict()
     #iterate over all paths
@@ -64,7 +64,7 @@ def search_paths(score_matrix: np.ndarray,
             continue
         # revert indices and and split them into x, y
         y, x = diag_ind[::-1, 0].ravel(), diag_ind[::-1, 1].ravel()
-        pathvals = score_matrix[y, x].ravel()
+        pathvals = submatrix[y, x].ravel()
         # smooth values
         if window != 1:
             line_mean = move_mean(pathvals, window)
@@ -78,7 +78,7 @@ def search_paths(score_matrix: np.ndarray,
                     continue
                 y1, x1 = y[start:stop], x[start:stop]
                 arr_indices = np.stack([y1, x1], axis=1)
-                arr_values = score_matrix[y1, x1]
+                arr_values = submatrix[y1, x1]
                 keyid = f'{ipath}_{idx}'
                 spans_locations[keyid] = {
                     'pathid': ipath,
