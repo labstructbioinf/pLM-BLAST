@@ -3,7 +3,6 @@ import re
 import argparse
 import warnings
 import tempfile
-import shutil
 import gc
 
 import pandas as pd
@@ -13,6 +12,7 @@ from transformers import T5Tokenizer, T5EncoderModel
 
 from .parser import save_as_separate_files
 regex_aa = re.compile(r"[UZOB]")
+# default embedder
 EMBEDDER = 'Rostlab/prot_t5_xl_half_uniref50-enc'
 
 
@@ -31,6 +31,8 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int)
     if df.seqlens.max() > 1000:
         warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
     batch_files = []
+    if args.asdir and not os.path.isdir(args.output):
+        os.mkdir(args.output)
     with tempfile.TemporaryDirectory() as tmpdirname:
         for batch_id in tqdm(range(num_batches)):
             seqlist = []
@@ -67,20 +69,16 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int)
                 embeddings_filt.append(emb[:seq_len])
             # store each batch depending on save mode
             if args.asdir:
-                save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=tmpdirname)
+                save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
             else:
                 batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id}")
                 torch.save(embeddings_filt, batch_id_filename)
                 batch_files.append(batch_id_filename)
-        # creating output
-        if args.asdir:
-            print(f'copying embeddings to: {args.output}')
-            if not os.path.isdir(args.output):
-                os.mkdir(args.output)
-            for file in os.listdir(tmpdirname):
-                shutil.copy(src=os.path.join(tmpdirname, file), dst=os.path.join(args.output, file))
+            del embeddings
+            del embeddings_filt
+            gc.collect()
         # merge batch_data if `asdir` is false
-        else:
+        if not args.asdir:
             stack = []
             for fname in batch_files:
                 stack.extend(torch.load(fname))
