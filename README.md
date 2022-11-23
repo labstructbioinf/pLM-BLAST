@@ -8,11 +8,16 @@ pLM-BLAST is a sensitive remote homology detection tool that is based on the com
 * [ Remarks ](#Remarks)
 
 ## Installation
-For the local use, use the requirements.txt file to create a new conda environment:
-```
-conda create --name plm-blast --file requirements.txt
-```
+For the local use, use the `requirements.txt` file or `environment.yml` to create a new conda environment.  \
+**pip**
 
+```
+pip install -r requirements.txt
+```
+**conda**
+```
+conda env create -f environment.yml
+```
 Alternatively, the packages listed below can be installed manually: 
 ```
 python==3.9
