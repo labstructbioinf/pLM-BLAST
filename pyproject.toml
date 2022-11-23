@@ -1,0 +1,28 @@
+[project]
+name = "plm-Blast"
+version = "0.0.1"
+authors = [
+  { name="Stanisław Dunin-Horkawicz", email="s.dunin-horkawicz@cent.uw.edu.pl" },
+  { name="Kamil Kamiński", email="k.kaminski16@uw.edu.pl"}
+]
+description = "plm-Blast package a tool for aligning sequence based language model potein representation"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "LICENSE.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/labstructbioinf/pLM-BLAST"
+"Bug Tracker" = "https://github.com/labstructbioinf/pLM-BLAST/issues"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+python_files = "test_*"
+pythonpath = "tests"
+testpaths = [
+    "tests",
+]
