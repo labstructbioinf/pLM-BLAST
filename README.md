@@ -91,7 +91,7 @@ results = aln.postprocess.filter_result_dataframe(results)
 ### How to cite?
 If you find the `pLM-BLAST` useful, please cite the preprint:
 
-"*pLM-BLAST – distant homology detection based on protein language models*" \
+"*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Vikram Alva, and Stanislaw Dunin-Horkawicz \
 bioRxiv ... 
 
