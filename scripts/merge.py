@@ -30,26 +30,33 @@ print(f'{len(hits_df)} hits after applying {args.score} score cut-off')
 # merge
 def merge(current_subg):
 
+	seq_spacer = '~~~~~'
+
 	first_subg = current_subg[0]
 	last_subg = current_subg[-1]
 
 	print(f'merging {len(current_subg)} hits to {first_subg.sid}')
 
+	# score;ident;similarity;sid;sdesc;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len
+
 	new_subg = np.array([0,
 				np.mean([i.score for i in current_subg]),
-				0,
-				0,
+				np.mean([i.ident for i in current_subg]),
+				np.mean([i.similarity for i in current_subg]),
 				first_subg.sid,
 				first_subg.sdesc,
 				first_subg.qstart,
 				last_subg.qend,
-				'',
-				'',
-				'',
+				seq_spacer.join([i.qseq for i in current_subg]),
+				(" "*len(seq_spacer)).join([i.con for i in current_subg]),
+				seq_spacer.join([i.tseq for i in current_subg]),
 				first_subg.tstart,
 				last_subg.tend,
 				first_subg.tlen,
-				first_subg.qlen
+				first_subg.qlen,
+				last_subg.qend - first_subg.qstart + 1
+				
+				
 						], dtype=object)
 						
 	return new_subg

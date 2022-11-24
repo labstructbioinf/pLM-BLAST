@@ -84,10 +84,19 @@ if args.ecod:
 			cidx+=1
 
 		for t in g['T'].unique().tolist():
+			
+			t = idx + ' ' + t
+		
 			print(f'\t{t}')
 			assert not t in colors, t
 			colors[t] = c
 			order.append(t)
+		
+		# color by X
+		#assert not idx in colors, t
+		#colors[idx] = c
+		#order.append(idx)
+			
 	print('-'*20)
 
 	if len(colors)>20:
@@ -98,8 +107,8 @@ else:
 # PLOT
 
 tick_font_size = 10 # 10
-label_font_size = 12 # 9
-bar_size = 5 # 5
+bar_size = 10 # 5
+bar_text_size = 9
 
 if args.mode == 'score':
 	by = 'score'
@@ -134,26 +143,26 @@ for _ in range(len(hits_idx_sorted)):
 
 	next_hit = next_hit.iloc[0]
 	lastend = next_hit.qend
-		
+	
 	if args.ecod:
-		a = {"color":colors[next_hit['T']]}
+		a = {"color":colors[next_hit['X'] + ' ' + next_hit['T']]}
 	else:
 		c = (next_hit.score - hits_idx_sorted.score.min()) / (hits_idx_sorted.score.max() - hits_idx_sorted.score.min())
 		a = {"color":cmap(c)}
 	
-	# 
-	
-	rows.append([[next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], a])
+	rows.append([[next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], a, int(next_hit.name)+1])
 	
 	hits_idx_sorted.at[next_hit.name, 'done'] = True
 	if hits_idx_sorted.done.all(): break
 
 total_pos = pos
 
-fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*4)/100), dpi=100)
+fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*3)/100), dpi=100)
 
 for row in rows:
 	ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2]) #solid_capstyle='round')
+	ax.annotate(row[3], xy=(row[0][0], row[1][0]), va='center', weight='bold', fontsize = bar_text_size,
+			color='white')
 
 ax.spines.top.set_visible(False)
 ax.spines.left.set_visible(False)
@@ -162,13 +171,16 @@ ax.spines.right.set_visible(False)
 if args.mode in ['qend', 'qstart', 'score']:	
 	ax.invert_yaxis()
 
-#	order = order[::-1]
 ax.set_xlim(0, len(query_seq)+1)
 ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
 axbox = ax.get_position()
 
 fig.gca().axes.get_yaxis().set_visible(False)
 fig.savefig(args.output, bbox_inches='tight')
+
+# Generate labels
+
+label_font_size = 10
 
 fig, ax = pl.subplots(1, 1, figsize=(10,10), dpi=100)
 pl.axis('off')

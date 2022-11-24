@@ -29,7 +29,7 @@ seqs = list(SeqIO.parse(args.query_file, 'fasta'))
 assert len(seqs) == 1, 'please provide a FASTA file with 1 sequence'
 seq = seqs[0]
 
-df = pd.DataFrame([[seq.description, seq.seq]], columns=['desc', 'sequence'])
+df = pd.DataFrame([[seq.description, seq.seq.upper()]], columns=['desc', 'sequence'])
 df.set_index('desc', inplace=True)
 df.to_csv(args.query_index_file)
 
