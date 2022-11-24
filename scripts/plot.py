@@ -129,7 +129,7 @@ for _ in range(len(hits_idx_sorted)):
 	
 	while True:
 		assert not hits_idx_sorted.done.all()
-		next_hit = hits_idx_sorted[(hits_idx_sorted.qstart > lastend+1) & 
+		next_hit = hits_idx_sorted[(hits_idx_sorted.qstart >= lastend) & 
 								   (~hits_idx_sorted.done)]
 		if len(next_hit) == 0:
 			pos+=1
