@@ -9,7 +9,7 @@
 # Query sequence needs to be represented as a one-item database. To create such a query database
 # from a one-sequence FASTA file use `query_emb.py`
 
-# example cases `A9A4Y8`, `cupredoxin`
+# example cases `A9A4Y8`, `cupredoxin`, `toolkit`
 case='A9A4Y8'
 
 # data paths
@@ -19,7 +19,7 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
-DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
+DB_PATH="/ssd/users/sdunin/db/localaln/ecod30db_20220902"
 NUM_WORKERS=5
 
 mkdir -p $OUTDIR
@@ -40,14 +40,14 @@ if [ ! -f $OUTFILE ]; then
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
-		-cosine_percentile_cutoff 99 \
+		-cosine_percentile_cutoff 95 \
 		-alignment_cutoff 0.35 \
 		-workers $NUM_WORKERS
 fi
 
 # pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
-# with a single database sequence; additionally, a more strict score cut-off is used
-python merge.py $OUTFILE $OUTFILE_MERGED -score 0.35
+# with a single database sequence
+python merge.py $OUTFILE $OUTFILE_MERGED
 
 # plot hits
 python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod

@@ -40,9 +40,9 @@ def merge(current_subg):
 	# score;ident;similarity;sid;sdesc;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len
 
 	new_subg = np.array([0,
-				np.mean([i.score for i in current_subg]),
-				np.mean([i.ident for i in current_subg]),
-				np.mean([i.similarity for i in current_subg]),
+				np.round(np.mean([i.score for i in current_subg]), 2),
+				np.round(np.mean([i.ident for i in current_subg]), 2),
+				np.round(np.mean([i.similarity for i in current_subg]), 2),
 				first_subg.sid,
 				first_subg.sdesc,
 				first_subg.qstart,
@@ -64,9 +64,10 @@ def merge(current_subg):
 res=[]
 for gidx, g in hits_df.groupby('sid'):
 
-	# more than one hit to a target 
+	# more than one hit to a single target 
 	if len(g)>1:
-				
+			
+		# sort hits by starting position in the query	
 		g_sorted = g.sort_values(by='qstart', ascending=False).copy()
 		assert g_sorted.index.is_unique
 		g_sorted_index = g_sorted.index.to_list()
@@ -79,35 +80,47 @@ for gidx, g in hits_df.groupby('sid'):
 		current_subg = []
 		
 		while g_sorted_index:
+	
 			hit = g_sorted.loc[g_sorted_index.pop()]
-			
+	
+			# create a group for potential merging		
 			if len(current_subg)==0:
 				current_subg.append(hit)
 				continue
+			#print('\t current_subg:', [i.qstart for i in current_subg], 'hit', hit.qstart)
 			
-			#print('\t', [i.qstart for i in current_subg], hit.qstart)
+			first_subg = current_subg[0]
+			last_subg = current_subg[-1]	
 			
-			first_subg = current_subg[0]			
 			qlen = hit.qstart - first_subg.qstart
 			tlen = hit.tstart - first_subg.tstart 
+						
+			#print('\t', qlen, tlen)#, (min(qlen, tlen) / max(qlen, tlen)))
+
+			# if qlen or tlen are <0 it means that matches are not consecutive 
+			# in the query or traget sequence, respectively 
 			
-			#print('\t', qlen, tlen, (min(qlen, tlen) / max(qlen, tlen)))
+			# (hit.qstart <= last_subg.qend) and (hit.tstart <= last_subg.tend)
+			# check whether the to-be-added hit does not overlap with the previous one
 			
-			if (qlen<0 or tlen<0) or (min(qlen, tlen) / max(qlen, tlen) < 0.7):
+			# the last check stops merging if the query and traget lens differ a lot
+			
+			if (qlen<0 or tlen<0) or \
+			   (hit.qstart <= last_subg.qend) or \
+			   (hit.tstart <= last_subg.tend) or \
+			   (min(qlen, tlen) / max(qlen, tlen) < 0.7): 
+				
 				if len(current_subg) > 1:
 					res.append(merge(current_subg))
 				else:
-					#print('\twritting one')
 					res.append(current_subg[0].values)					
 				current_subg = []
 
 			current_subg.append(hit)
 		
 		if len(current_subg) > 1:
-			#print('merge post')
 			res.append(merge(current_subg))
 		else:
-			#print('\twritting one post')
 			res.append(current_subg[0])	
 				
 	else:

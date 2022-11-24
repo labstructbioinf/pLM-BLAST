@@ -19,6 +19,10 @@ for pos, (idx, row) in enumerate(df.iterrows()):
     print(f'\n\nNo {pos+1}')
     print(f'>{row.sdesc}')
     print(f'Score={row.score} Identities={round(row.ident*100)}% Similarity={round(row.similarity, 2)}\n')
+    
+    if row.qseq.find('~~~~~')>-1:
+    	print('Warning: this is a merged match. The linking points are indicated with "~~~~~"\n')
+    
     print(f'Q {row.qstart+1:>6} {row.qseq} {row.qend:<6}')
     print(f'         {row.con}')
     print(f'T {row.tstart+1:>6} {row.tseq} {row.tend:<6}')

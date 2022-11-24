@@ -281,7 +281,7 @@ else:
 		assert all(res_df['qstart'].apply(lambda i: i <= len(query_seq)-1))
 		assert all(res_df['qend'].apply(lambda i: i <= len(query_seq)-1))
 		
-		res_df['score'] = res_df['score'].apply(lambda x:np.round(x, 2))
+		res_df['score'] = res_df['score'].apply(lambda x:np.round(float(x), 2))
 
 		res_df.sort_values(by='score', ascending=False, inplace=True)
 		res_df.reset_index(inplace=True)
@@ -299,6 +299,9 @@ else:
 			res_df.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
 			res_df.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
 			res_df.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
+			
+		res_df['ident'] = res_df['ident'].apply(lambda x:np.round(float(x), 2))
+		res_df['similarity'] = res_df['similarity'].apply(lambda x:np.round(float(x), 2))
 	
 		# reset index
 		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
