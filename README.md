@@ -93,7 +93,7 @@ If you find the `pLM-BLAST` useful, please cite the preprint:
 
 "*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Vikram Alva, and Stanislaw Dunin-Horkawicz \
-bioRxiv ... 
+bioRxiv https://www.biorxiv.org/content/10.1101/2022.11.24.517862v1
 
 ### Contact
 If you have any questions, problems or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
