@@ -30,7 +30,7 @@ def search_paths(submatrix: np.ndarray,
                 window: int = 10,
                 min_span: int = 10,
                 sigma_factor: float = 1.0,
-                as_df: bool = False) -> Dict[str, Dict]:
+                as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
     '''
     iterate over all paths and search for routes matching alignmnet criteria
     Args:
@@ -38,6 +38,7 @@ def search_paths(submatrix: np.ndarray,
         paths: (list) list of paths to scan
         window: (int) size of moving average window
         min_span: (int) minimal length of alignment to collect
+        sigma_factor: (float) standard deviation threshold
         as_df: (bool) when True, instead of dictionary dataframe is returned
     Returns:
         record: (dict) alignment paths
