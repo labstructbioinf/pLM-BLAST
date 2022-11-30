@@ -56,7 +56,7 @@ def draw_alignment(coords: List[Tuple[int, int]], seq1: str, seq2: str, output: 
     last_position = coords[-1]
     lp1, lp2 = last_position[0], last_position[1]
     if lp1 >= len(seq1):
-        raise KeyError(f'mismatch between seq1 length and coords {lp1} - {len(seq1)}')
+        raise KeyError(f'mismatch between seq1 length and coords {lp1} - {len(seq1)} for seq2 {lp2} - {len(seq2)}')
     if lp2 >= len(seq2):
         raise KeyError(f'mismatch between seq1 length and coords {lp2} - {len(seq2)}')
 

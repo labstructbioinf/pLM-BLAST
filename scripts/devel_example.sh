@@ -26,7 +26,7 @@ QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
-NUM_WORKERS=20
+NUM_WORKERS=4
 
 mkdir -p $OUTDIR
 
@@ -37,7 +37,7 @@ fi
 
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database
-	python plm_blast.py \
+	python devel_plm_blast.py \
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
