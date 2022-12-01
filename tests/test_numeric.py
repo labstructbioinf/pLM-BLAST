@@ -1,11 +1,7 @@
 '''numerical function tests'''
 import os
-from xml.etree.ElementTree import TreeBuilder
 os.environ['NUMBA_DEBUGINFO'] = '1'
 os.environ['NUMBA_DISABLE_JIT'] = '1'
-import sys
-import time
-import faulthandler
 import pytest
 import numpy as np
 import torch
@@ -15,7 +11,7 @@ from alntools.numeric import find_alignment_span
 from alntools.numeric import fill_score_matrix
 from alntools.alignment import border_argmaxpool
 
-faulthandler.enable()
+
 #path are relative to project root dir
 densitymap_test = torch.load('tests/test_data/densitymap_example.pt')
 

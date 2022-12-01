@@ -20,3 +20,4 @@ def test_embedding_similarity(emb1, emb2):
     density_mask = density > 1.01
     density_over_norm = density_mask.sum()
     assert density_over_norm == 0, f'calculated density exeed cosine similarity norm in {density_over_norm} elements'
+    assert torch.isnan(density), f'nan values in density matrix'

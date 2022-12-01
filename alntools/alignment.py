@@ -213,7 +213,7 @@ def gather_all_paths(array: np.ndarray,
     find all Smith-Waterman-like paths from bottom and right edges of scoring matrix
     Args:
         array: (np.ndarray) raw subtitution matrix aka densitymap
-        norm_rows: (bool) whether to normalize array per row or per array
+        norm_rows: (bool, str) whether to normalize array per row or per array
         bfactor: (int) use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
         with_scores: (bool) if True return score matrix
     Returns:

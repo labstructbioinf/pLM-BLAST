@@ -22,7 +22,9 @@ parser.add_argument('-score', help='score cut-off',
 args = parser.parse_args()
 
 # get data
-hits_df = pd.read_csv(args.csv, sep=';')
+hits_df = pd.read_csv(args.csv, sep=',')
+if 'score' not in hits_df.columns:
+	raise KeyError('missing score column: ', hits_df.columns)
 hits_df = hits_df[hits_df.score>=args.score]
 print(f'{len(hits_df)} hits after applying {args.score} score cut-off')
 
@@ -56,36 +58,26 @@ def merge(current_subg):
 
 res=[]
 for gidx, g in hits_df.groupby('sid'):
-
 	# more than one hit to a target 
-	if len(g)>1:
-				
+	if len(g) > 1:
 		g_sorted = g.sort_values(by='qstart', ascending=False).copy()
 		assert g_sorted.index.is_unique
 		g_sorted_index = g_sorted.index.to_list()
-		
 		#print()
 		#print(g_sorted.qstart.tolist())
 		#print(g_sorted.tstart.tolist())
-		
 		# list of hits for potential merging
 		current_subg = []
-		
 		while g_sorted_index:
 			hit = g_sorted.loc[g_sorted_index.pop()]
-			
-			if len(current_subg)==0:
+			if len(current_subg) == 0:
 				current_subg.append(hit)
 				continue
-			
 			#print('\t', [i.qstart for i in current_subg], hit.qstart)
-			
 			first_subg = current_subg[0]			
 			qlen = hit.qstart - first_subg.qstart
 			tlen = hit.tstart - first_subg.tstart 
-			
 			#print('\t', qlen, tlen, (min(qlen, tlen) / max(qlen, tlen)))
-			
 			if (qlen<0 or tlen<0) or (min(qlen, tlen) / max(qlen, tlen) < 0.7):
 				if len(current_subg) > 1:
 					res.append(merge(current_subg))
@@ -93,16 +85,13 @@ for gidx, g in hits_df.groupby('sid'):
 					#print('\twritting one')
 					res.append(current_subg[0].values)					
 				current_subg = []
-
 			current_subg.append(hit)
-		
 		if len(current_subg) > 1:
 			#print('merge post')
 			res.append(merge(current_subg))
 		else:
 			#print('\twritting one post')
 			res.append(current_subg[0])	
-				
 	else:
 		for subg in g.values:
 			res.append(subg)

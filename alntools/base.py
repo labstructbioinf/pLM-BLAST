@@ -14,7 +14,7 @@ class Extractor:
     '''
     MIN_SPAN_LEN : int = 20
     WINDOW_SIZE: int = 20
-    NORM: bool = True
+    NORM: bool = 'rows'
     LIMIT_RECORDS: int = 20
     BFACTOR: float = 1
     SIGMA_FACTOR: float = 1

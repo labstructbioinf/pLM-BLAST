@@ -98,13 +98,16 @@ def get_parser():
 
 	return args
 
-def check_cohesion(frame, filedict, embeddings):
+def check_cohesion(frame, filedict, embeddings, truncate=600):
 	sequences = frame.sequence.tolist()
 
 	for (idx,file), emb in zip(filedict.items(), embeddings):
 		seqlen = len(sequences[idx])
-		assert seqlen == emb.shape[0], f'''
-		index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
+		if seqlen < 600:
+			assert seqlen == emb.shape[0], f'''
+			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
+		else:
+			assert emb.shape[0] == 600
 
 def full_compare(emb1, emb2, idx, file):
 	global module 
@@ -116,6 +119,8 @@ def full_compare(emb1, emb2, idx, file):
 			res['dbfile']  = file
 			# filter out redundant hits
 			res = aln.postprocess.filter_result_dataframe(res)
+			if res.score.max() > 1:
+				raise KeyError('score err', res.score.max())
 			return res
 	return []
     
@@ -162,10 +167,13 @@ module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
 module.BFACTOR = 1
 
+truncate = 600
 ### MAIN
 # read database 
-db_index = args.db+'.csv'
+db_index = args.db + '.csv'
 print('Loading database...')
+if not os.path.isfile(db_index):
+	raise FileNotFoundError(f'invalid database frame file, {db_index}')
 db_df = pd.read_csv(db_index)
 db_df.set_index(db_df.columns[0], inplace=True)
 
@@ -184,10 +192,10 @@ filedict = ds.load_and_score_database(query_emb, pathdb, quantile = args.COS_PER
 print(f'{len(filedict)} hits after pre-filtering')
 filelist = [file.replace('.emb.sum', f'.emb.{emb_type}') for file in filedict.values()]
 embedding_list = ds.load_full_embeddings(filelist=filelist, num_workers=args.MAX_WORKERS)
-#check_cohesion(db_df, filedict, embedding_list)
+check_cohesion(db_df, filedict, embedding_list)
 
 
-if any(filedict):
+if len(filedict) == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
@@ -216,12 +224,20 @@ with tqdm(total=num_batch) as progress_bar:
 			for (idx, file), emb in zip(filedictslice, embedding_list[batchslice]):
 				job = executor.submit(full_compare, query_emb_pool, emb, idx, file)
 				job_stack[job] = iter_id
+				iter_id += 1
 			for job in concurrent.futures.as_completed(job_stack):
 				res = job.result()
 				if len(res) > 0:
+					
 					records_stack.append(res)
 			progress_bar.update(1)
 		gc.collect()
+
+resdf = pd.concat(records_stack)
+if resdf.score.max() > 1:
+	print(records_stack[0].score.max())
+	print('score is greater then one', resdf.score.min(), resdf.score.max())
+	sys.exit(0)
 
 time_end = datetime.datetime.now()
 
@@ -231,45 +247,47 @@ print(f'Time {time_end-time_start}')
 if len(records_stack) == 0:
 	print('No hits found!')
 else:
-	res_df = pd.concat(records_stack)
-	res_df.to_csv('tmpres.csv')
-	res_df = res_df[res_df.score>=args.ALN_CUT]
-	if len(res_df) == 0:
+	resdf = pd.concat(records_stack)
+	resdf.to_csv('tmpres.csv')
+	resdf = resdf[resdf.score>=args.ALN_CUT]
+	if len(resdf) == 0:
 		print(f'No hits found! Try decreasing the alignment_cutoff parameter. Current cut-off is {args.ALN_CUT}')	
 	else:
 		print('Preparing output...')
-		res_df.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len', 'y1', 'x1'], inplace=True)
-		res_df['sid'] = res_df['i'].apply(lambda i:db_df.iloc[i]['id'])
-		res_df['sdesc'] = res_df['i'].apply(lambda i:db_df.iloc[i]['description'])
-		res_df['qstart'] = res_df['indices'].apply(lambda i:i[0][1])
-		res_df['qend'] = res_df['indices'].apply(lambda i:i[-1][1])
-		res_df['tstart'] = res_df['indices'].apply(lambda i:i[0][0])
-		res_df['tend'] = res_df['indices'].apply(lambda i:i[-1][0])
+		resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len', 'y1', 'x1'], inplace=True)
+		resdf['sid'] = resdf['i'].apply(lambda i:db_df.iloc[i]['id'])
+		resdf['sdesc'] = resdf['i'].apply(lambda i:db_df.iloc[i]['description'])
+		resdf['tlen'] = resdf['i'].apply(lambda i:len(db_df.iloc[i]['sequence']))
+		resdf['qlen'] = len(query_seq)
+		resdf['qstart'] = resdf['indices'].apply(lambda i:i[0][1])
+		resdf['qend'] = resdf['indices'].apply(lambda i:i[-1][1])
+		resdf['tstart'] = resdf['indices'].apply(lambda i:i[0][0])
+		resdf['tend'] = resdf['indices'].apply(lambda i:i[-1][0])
 
-		assert all(res_df['qstart'].apply(lambda i: i <= len(query_seq)-1))
-		assert all(res_df['qend'].apply(lambda i: i <= len(query_seq)-1))
+		assert all(resdf['qstart'].apply(lambda i: i <= len(query_seq)-1))
+		assert all(resdf['qend'].apply(lambda i: i <= len(query_seq)-1))
 
-		res_df.sort_values(by='score', ascending=False, inplace=True)
-		res_df.reset_index(inplace=True)
+		resdf.sort_values(by='score', ascending=False, inplace=True)
+		resdf.reset_index(inplace=True)
 
 		# alignment, conservation, etc.
-		for idx, row in res_df.iterrows():
+		for idx, row in resdf.iterrows():
 			tmp_aln = aln.alignment.draw_alignment(row.indices, 
 										   db_df.iloc[row.i].sequence,
 										   query_seq,
 										   output='str')
 			tmp_aln=tmp_aln.split('\n')
-			res_df.at[idx, 'qseq'] = tmp_aln[2]
-			res_df.at[idx, 'tseq'] = tmp_aln[0]
-			res_df.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
-			res_df.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
-			res_df.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'qseq'] = tmp_aln[2]
+			resdf.at[idx, 'tseq'] = tmp_aln[0]
+			resdf.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
 		# reset index
-		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
-		res_df.index.name = 'index'
+		resdf.drop(columns=['index', 'indices', 'i'], inplace=True)
+		resdf.index.name = 'index'
 		# order columns
-		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend']]
+		resdf = resdf[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen']]
 		# clip df
-		res_df = res_df.head(args.MAX_TARGETS)
+		resdf = resdf.head(args.MAX_TARGETS)
 		# save
-		res_df.to_csv(args.output)
+		resdf.to_csv(args.output)
