@@ -25,7 +25,7 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
-DB_PATH="/ssd/users/sdunin/db/localaln/ecod70db_20220902"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
 NUM_WORKERS=4
 
 mkdir -p $OUTDIR

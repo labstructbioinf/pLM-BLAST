@@ -87,7 +87,7 @@ def get_parser():
 						type=float, default=0, dest='GAP_EXT')
 
 	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
-						type=int, default=2, dest='EMB_POOL', choices=[1, 2, 4])			    
+						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])			    
 
 	args = parser.parse_args()
 	# validate provided parameters
@@ -100,14 +100,13 @@ def get_parser():
 
 def check_cohesion(frame, filedict, embeddings, truncate=600):
 	sequences = frame.sequence.tolist()
-
 	for (idx,file), emb in zip(filedict.items(), embeddings):
 		seqlen = len(sequences[idx])
 		if seqlen < 600:
 			assert seqlen == emb.shape[0], f'''
 			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
 		else:
-			assert emb.shape[0] == 600
+			pass
 
 def full_compare(emb1, emb2, idx, file):
 	global module 
@@ -171,6 +170,7 @@ truncate = 600
 ### MAIN
 # read database 
 db_index = args.db + '.csv'
+print(f'Using database: {args.db}')
 print('Loading database...')
 if not os.path.isfile(db_index):
 	raise FileNotFoundError(f'invalid database frame file, {db_index}')
@@ -178,29 +178,34 @@ db_df = pd.read_csv(db_index)
 db_df.set_index(db_df.columns[0], inplace=True)
 
 # read query 
-query_index = args.query+'.csv'
-query_emb = args.query+'.pt_emb.p'
-pathdb = "/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
+query_index = args.query + '.csv'
+query_emb = args.query + '.pt_emb.p'
 
 query_df = pd.read_csv(query_index)
 query_emb = torch.load(query_emb)[0]
-emb_type = str(int(1024/args.EMB_POOL))
+if args.EMB_POOL != 1:
+	emb_type =  '.' + str(int(1024/args.EMB_POOL))
+else:
+	emb_type = ''
 query_emb_pool = torch.nn.functional.avg_pool1d(query_emb.T, args.EMB_POOL).T
 query_seq = str(query_df.iloc[0].sequence)
 print('cosine similarity screening ...')
-filedict = ds.load_and_score_database(query_emb, pathdb, quantile = args.COS_PER_CUT/100, num_workers=args.MAX_WORKERS)
+filedict = ds.load_and_score_database(query_emb,
+									dbpath = args.db,
+									quantile = args.COS_PER_CUT/100,
+									num_workers = args.MAX_WORKERS)
 print(f'{len(filedict)} hits after pre-filtering')
-filelist = [file.replace('.emb.sum', f'.emb.{emb_type}') for file in filedict.values()]
-embedding_list = ds.load_full_embeddings(filelist=filelist, num_workers=args.MAX_WORKERS)
+filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
+filelist = list(filedict.values())
+print('loading per residue embeddings')
+embedding_list = ds.load_full_embeddings(filelist=filelist, num_workers=1)
 check_cohesion(db_df, filedict, embedding_list)
 
 
 if len(filedict) == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
-
-            
-
+         
 iter_id = 0
 records_stack = []
 num_indices = len(filedict)
@@ -208,6 +213,7 @@ batch_size = 20*args.MAX_WORKERS
 batch_size = min(300, batch_size)
 num_batch = max(math.floor(num_indices/batch_size), 1)
 # Multi-CPU search
+print('running plm blast')
 with tqdm(total=num_batch) as progress_bar:
 	for batch_start in range(0, num_batch):
 		bstart = batch_start*batch_size
@@ -242,7 +248,6 @@ if resdf.score.max() > 1:
 time_end = datetime.datetime.now()
 
 print(f'Time {time_end-time_start}')
-
 # Prepare output
 if len(records_stack) == 0:
 	print('No hits found!')

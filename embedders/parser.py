@@ -61,10 +61,13 @@ def create_parser() -> argparse.Namespace:
 
 
 def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFrame:
-
+    '''
+    handle argparse arguments
+    '''
+    # gather input file
     if args.input.endswith('csv'):
         df = pd.read_csv(args.input)
-    elif args.input.endswith('.p'):
+    elif args.input.endswith('.p') or args.input.endswith('.pkl'):
         df = pd.read_pickle(args.input)
     elif args.input.endswith('.fas') or args.input.endswith('.fasta'):
         # convert fasta file to df
@@ -75,6 +78,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
         df.set_index('desc', inplace=True)
     else:
         raise FileNotFoundError(f'invalid input infile extension {args.input}')
+    # reset index for embeddings output file names
+    df.index = list(range(df.shape[0]))
 
     if df.shape[0] == 0:
         raise AssertionError('input dataframe is empty: ', args.input)

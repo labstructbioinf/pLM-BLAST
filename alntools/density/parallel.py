@@ -1,3 +1,4 @@
+'''handle parallel embedding file loading'''
 import os
 from typing import Union, List, Dict
 import warnings
@@ -52,6 +53,10 @@ class DatabaseChunk(torch.utils.data.Dataset):
             if not os.path.isdir(dirname):
                 raise FileExistsError(f'directory: {dirname} is bad')
         self.embedding_files = dbpath
+        # check if all file exists
+        for file in self.embedding_files:
+            if not os.path.isfile(file):
+                raise FileExistsError(f'missing file: {file}')
 
     def __len__(self):
         return len(self.embedding_files)
@@ -60,36 +65,33 @@ class DatabaseChunk(torch.utils.data.Dataset):
         embedding = torch.load(self.embedding_files[idx])
         return embedding
 
-'''
-def collate_fn(batch):
-    (file, emb) = zip(*batch)
-    emb = torch.cat(emb, dim=1).T
-    filelist = list(file)
-    return filelist, emb
-'''
 
 def load_and_score_database(query_emb : torch.Tensor,
                             dbpath: os.PathLike,
                             quantile : float = 0.9,
                             num_workers: int = 1,
                             device : torch.device = torch.device('cpu')) -> Dict[int, os.PathLike]:
-
+    '''
+    perform cosine similarity screening
+    Returns:
+        filedict: (dict) with file id and path to embedding used
+    '''
     assert 0 < quantile < 1
     batch_size = 256
     pooling = 1
     num_workers = 1
     verbose = False
-    threshold = 0.3
     # setup database
     dataset = Database(dbpath=dbpath, suffix='.emb.sum')
+    num_embeddings = len(dataset)
     dataloader = torch.utils.data.DataLoader(dataset,
                                 batch_size=batch_size,
                                 collate_fn = lambda x: torch.cat(x, dim=1),
                                 num_workers = num_workers,
                                 drop_last = False)
-    num_batches = int(len(dataset)/batch_size)
+    num_batches = int(num_embeddings/batch_size)
     # equivalent to math.ceil
-    num_batches = num_batches if num_batches*batch_size <= len(dataset) else num_batches + 1
+    num_batches = num_batches if num_batches*batch_size <= num_embeddings else num_batches + 1
     if query_emb.shape[0] != 1:
         query_emb = query_emb.sum(0, keepdim=True).T
     if query_emb.ndim == 1:
@@ -106,10 +108,14 @@ def load_and_score_database(query_emb : torch.Tensor,
             score = batch_cosine_similarity(query_emb, batch, poolfactor=pooling)
             scorestack.append(score)
             pbar.update(1)
+    
+    scorestack = torch.cat(scorestack)
+    if scorestack.shape[0] != num_embeddings:
+        raise ValueError(f'cosine sim screening result different number of embeddings than db {scorestack.shape[0]} - {num_embeddings}')
     # quantile filter
-    scorestack = torch.cat(scorestack, dim=0)
     quantile_threshold = torch.quantile(scorestack, quantile)
     scoremask = (scorestack >= quantile_threshold)
+    # convert maask to indices
     scoreidx = torch.nonzero(scoremask, as_tuple=False).tolist()
     filedict = { i : file for i, (file, condition) in enumerate(zip(dataset_files, scoremask)) if condition }
 
@@ -122,21 +128,24 @@ def load_and_score_database(query_emb : torch.Tensor,
 
 
 @torch.jit.script
-def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int):
+def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int) -> torch.Tensor:
     '''
     calculate cosine similarity for a batch of embeddings
     '''
     if poolfactor > 1:
         B = avg_pool1d(B.T, poolfactor).T
     score = torch.nn.functional.cosine_similarity(x, B, dim=0)
+    if score.ndim > 1:
+        score = score.ravel()
     return score
 
 
 def load_full_embeddings(filelist : List[os.PathLike],
-                            batch_size : int = 32,
+                            batch_size : int = 16,
                             num_workers : int = 1):
 
     stack = []
+    '''
     dataset = DatabaseChunk(dbpath=filelist)
     dataloader = torch.utils.data.DataLoader(dataset,
                                 batch_size=batch_size,
@@ -146,6 +155,9 @@ def load_full_embeddings(filelist : List[os.PathLike],
     stack = []
     for batch in tqdm(dataloader):
         stack.extend(batch)
+    '''
+    for file in tqdm(filelist):
+        stack.append(torch.load(file))
     return stack
 
 
