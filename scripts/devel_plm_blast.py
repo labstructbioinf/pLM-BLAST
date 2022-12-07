@@ -1,4 +1,8 @@
-import sys, os, gc, math
+import sys
+import os
+import gc
+import math
+import time
 import argparse
 import concurrent
 import itertools
@@ -183,10 +187,15 @@ query_emb = args.query + '.pt_emb.p'
 
 query_df = pd.read_csv(query_index)
 query_emb = torch.load(query_emb)[0]
-if args.EMB_POOL != 1:
-	emb_type =  '.' + str(int(1024/args.EMB_POOL))
-else:
+# select embeddings pool factor
+if args.EMB_POOL == 1:
 	emb_type = ''
+elif args.EMB_POOL == 2:
+	emb_type =  '.512'
+elif args.EMB_POOL == 4:
+	emb_type = '.256'
+else:
+	raise ValueError(f'invalid EMB_POOL value: {args.EMB_POOL}')
 query_emb_pool = torch.nn.functional.avg_pool1d(query_emb.T, args.EMB_POOL).T
 query_seq = str(query_df.iloc[0].sequence)
 print('cosine similarity screening ...')
@@ -197,7 +206,9 @@ filedict = ds.load_and_score_database(query_emb,
 print(f'{len(filedict)} hits after pre-filtering')
 filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
 filelist = list(filedict.values())
-print('loading per residue embeddings')
+
+
+print(f'loading per residue embeddings with pool: {emb_type}')
 embedding_list = ds.load_full_embeddings(filelist=filelist, num_workers=1)
 check_cohesion(db_df, filedict, embedding_list)
 
@@ -231,11 +242,14 @@ with tqdm(total=num_batch) as progress_bar:
 				job = executor.submit(full_compare, query_emb_pool, emb, idx, file)
 				job_stack[job] = iter_id
 				iter_id += 1
+			time.sleep(0.1)
 			for job in concurrent.futures.as_completed(job_stack):
-				res = job.result()
-				if len(res) > 0:
-					
-					records_stack.append(res)
+				try:
+					res = job.result()
+					if len(res) > 0:
+						records_stack.append(res)
+				except Exception as e:
+					raise AssertionError('job not done', e)	
 			progress_bar.update(1)
 		gc.collect()
 
