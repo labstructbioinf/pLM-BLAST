@@ -26,6 +26,8 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
     embedding_list = []
     for file in files:
         tmp = torch.load(file)
+        # convert to numpy array
+        tmp = tmp.cpu().float().numpy()
         embedding_list.append(tmp)
     module = Extractor()
     module.SIGMA_FACTOR = SIGMA_FACTOR

@@ -255,3 +255,33 @@ def find_alignment_span(means: np.ndarray,
         alnstop = i
         spans.append((alnstart, alnstop))
     return spans
+
+@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nopython=True, fastmath=True, cache=True)
+def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
+    '''
+    compute X, Y similarity by matrix multiplication
+    result shape [num X residues, num Y residues]
+    Args:
+        X, Y - (np.ndarray 2D) protein embeddings as 2D tensors [num residues, embedding size]
+    Returns:
+        density (torch.Tensor) 
+    '''
+
+    emb1_norm : float = 0
+    emb2_norm : float = 0
+    emb1_normed : float = 0
+    emb2_normed : float = 0
+
+    assert X.ndim == 2 and Y.ndim == 2
+    assert X.shape[1] == Y.shape[1]
+    #normalize
+    emb1_norm = np.sqrt(np.power(X, 2).sum(1, keepdims = True))
+    emb2_norm = np.sqrt(np.power(Y, 2).sum(1, keepdims = True))
+    emb1_normed = X / emb1_norm
+    emb2_normed = Y / emb2_norm
+    density = np.matmul(emb1_normed, emb2_normed.T).T
+    return density
+
+
+def embedding_global_similarity():
+    raise NotImplementedError('not implemented yet')

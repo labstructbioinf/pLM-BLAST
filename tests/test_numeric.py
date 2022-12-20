@@ -9,6 +9,7 @@ import torch
 from alntools.numeric import move_mean
 from alntools.numeric import find_alignment_span
 from alntools.numeric import fill_score_matrix
+from alntools.numeric import embedding_local_similarity
 from alntools.alignment import border_argmaxpool
 
 
@@ -97,4 +98,12 @@ def test_borderline_extraction(arr, cutoff, factor):
         assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
 
 
+@pytest.mark.parametrize("X", [np.random.rand(1, 512, dtype=np.float32), np.random.rand(1, 512, dtype=np.float32)])
+@pytest.mark.parametrize("Y", [np.random.rand(64, 512, dtype=np.float32), np.random.rand(32, 512, dtype=np.float32)])
+def test_cosine_similarity(X, Y):
+    
+    result = embedding_local_similarity(X, Y)
+    assert not np.isnan(result).any()
+    assert not np.isinf(result).any()
+    assert result.shape[0] == Y.shape[0]
 
