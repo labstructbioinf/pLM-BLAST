@@ -1,4 +1,4 @@
-'''array calculations'''
+'''numerical array calculations powered by numba'''
 
 from typing import Tuple, List, Union
 
@@ -256,7 +256,7 @@ def find_alignment_span(means: np.ndarray,
         spans.append((alnstart, alnstop))
     return spans
 
-@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nopython=True, fastmath=True, cache=True)
+@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil = True, nopython=True, fastmath=True, cache=True)
 def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     '''
     compute X, Y similarity by matrix multiplication
@@ -267,19 +267,24 @@ def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
         density (torch.Tensor) 
     '''
 
-    emb1_norm : float = 0
-    emb2_norm : float = 0
-    emb1_normed : float = 0
-    emb2_normed : float = 0
+    xlen : int = X.shape[0]
+    ylen : int = Y.shape[0]
+    embdim : int = X.shape[1]
+    emb1_norm : np.ndarray = np.empty((xlen, 1), dtype=np.float32)
+    emb2_norm : np.ndarray = np.empty((ylen, 1), dtype=np.float32)
+    emb1_normed : np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
+    emb2_normed : np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
+    density : np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
 
     assert X.ndim == 2 and Y.ndim == 2
     assert X.shape[1] == Y.shape[1]
     #normalize
-    emb1_norm = np.sqrt(np.power(X, 2).sum(1, keepdims = True))
-    emb2_norm = np.sqrt(np.power(Y, 2).sum(1, keepdims = True))
+    # numba does not support sum() args other then first
+    emb1_norm = np.expand_dims(np.sqrt(np.power(X, 2).sum(1)), 1)
+    emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)
     emb1_normed = X / emb1_norm
     emb2_normed = Y / emb2_norm
-    density = np.matmul(emb1_normed, emb2_normed.T).T
+    density = (emb1_normed @ emb2_normed.T).T
     return density
 
 

@@ -163,7 +163,7 @@ def save_as_separate_files(embeddings: List[torch.Tensor],
     filelist = []
     for batch_i, emb_i in zip(batch_index, embeddings):
         path_i = os.path.join(directory, batch_i) + '.emb'
-        torch.save(emb_i, path_i)
+        torch.save(emb_i.half(), path_i)
         filelist.append(path_i)
 
     return filelist

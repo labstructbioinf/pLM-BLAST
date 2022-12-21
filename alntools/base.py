@@ -1,9 +1,10 @@
 '''module merging all extraction steps into user friendly functions'''
 import pandas as pd
 from typing import List, Tuple
+import numpy as np
 import torch
 
-from .density import embedding_similarity
+from .numeric import embedding_local_similarity
 from .alignment import gather_all_paths
 from .prepare import search_paths
 
@@ -36,14 +37,18 @@ class Extractor:
                 target_embedding = embeddings[target_idx]
                 yield (query_embedding, target_embedding, query_row, target_row)
     
-    def embedding_to_span(self, X : torch.Tensor, Y : torch.Tensor) -> pd.DataFrame:
+    def embedding_to_span(self, X : np.ndarray, Y : np.ndarray) -> pd.DataFrame:
         '''
         convert embeddings of given X and Y tensors into dataframe
         Returns:
             results: (pd.DataFrame) alignment hits frame
         '''
-        densitymap = embedding_similarity(X, Y)
-        densitymap = densitymap.cpu().numpy()
+
+        if not np.issubdtype(X.dtype, np.float32):
+            X = X.astype(np.float32)
+        if not np.issubdtype(Y.dtype, np.float32):
+            Y = Y.astype(np.float32)
+        densitymap = embedding_local_similarity(X, Y)
         paths = gather_all_paths(densitymap,
          norm=self.NORM,
         minlen=self.MIN_SPAN_LEN,
@@ -58,3 +63,7 @@ class Extractor:
             as_df=True)
 
         return results
+
+    @staticmethod
+    def validate_argument(X : np.ndarray) -> bool:
+        pass

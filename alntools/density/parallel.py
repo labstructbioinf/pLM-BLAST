@@ -1,12 +1,22 @@
 '''handle parallel embedding file loading'''
 import os
+import time
 from typing import Union, List, Dict
 import warnings
 
 from tqdm import tqdm
 import pandas as pd
 import torch
+import numpy as np
 from torch.nn.functional import avg_pool1d
+
+
+def worker_init_fn(worker_id):
+    '''
+    to fix dataloader speed issue, source:
+    https://discuss.pytorch.org/t/dataloader-seeding-issue-for-multithreading-workloads/81044/3
+    '''
+    np.random.seed(np.random.get_state()[1][0] + worker_id + int(time.perf_counter() * 1000 % 1000))
 
 
 class Database(torch.utils.data.Dataset):
@@ -88,7 +98,8 @@ def load_and_score_database(query_emb : torch.Tensor,
                                 batch_size=batch_size,
                                 collate_fn = lambda x: torch.cat(x, dim=1),
                                 num_workers = num_workers,
-                                drop_last = False)
+                                drop_last = False,
+                                worker_init_fn=worker_init_fn)
     num_batches = int(num_embeddings/batch_size)
     # equivalent to math.ceil
     num_batches = num_batches if num_batches*batch_size <= num_embeddings else num_batches + 1
@@ -157,7 +168,7 @@ def load_full_embeddings(filelist : List[os.PathLike],
         stack.extend(batch)
     '''
     for file in tqdm(filelist):
-        stack.append(torch.load(file))
+        stack.append(torch.load(file).numpy())
     return stack
 
 

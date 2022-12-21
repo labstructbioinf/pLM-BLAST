@@ -112,7 +112,7 @@ def check_cohesion(frame, filedict, embeddings, truncate=600):
 		else:
 			pass
 
-def full_compare(emb1, emb2, idx, file):
+def full_compare(emb1 : np.ndarray, emb2 : np.ndarray, idx : int, file : str) -> pd.DataFrame:
 	global module 
 	res = module.embedding_to_span(emb1, emb2)
 	if len(res) > 0:
@@ -216,7 +216,8 @@ check_cohesion(db_df, filedict, embedding_list)
 if len(filedict) == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
-         
+
+query_emb_pool = query_emb_pool.numpy()
 iter_id = 0
 records_stack = []
 num_indices = len(filedict)
