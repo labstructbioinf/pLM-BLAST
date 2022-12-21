@@ -2,6 +2,8 @@
 
 pLM-BLAST is a sensitive remote homology detection tool that is based on the comparison of residue embeddings obtained from the protein language model ProtTrans5. It is available as a standalone package as well as an easy-to-use web server within the MPI Bioinformatics Toolkit, where several precomputed databases (e.g., ECOD, InterPro, and PDB) can be searched.
 
+Note: the method is being actively developed, please expect soon new features, such as speed improvement, global alignment, and others.
+
 ## Table of contents
 * [ Installation ](#Installation)
 * [ Usage ](#Usage)
