@@ -150,11 +150,28 @@ def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int)
         score = score.ravel()
     return score
 
+def batch_chunk_cosine_similarity(x: torch.Tensor, B: torch.Tensor, poolfactor: int) -> torch.Tensor:
+
+    if poolfactor > 1:
+        B = avg_pool1d(B.T, poolfactor).T
+    score = torch.nn.functional.cosine_similarity(x, B, dim=0)
+    scores = []
+    for bi in B:
+        score = chunk_cosine_similarity(x, bi)
+        scores.append(score)
+    scores = torch.FloatTensor(scores)
+    return scores
 
 def load_full_embeddings(filelist : List[os.PathLike],
-                            batch_size : int = 16,
-                            num_workers : int = 1):
-
+                            poolfactor:  Union[int, type(None)] = None) -> List[torch.FloatTensor]:
+    
+    '''
+    read per residue embeddings
+    Args:
+        filelist: (str) list of files each file should be separate protein embedding
+    Returns:
+        stack: (list[torch.Tensor])
+    '''
     stack = []
     '''
     dataset = DatabaseChunk(dbpath=filelist)
@@ -167,8 +184,13 @@ def load_full_embeddings(filelist : List[os.PathLike],
     for batch in tqdm(dataloader):
         stack.extend(batch)
     '''
-    for file in tqdm(filelist):
-        stack.append(torch.load(file).numpy())
+    for file in tqdm(filelist, desc="loading embeddings"):
+        if poolfactor is not None:
+            embedding = torch.load(file).float()
+            embedding = avg_pool1d(embedding, poolfactor)
+            stack.append(embedding)
+        else:
+            stack.append(torch.load(file).numpy())
     return stack
 
 

@@ -1,6 +1,7 @@
 '''functions for local density extracting'''
 from typing import List, Union, Tuple
 
+from tqdm import tqdm
 import torch as th
 import torch.nn.functional as F
 
@@ -83,7 +84,7 @@ def sequence_to_filters(protein: th.Tensor,
         filters /= norm_val
     return filters.to(device)
 
-def calc_density(protein: th.Tensor, filters: th.Tensor) -> th.Tensor:
+def calc_density(protein: th.Tensor, filters: th.Tensor, stride : int = 1) -> th.Tensor:
     '''
     convolve `protein` with set of `filters`
     params:
@@ -104,7 +105,7 @@ def calc_density(protein: th.Tensor, filters: th.Tensor) -> th.Tensor:
     # add padding to protein
     protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
     #protein = F.pad(protein, (0, 0, paddingh, paddingw), mode='constant', value=0.0)
-    density = F.conv2d(protein, filters)
+    density = F.conv2d(protein, filters, stride = stride)
     #output density
     density2d = density.squeeze()
     return density2d
@@ -148,6 +149,17 @@ def get_symmetric_density(X, Y, kernel_size : int):
     YX_density = calc_density(Y_as_image, X_as_filters)
     return (XY_density + YX_density.T)/(2*kernel_size)
 
+@th.jit.script
+def get_fast_density(X, Y, kernel_size : int):
+
+    if X.shape[0] < Y.shape[0]:
+        as_image = norm_image(Y, kernel_size)
+        as_filters = sequence_to_filters(X, kernel_size)
+    else:
+        as_image = norm_image(X, kernel_size)
+        as_filters = sequence_to_filters(Y, kernel_size)
+    density = calc_density(as_image, as_filters)
+    return density
 
 def get_multires_density(X: th.Tensor,
                          Y: th.Tensor,
@@ -194,3 +206,18 @@ def get_multires_density(X: th.Tensor,
     if not raw:
         result = result.mean(0)
     return result
+
+
+def chunk_cosine_similarity(query, targets, stride = 3, kernel_size = 20):
+
+    
+    num_targets = len(targets)
+    scorearr = th.zeros(num_targets)
+    query_kernels = sequence_to_filters(query, kernel_size=kernel_size, norm=True)
+    with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
+        for i, target in enumerate(targets, 0):
+            density = calc_density(target, query_kernels, stride = stride)
+            scorearr[i] = density.max()
+            if i % 10 == 0:
+                pbar.update(10)
+    return scorearr
