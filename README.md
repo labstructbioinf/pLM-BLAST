@@ -61,7 +61,7 @@ Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude
 To search a pre-calculated or custom database, follow `scripts/example.sh` 
 
 ### Use in Python
-```
+```python
 import torch
 import alntools as aln
 from alntools.base import Extractor
