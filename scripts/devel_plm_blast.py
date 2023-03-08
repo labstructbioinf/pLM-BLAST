@@ -91,7 +91,10 @@ def get_parser():
 						type=float, default=0, dest='GAP_EXT')
 
 	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
-						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])			    
+						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
+
+	parser.add_argument('-use_chunkcs', help='if True use chunk cosine similarity screening instead of regular cs (default: %(default)s) ',
+		     action='store_true', default=False)	    
 
 	args = parser.parse_args()
 	# validate provided parameters
@@ -196,20 +199,35 @@ elif args.EMB_POOL == 4:
 	emb_type = '.256'
 else:
 	raise ValueError(f'invalid EMB_POOL value: {args.EMB_POOL}')
-query_emb_pool = torch.nn.functional.avg_pool1d(query_emb.T, args.EMB_POOL).T
+
 query_seq = str(query_df.iloc[0].sequence)
-print('cosine similarity screening ...')
-filedict = ds.load_and_score_database(query_emb,
-									dbpath = args.db,
-									quantile = args.COS_PER_CUT/100,
-									num_workers = args.MAX_WORKERS)
-print(f'{len(filedict)} hits after pre-filtering')
-filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
+query_emb_pool = torch.nn.functional.avg_pool1d(query_emb.T, args.EMB_POOL).T
+if args.use_chunkcs:
+	print('chunk cosine similarity screening ...')
+	query_emb_chunkcs = torch.nn.functional.avg_pool1d(query_emb, 16)
+	##########################################################################
+	# 					fixed												 #
+	##########################################################################
+	dbfile = os.path.join(args.db, 'emb.64')
+	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, 59990)]
+	embedding_list = torch.load(dbfile)
+	filedict = ds.local.chunk_cosine_similarity(query = query_emb_chunkcs,
+					       targets = embedding_list,
+						     quantile = args.COS_PER_CUT/100,
+						     dataset_files = filelist,
+							 stride = 10)
+else:
+	print('cosine similarity screening ...')
+	filedict = ds.load_and_score_database(query_emb,
+										dbpath = args.db,
+										quantile = args.COS_PER_CUT/100,
+										num_workers = args.MAX_WORKERS)
+	print(f'{len(filedict)} hits after pre-filtering')
+	filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
+
+print(f'loading per residue embeddings with pool: {emb_type} size: {len(filedict)}')
 filelist = list(filedict.values())
-
-
-print(f'loading per residue embeddings with pool: {emb_type}')
-embedding_list = ds.load_full_embeddings(filelist=filelist, num_workers=1)
+embedding_list = ds.load_full_embeddings(filelist=filelist)
 check_cohesion(db_df, filedict, embedding_list)
 
 

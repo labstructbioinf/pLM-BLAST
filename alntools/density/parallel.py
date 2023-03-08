@@ -163,7 +163,7 @@ def batch_chunk_cosine_similarity(x: torch.Tensor, B: torch.Tensor, poolfactor: 
     return scores
 
 def load_full_embeddings(filelist : List[os.PathLike],
-                            poolfactor:  Union[int, type(None)] = None) -> List[torch.FloatTensor]:
+                            poolfactor:  Union[int, None] = None) -> List[torch.FloatTensor]:
     
     '''
     read per residue embeddings
@@ -184,13 +184,18 @@ def load_full_embeddings(filelist : List[os.PathLike],
     for batch in tqdm(dataloader):
         stack.extend(batch)
     '''
+    missing_files : int = 0
     for file in tqdm(filelist, desc="loading embeddings"):
+        if not os.path.isfile(file):
+                missing_files += 1
+                continue
         if poolfactor is not None:
             embedding = torch.load(file).float()
             embedding = avg_pool1d(embedding, poolfactor)
             stack.append(embedding)
         else:
             stack.append(torch.load(file).numpy())
+    print('embedding missing files: ', missing_files)
     return stack
 
 
