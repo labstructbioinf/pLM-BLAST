@@ -1,0 +1,20 @@
+name: "flow check"
+
+on: [push]
+  
+jobs:
+  build-linux:
+    runs-on: ubuntu-lastest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: install environment
+      run:  $CONDA/bin/conda  env create -f environment.yml
+    - name: Tests
+      run: |
+        conda install pytest
+        $CONDA/bin/pytest
