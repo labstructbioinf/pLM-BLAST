@@ -5,8 +5,7 @@ on: [push]
 jobs:
   build-linux:
     runs-on: ubuntu-lastest
-    strategy: 
-      python-version: 3.9
+
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python 3.9
