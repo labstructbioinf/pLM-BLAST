@@ -8,10 +8,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v2.2.0
+    with:
+      auto-activate-base: true
+      activate-environment: ""
+      
     - name: install environment
       run:  $CONDA/bin/conda  env create -f environment.yml
     - name: Tests
