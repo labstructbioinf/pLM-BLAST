@@ -3,19 +3,19 @@ name: "flow check"
 on: [push]
 
 jobs:
-  name: "Build linux"
-  runs-on: self-hosted
+  build:
+    runs-on: self-hosted
 
-    steps:
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.2.0
-    with:
-      auto-activate-base: true
-      activate-environment: ""
+      steps:
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2.2.0
+      with:
+        auto-activate-base: true
+        activate-environment: ""
 
-    - name: install environment
-      run:  $CONDA/bin/conda  env create -f environment.yml
-    - name: Tests
-      run: |
-        conda install pytest
-        $CONDA/bin/pytest
+      - name: install environment
+        run:  $CONDA/bin/conda  env create -f environment.yml
+      - name: Tests
+        run: |
+          conda install pytest
+          $CONDA/bin/pytest
