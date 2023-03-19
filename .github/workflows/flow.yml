@@ -9,7 +9,6 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
-        auto-activate-base: true
         python-version: 3.9
     - name: Conda info
       shell: bash -el {0}
