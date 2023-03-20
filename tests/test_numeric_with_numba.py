@@ -1,7 +1,6 @@
 '''numerical function tests'''
 import os
 os.environ['NUMBA_DEBUGINFO'] = '1'
-os.environ['NUMBA_DISABLE_JIT'] = '1'
 import pytest
 import numpy as np
 import torch
