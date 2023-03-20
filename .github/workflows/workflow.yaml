@@ -5,13 +5,17 @@ on: push
 jobs:
   build:
     runs-on: self-hosted
+    # ignore bash profile files
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
         miniconda-version: "latest"
+        auto-activate-base: false
     - name: Conda info
-      shell: bash -el {0}
       run: conda info
     - name: install anaconda environment
       run: |
