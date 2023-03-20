@@ -14,7 +14,9 @@ jobs:
       shell: bash -el {0}
       run: conda info
     - name: install anaconda environment
-      run:  conda env create -f environment.yml
+      run: |
+        conda remove --name plmblast3 --all
+        conda env create -f environment.yml
     - name: list environments
       run: conda env list
     - name: Pytest run
