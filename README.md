@@ -1,5 +1,6 @@
 # pLM-BLAST
 [![flow check](https://github.com/labstructbioinf/pLM-BLAST/actions/workflows/workflow.yaml/badge.svg?branch=dev)](https://github.com/labstructbioinf/pLM-BLAST/actions/workflows/workflow.yaml)
+
 pLM-BLAST is a sensitive remote homology detection tool that is based on the comparison of residue embeddings obtained from the protein language model ProtTrans5. It is available as a standalone package as well as an easy-to-use web server within the MPI Bioinformatics Toolkit, where several precomputed databases (e.g., ECOD, InterPro, and PDB) can be searched.
 
 ## Table of contents

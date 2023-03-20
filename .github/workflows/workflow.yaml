@@ -1,4 +1,4 @@
-name: "flow check"
+name: "build"
 
 on: push
 
@@ -21,7 +21,6 @@ jobs:
       run: conda env list
     - name: Pytest run
       run: |
-        conda init bash
-        conda activate plmblast3
+        $CONDA/bin/conda activate plmblast3
         conda install pytest
         python -m pytest
