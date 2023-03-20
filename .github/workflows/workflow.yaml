@@ -14,8 +14,10 @@ jobs:
       shell: bash -el {0}
       run: conda info
     - name: install environment
-      run:  $CONDA/bin/conda  env create -f environment.yml
-    - name: Tests
+      run:  conda env create -f environment.yml
+    - name: list environments
+      run: conda env list
+    - name: Pyest run
       run: |
         conda activate plmblast3
         conda install pytest
