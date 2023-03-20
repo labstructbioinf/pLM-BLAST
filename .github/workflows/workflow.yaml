@@ -13,11 +13,11 @@ jobs:
     - name: Conda info
       shell: bash -el {0}
       run: conda info
-    - name: install environment
+    - name: install anaconda environment
       run:  conda env create -f environment.yml
     - name: list environments
       run: conda env list
-    - name: Pyest run
+    - name: Pytest run
       run: |
         conda activate plmblast3
         conda install pytest
