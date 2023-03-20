@@ -29,4 +29,4 @@ jobs:
     - name: Pytest run
       run: |
         conda install pytest
-        $CONDA/envs/plmblast/bin/python -m pytest
+        python -m pytest
