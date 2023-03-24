@@ -9,9 +9,10 @@
 
 
 DBFILE="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902.csv"
-EMBEDDER="esm_msa1b_t12_100M_UR50S"
+EMBEDDER="esm"
 DBDESTINATION="/home/nfs/kkaminski/PLMBLST/ecod70db_esm"
+EMBSCRIPT="/home/nfs/kkaminski/apps/pLM-BLAST/embeddings.py"
 
 python="/home/nfs/kkaminski/anaconda3/envs/plmblast3/bin/python"
 
-srun $python ../embeddings.py -embedder $EMBEDDER -cname "sequence" -bs 32 --asdir $DBFILE $DBDESTINATION
+srun $python $EMBSCRIPT -embedder $EMBEDDER -cname "sequence" -bs 32 --asdir $DBFILE $DBDESTINATION

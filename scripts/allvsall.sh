@@ -21,4 +21,4 @@ RESULTS="/home/nfs/kkaminski/PLMBLST/results_allvall.p"
 
 python="/home/nfs/kkaminski/anaconda3/envs/plmblast3/bin/python"
 
-$python allvsall.py $DBFILE $RESULTS -workers $SLURM_CPUS_PER_TASK -win 10
+$python /home/nfs/kkaminski/apps/pLM-BLAST/scripts/allvsall.py $DBFILE $RESULTS -workers 6 -win 10

@@ -70,7 +70,7 @@ def sequence_to_filters(protein: th.Tensor,
     seq_len, emb_size = protein.shape[-2], protein.shape[-1]
     if with_padding:
         protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
-    #protein = F.pad(protein, (0, 0, paddingh, paddingw), 'constant', 0.0)
+    # protein = F.pad(protein, (0, 0, paddingh, paddingw), 'constant', 0.0)
     filter_list = []
     for start in range(0, seq_len, filter_stride):
             # single filter of size (1, kerenl_size, num_emb_feats)
@@ -81,7 +81,7 @@ def sequence_to_filters(protein: th.Tensor,
             filter_list.append(filt)
     filters = th.cat(filter_list, 0)
     filters = filters.view(seq_len, 1, kernel_size, emb_size)
-    #normalize filters
+    # normalize filters
     if norm:
         norm_val = filters.view(seq_len, -1).pow(2).sum(1, keepdim=True)
         norm_val[norm_val == 0] = 1e-5
@@ -89,7 +89,9 @@ def sequence_to_filters(protein: th.Tensor,
         filters /= norm_val
     return filters.to(device)
 
-def calc_density(protein: th.Tensor, filters: th.Tensor, stride : int = 1, with_padding: bool = True) -> th.Tensor:
+
+def calc_density(protein: th.Tensor, filters: th.Tensor,
+                 stride : int = 1, with_padding: bool = True) -> th.Tensor:
     '''
     convolve `protein` with set of `filters`
     params:
@@ -116,6 +118,7 @@ def calc_density(protein: th.Tensor, filters: th.Tensor, stride : int = 1, with_
     density2d = density.squeeze()
     return density2d
 
+
 def norm_image(arr: th.Tensor, kernel_size : int):
     '''
     apply L2 norm over image for conv normalization
@@ -138,6 +141,7 @@ def norm_image(arr: th.Tensor, kernel_size : int):
     arr_normalized = F.fold(arr_sliced, (H, W), (kernel_size, W))
     return arr_normalized
 
+
 @th.jit.script
 def get_symmetric_density(X, Y, kernel_size : int):
     '''
@@ -154,6 +158,7 @@ def get_symmetric_density(X, Y, kernel_size : int):
     XY_density = calc_density(X_as_image, Y_as_filters)
     YX_density = calc_density(Y_as_image, X_as_filters)
     return (XY_density + YX_density.T)/(2*kernel_size)
+
 
 @th.jit.script
 def get_fast_density(X, Y, kernel_size : int):
@@ -215,44 +220,48 @@ def get_multires_density(X: th.Tensor,
 
 
 def chunk_cosine_similarity(query : th.Tensor,
-                             targets : List[th.Tensor],
-                               quantile, dataset_files : List[str],
-                                 stride = 3,
-                                   kernel_size = 30) -> List[dict]:
+                            targets : List[th.Tensor],
+                            quantile, dataset_files : List[str],
+                            stride = 3, kernel_size = 30) -> List[dict]:
     
     assert isinstance(targets, list)
-
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)
     assert len(targets) == len(dataset_files), f'{len(targets)} != {len(dataset_files)}'
     scorestack = chunk_score(query, targets, stride = 3, kernel_size=20)
     quantile_threshold = th.quantile(scorestack, quantile)
     scoremask = (scorestack >= quantile_threshold)
-    scoreidx = th.nonzero(scoremask, as_tuple=False).tolist()
     # convert mask to indices
-    filedict = { i : file for i, (file, condition) in enumerate(zip(dataset_files, scoremask)) if condition }
+    filedict = {
+        i : file for i, (file, condition) in enumerate(zip(dataset_files, scoremask)) if condition
+        }
     return filedict
 
-def chunk_score(query, targets, stride : int , kernel_size : int) -> th.FloatTensor:
+def chunk_score(query, targets, stride: int , kernel_size: int) -> th.FloatTensor:
     '''
     perform chunk cosine similarity screening
     '''
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)
     embedding_dim_size = query.shape[1]
-    query_kernels = sequence_to_filters(query, kernel_size=kernel_size, norm=True, with_padding=False)
+    query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
+                                        norm=True, with_padding=False)
     with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
         for i, target in enumerate(targets, 0):
-            density = calc_density(target, query_kernels, stride = stride, with_padding=False)
+            density = calc_density(target, query_kernels,
+                                   stride=stride, with_padding=False)
             target = target.unsqueeze(0).unsqueeze(0)
-            target_norm = th.nn.functional.unfold(target, (kernel_size, embedding_dim_size), stride=(stride, 1))
+            target_norm = th.nn.functional.unfold(target,
+                                                  (kernel_size, embedding_dim_size),
+                                                  stride=(stride, 1))
             target_norm = target_norm.squeeze()
             target_norm = target_norm.pow(2).sum(0).sqrt()
             density = density/target_norm
-            #density[density > 1] = 0
             scorestack[i] = density.max()
             if i % 10 == 0:
                 pbar.update(10)
     if scorestack.shape[0] != num_targets:
-        raise ValueError(f'cosine sim screening result different number of embeddings than db {scorestack.shape[0]} - {num_embeddings}')
+        raise ValueError(f'''cosine sim screening result different
+          number of embeddings than db {scorestack.shape[0]} - {num_targets}'''
+                         )
     return scorestack

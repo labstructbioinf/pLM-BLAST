@@ -33,7 +33,7 @@ def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
         tolerance: (float) similarity cutoff, alignment with similarity lower
          then `tolerance` will be treated as unique
     Returns:
-        mask (np.ndarray) 
+        mask (np.ndarray)
     '''
     assert isinstance(tolerance, float)
     assert isinstance(simgrid, np.ndarray)
@@ -64,7 +64,8 @@ def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
     return index_mask
 
 
-def filter_aln(aln_list: List[np.array], tolerance: float = 0.8, with_similarity=False) -> np.ndarray:
+def filter_aln(aln_list: List[np.array], tolerance: float = 0.8,
+               with_similarity=False) -> np.ndarray:
     '''
     Args:
         aln_list: (list of np.ndarrays) list of alignments
@@ -80,7 +81,9 @@ def filter_aln(aln_list: List[np.array], tolerance: float = 0.8, with_similarity
         return mask
 
 
-def filter_result_dataframe(data: pd.DataFrame, column: Union[str, List[str]] = ['len']) -> pd.DataFrame:
+def filter_result_dataframe(data: pd.DataFrame,
+                            column: Union[str, List[str]] = ['len']) -> \
+                                pd.DataFrame:
     '''
     keep spans with biggest score and len
     Args:
@@ -104,7 +107,8 @@ def filter_result_dataframe(data: pd.DataFrame, column: Union[str, List[str]] = 
             resultsflt.append(tmp)
     resultsflt = pd.concat(resultsflt)
     # drop duplicates sometimes
-    resultsflt = resultsflt.drop_duplicates(subset=['pathid', 'i', 'len', 'score'])
+    resultsflt = resultsflt.drop_duplicates(
+        subset=['pathid', 'i', 'len', 'score'])
     # filter
     resultsflt = resultsflt.sort_values(by=['score'], ascending=False)
     return resultsflt

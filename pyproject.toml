@@ -21,8 +21,12 @@ classifiers = [
 
 [tool.pytest.ini_options]
 minversion = "6.0"
+addopts = [
+    "--maxfail=1",
+]
 python_files = "test_*"
-pythonpath = "tests"
+pythonpath = ["."
+]
 testpaths = [
     "tests",
 ]

@@ -84,8 +84,14 @@ def main_esm(df: pd.DataFrame, args, num_batches):
             if args.gpu:
                 batch_tokens = batch_tokens.to(device='cuda', non_blocking=True)
             with torch.no_grad():
-                results = model(batch_tokens, repr_layers=[33], return_contacts=False)
-                token_representations = results["representations"][33]
+                repr_layers = 11
+                results = model(batch_tokens, repr_layers=[repr_layers], return_contacts=False)
+                #print(results['logits'].shape)
+                token_representations = results["representations"][repr_layers]
+                # expected size
+                # [batch_size, seqlen, embdim]
+                if token_representations.ndim > 3:
+                    token_representations = token_representations.squeeze()
                 if args.gpu:
                     token_representations = token_representations.to(device='cpu')
             # remove sequence padding

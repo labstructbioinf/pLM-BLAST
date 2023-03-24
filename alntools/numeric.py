@@ -8,9 +8,11 @@ from numba import types
 
 
 @numba.jit(nopython=True, fastmath=True, cache=True)
-def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int, xstart: int, xstop: int):
+def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
+                        xstart: int, xstop: int):
     '''
-    fix max value in row or column. When xstart == xstop - max value is calculated over other dimension
+    fix max value in row or column. When xstart == xstop - max
+    value is calculated over other dimension
     and vice versa
     Args:
         arr: (np.ndarray)
@@ -21,7 +23,6 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int, xstart: int, x
     Returns:
         max_value: (float)
     '''
-    
     if xstart == xstop:
         # iterate over array slice
         max_value = arr[ystart, xstart]
@@ -36,7 +37,8 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int, xstart: int, x
     return max_value
 
 
-@numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True, fastmath=True, cache=True)
+@numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True,
+           fastmath=True, cache=True)
 def fill_matrix(a: np.ndarray, gap_penalty: float):
     '''
     fill score matrix
@@ -46,36 +48,39 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
     Return:
         b: (np.array)
     '''
-    nrows : int = a.shape[0] + 1
-    ncols : int = a.shape[1] + 1
-    H : np.ndarray = np.zeros((nrows, ncols), dtype=np.float32)
-    h_tmp : np.ndarray = np.zeros(4, dtype=np.float32)
+    nrows: int = a.shape[0] + 1
+    ncols: int = a.shape[1] + 1
+    H: np.ndarray = np.zeros((nrows, ncols), dtype=np.float32)
+    h_tmp: np.ndarray = np.zeros(4, dtype=np.float32)
     for i in range(1, nrows):
         for j in range(1, ncols):
-            #gap = abs(i - j)*gap_penalty
-            h_tmp[0] = H[i-1,j-1] + a[i-1,j-1]
+            # gap = abs(i - j)*gap_penalty
+            h_tmp[0] = H[i-1, j-1] + a[i-1, j-1]
             h_tmp[1] = H[i-1, j] - gap_penalty
             h_tmp[2] = H[i, j-1] - gap_penalty
             # max over first dimension - y
-            #h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
+            # h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
             # max over second dimension - x
-            #h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
-            H[i,j] = np.max(h_tmp)
+            # h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
+            H[i, j] = np.max(h_tmp)
     return H
 
 
-def fill_score_matrix(sub_matrix: np.ndarray, gap_penalty: float = 0.0) -> np.ndarray:
+def fill_score_matrix(sub_matrix: np.ndarray,
+                      gap_penalty: float = 0.0) -> np.ndarray:
     '''
     use substitution matrix to create score matrix
     Params:
-        sub_matrix: (np.array) substitution matrix in form of 2d array with shape: [num_res1, num_res2]
+        sub_matrix: (np.array) substitution matrix in form of 2d
+            array with shape: [num_res1, num_res2]
         gap_penalty: (float)
     Return:
         score_matrix: (np.array)
     '''
     assert gap_penalty >= 0, 'gap penalty must be positive'
     assert isinstance(gap_penalty, (float, np.float32))
-    assert isinstance(sub_matrix, np.ndarray), 'substitution matrix must be numpy array'
+    assert isinstance(sub_matrix, np.ndarray), \
+        'substitution matrix must be numpy array'
     # func fill_matrix require np.float32 array as input
     if not np.issubsctype(sub_matrix, np.float32):
         sub_matrix = sub_matrix.astype(np.float32)
@@ -83,7 +88,8 @@ def fill_score_matrix(sub_matrix: np.ndarray, gap_penalty: float = 0.0) -> np.nd
     return score_matrix
 
 
-@numba.jit('f4[:](f4[:], i4)', nogil=True, nopython=True, fastmath=True, cache=True)
+@numba.jit('f4[:](f4[:], i4)', nogil=True, nopython=True,
+           fastmath=True, cache=True)
 def move_mean(a: np.ndarray, window_width: int):
     '''
     Moving average
@@ -138,11 +144,9 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 
 
 @numba.jit(nopython=True, fastmath=True, cache=True)
-def traceback_from_point_opt2(scoremx : np.ndarray,
-                            point: Tuple[int, int],
-                            gap_opening: float=0,
-                            gap_extension: float=0,
-                            stop_value: float=1e-3) -> np.ndarray:
+def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
+                              gap_opening: float = 0, gap_extension: float = 0,
+                              stop_value: float = 1e-3) -> np.ndarray:
     '''
     find optimal route over single path
     Args:
@@ -165,8 +169,10 @@ def traceback_from_point_opt2(scoremx : np.ndarray,
     x_size: int = scoremx.shape[1]
     yi: int = point[0]
     xi: int = point[1]
-    assert y_size > yi  # , f'y size of scorematrix ({y_size}) is lower then point ({yi})'
-    assert x_size > xi  # , f'x size of scorematrix ({x_size}) is lower then point ({xi})'
+    assert y_size > yi
+    # f'y size of scorematrix ({y_size}) is lower then point ({yi})'
+    assert x_size > xi
+    # f'x size of scorematrix ({x_size}) is lower then point ({xi})'
     # set starting position
     position = 1
     # maximum size of path
@@ -219,9 +225,8 @@ def traceback_from_point_opt2(scoremx : np.ndarray,
 
 
 @numba.jit(nopython=True, cache=True)
-def find_alignment_span(means: np.ndarray,
-                    minlen: int=10,
-                     mthreshold: float=0.10) -> List[Tuple[int, int]]:
+def find_alignment_span(means: np.ndarray, minlen: int = 10,
+                        mthreshold: float = 0.10) -> List[Tuple[int, int]]:
     '''
     search for points matching `mu` and `sigma` criteria
     Args:
@@ -247,7 +252,8 @@ def find_alignment_span(means: np.ndarray,
             if minlen < alnlen:
                 alnstop = i - 1
                 spans.append((alnstart, alnstop))
-            # start new alignment, reinitialize params setting start point to the next iteration
+            # start new alignment
+            # reinitialize params setting start point to the next iteration
             alnstart = i + 1
             alnstop = i + 1
             alnlen = 0
@@ -257,13 +263,16 @@ def find_alignment_span(means: np.ndarray,
         spans.append((alnstart, alnstop))
     return spans
 
-@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, nopython=True, fastmath=True, cache=True)
+
+@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, nopython=True,
+           fastmath=True, cache=True)
 def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     '''
     compute X, Y similarity by matrix multiplication
     result shape [num X residues, num Y residues]
     Args:
-        X, Y - (np.ndarray 2D) protein embeddings as 2D tensors [num residues, embedding size]
+        X, Y - (np.ndarray 2D) protein embeddings as 2D tensors
+          [num residues, embedding size]
     Returns:
         density (torch.Tensor)
     '''

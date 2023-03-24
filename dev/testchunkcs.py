@@ -23,7 +23,7 @@ def padlast(x):
     return x
 # %%
 if not os.path.isfile(dbfile):
-    filelist = [os.path.join(example_emb, f'{f}.emb') for f in range(35000, 55000)]
+    filelist = [os.path.join(example_emb, f'{f}.emb') for f in range(0, 59990)]
     embedding_list = ds.load_full_embeddings(filelist, poolfactor=16)
     torch.save(embedding_list, dbfile)
 else:
@@ -31,12 +31,12 @@ else:
 print(len(embedding_list))
 print(embedding_list[0].shape)
 # %%
-X = embedding_list[-1]
+X = embedding_list[20000]
 scorelist = []
 
-scorelist = ds.local.chunk_cosine_similarity(X, embedding_list, stride = 10)
+scorelist = ds.local.chunk_score(X, embedding_list, stride = 3, kernel_size = 20)
 #print(scorelist)
-print(pd.Series(scorelist).describe())
+print(pd.Series(scorelist).quantile(np.arange(0, 1.02, 0.02)))
 # %%
 
 
