@@ -214,7 +214,13 @@ def get_multires_density(X: th.Tensor,
     return result
 
 
-def chunk_cosine_similarity(query : th.Tensor, targets : th.Tensor, quantile, dataset_files, stride = 3, kernel_size = 30) -> List[dict]:
+def chunk_cosine_similarity(query : th.Tensor,
+                             targets : List[th.Tensor],
+                               quantile, dataset_files : List[str],
+                                 stride = 3,
+                                   kernel_size = 30) -> List[dict]:
+    
+    assert isinstance(targets, list)
 
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)

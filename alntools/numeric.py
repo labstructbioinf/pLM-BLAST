@@ -1,6 +1,6 @@
 '''numerical array calculations powered by numba'''
 
-from typing import Tuple, List, Union
+from typing import Tuple, List
 
 import numpy as np
 import numba
@@ -54,17 +54,17 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
         for j in range(1, ncols):
             #gap = abs(i - j)*gap_penalty
             h_tmp[0] = H[i-1,j-1] + a[i-1,j-1]
-            #h_tmp[1] = H[i-1, j] - gap_penalty
-            #h_tmp[2] = H[i, j-1] - gap_penalty
+            h_tmp[1] = H[i-1, j] - gap_penalty
+            h_tmp[2] = H[i, j-1] - gap_penalty
             # max over first dimension - y
-            h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
+            #h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
             # max over second dimension - x
-            h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
-            H[i,j] = max(h_tmp)
+            #h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
+            H[i,j] = np.max(h_tmp)
     return H
 
 
-def fill_score_matrix(sub_matrix : np.ndarray, gap_penalty : float = 0.0) -> np.ndarray:
+def fill_score_matrix(sub_matrix: np.ndarray, gap_penalty: float = 0.0) -> np.ndarray:
     '''
     use substitution matrix to create score matrix
     Params:
@@ -94,7 +94,7 @@ def move_mean(a: np.ndarray, window_width: int):
     Returns:
         a_ma: (np.ndarray np.float32)
     '''
-    asum :float = 0.0
+    asum: float = 0.0
     count = 0
     mean0 = 0.0
     a_size = a.shape[0]
@@ -123,7 +123,7 @@ def move_mean(a: np.ndarray, window_width: int):
     return out
 
 
-@numba.jit('types.Tuple((f4, i4))(f4, f4, f4)',nopython=True, cache=True)
+@numba.jit('types.Tuple((f4, i4))(f4, f4, f4)', nopython=True, cache=True)
 def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
     '''
     return value and index of biggest values
@@ -136,12 +136,13 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
     else:
         return y, 1
 
+
 @numba.jit(nopython=True, fastmath=True, cache=True)
 def traceback_from_point_opt2(scoremx : np.ndarray,
                             point: Tuple[int, int],
-                            gap_opening: float = 0,
-                            gap_extension: float = 0,
-                            stop_value: float = 1e-3) -> np.ndarray:
+                            gap_opening: float=0,
+                            gap_extension: float=0,
+                            stop_value: float=1e-3) -> np.ndarray:
     '''
     find optimal route over single path
     Args:
@@ -153,19 +154,19 @@ def traceback_from_point_opt2(scoremx : np.ndarray,
     Returns:
         path (np.ndarray 2D) coordinates of path
     '''
-    f_right : float = 0.0
-    f_left : float = 0.0
-    f_diag :int = 0
-    fi_max : int = 0
+    f_right: float = 0.0
+    f_left: float = 0.0
+    f_diag: int = 0
+    fi_max: int = 0
     gap_penalty: float = 0
     # assume that the first move through alignment is diagonal
-    fi_argmax : int = 2
-    y_size : int = scoremx.shape[0]
-    x_size : int = scoremx.shape[1]
-    yi : int = point[0]
-    xi : int = point[1]
-    assert y_size > yi#, f'y size of scorematrix ({y_size}) is lower then point ({yi})'
-    assert x_size > xi#, f'x size of scorematrix ({x_size}) is lower then point ({xi})'
+    fi_argmax: int = 2
+    y_size: int = scoremx.shape[0]
+    x_size: int = scoremx.shape[1]
+    yi: int = point[0]
+    xi: int = point[1]
+    assert y_size > yi  # , f'y size of scorematrix ({y_size}) is lower then point ({yi})'
+    assert x_size > xi  # , f'x size of scorematrix ({x_size}) is lower then point ({xi})'
     # set starting position
     position = 1
     # maximum size of path
@@ -176,7 +177,7 @@ def traceback_from_point_opt2(scoremx : np.ndarray,
     path_arr[0, 1] = xi
     # iterate until border is hit
     # score matrix have one extra row and column
-    while (yi > 1) and  (xi > 1):
+    while (yi > 1) and (xi > 1):
         # find previous fi_argmax was diagnal
         if fi_argmax == 2:
             gap_penalty = gap_opening
@@ -219,8 +220,8 @@ def traceback_from_point_opt2(scoremx : np.ndarray,
 
 @numba.jit(nopython=True, cache=True)
 def find_alignment_span(means: np.ndarray,
-                    minlen: int = 10,
-                     mthreshold: float = 0.10) -> List[Tuple[int, int]]:
+                    minlen: int=10,
+                     mthreshold: float=0.10) -> List[Tuple[int, int]]:
     '''
     search for points matching `mu` and `sigma` criteria
     Args:
@@ -232,12 +233,12 @@ def find_alignment_span(means: np.ndarray,
     '''
     assert minlen > 0
 
-    num_points : int = means.shape[0]
-    alnlen : int = 0
+    num_points: int = means.shape[0]
+    alnlen: int = 0
     alnstart: int = 0
-    spans : list = []
+    spans: list = []
     # iterate over path scores
-    for i in range(num_points): 
+    for i in range(num_points):
         alnlen = alnlen + 1
         # if False break current alignment building
         if means[i] < mthreshold:
@@ -256,7 +257,7 @@ def find_alignment_span(means: np.ndarray,
         spans.append((alnstart, alnstop))
     return spans
 
-@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil = True, nopython=True, fastmath=True, cache=True)
+@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, nopython=True, fastmath=True, cache=True)
 def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     '''
     compute X, Y similarity by matrix multiplication
@@ -264,21 +265,20 @@ def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     Args:
         X, Y - (np.ndarray 2D) protein embeddings as 2D tensors [num residues, embedding size]
     Returns:
-        density (torch.Tensor) 
+        density (torch.Tensor)
     '''
-
-    xlen : int = X.shape[0]
-    ylen : int = Y.shape[0]
-    embdim : int = X.shape[1]
-    emb1_norm : np.ndarray = np.empty((xlen, 1), dtype=np.float32)
-    emb2_norm : np.ndarray = np.empty((ylen, 1), dtype=np.float32)
-    emb1_normed : np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
-    emb2_normed : np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
-    density : np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
+    xlen: int = X.shape[0]
+    ylen: int = Y.shape[0]
+    embdim: int = X.shape[1]
+    emb1_norm: np.ndarray = np.empty((xlen, 1), dtype=np.float32)
+    emb2_norm: np.ndarray = np.empty((ylen, 1), dtype=np.float32)
+    emb1_normed: np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
+    emb2_normed: np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
+    density: np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
 
     assert X.ndim == 2 and Y.ndim == 2
     assert X.shape[1] == Y.shape[1]
-    #normalize
+    # normalize
     # numba does not support sum() args other then first
     emb1_norm = np.expand_dims(np.sqrt(np.power(X, 2).sum(1)), 1)
     emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)

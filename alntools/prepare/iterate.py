@@ -6,6 +6,8 @@ import pandas as pd
 
 from .. numeric import move_mean, find_alignment_span
 
+AVG_EMBEDDING_STD = 0.075
+
 
 def mask_like(densitymap: np.array,
                 paths: Union[List[List[int]], List[Tuple[int, int]]]) -> np.ndarray:
@@ -26,11 +28,11 @@ def mask_like(densitymap: np.array,
 
 
 def search_paths(submatrix: np.ndarray,
-                paths: Tuple[list, list],
-                window: int = 10,
-                min_span: int = 10,
-                sigma_factor: float = 1.0,
-                as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
+                 paths: Tuple[list, list],
+                  window: int = 10,
+                   min_span: int = 10,
+                    sigma_factor: float = 1.0,
+                     as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
     '''
     iterate over all paths and search for routes matching alignmnet criteria
     Args:
@@ -43,7 +45,6 @@ def search_paths(submatrix: np.ndarray,
     Returns:
         record: (dict) alignment paths
     '''
-    
     assert isinstance(submatrix, np.ndarray)
     assert isinstance(paths, list)
     assert isinstance(window, int) and window > 0
@@ -53,11 +54,13 @@ def search_paths(submatrix: np.ndarray,
 
     if not np.issubsctype(submatrix, np.float32):
         submatrix = submatrix.astype(np.float32)
-    
     arr_sigma = submatrix.std()
+    # force sigma to be not greater then average std of embeddings
+    # also not too small
+    arr_sigma = min(arr_sigma, AVG_EMBEDDING_STD)
     path_threshold = sigma_factor*arr_sigma
     spans_locations = dict()
-    #iterate over all paths
+    # iterate over all paths
     for ipath, path in enumerate(paths):
         # remove one index push
         diag_ind = path - 1
@@ -71,7 +74,9 @@ def search_paths(submatrix: np.ndarray,
             line_mean = move_mean(pathvals, window)
         else:
             line_mean = pathvals
-        spans = find_alignment_span(line_mean, mthreshold=path_threshold, minlen=min_span)
+        spans = find_alignment_span(means=line_mean,
+                                     mthreshold=path_threshold,
+                                       minlen=min_span)
         # check if there is non empty alignment
         if any(spans):
             for idx, (start, stop) in enumerate(spans):
@@ -85,13 +90,12 @@ def search_paths(submatrix: np.ndarray,
                     'pathid': ipath,
                     'spanid': idx,
                     'span_start': start,
-                    'span_end' : stop,
+                    'span_end': stop,
                     'indices': arr_indices,
-                    'score' : arr_values.mean(),
-                    "len" : stop - start
+                    'score': arr_values.mean(),
+                    "len": stop - start
                 }
     if as_df:
         return pd.DataFrame(spans_locations.values())
     else:
         return spans_locations
- 

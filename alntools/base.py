@@ -1,4 +1,6 @@
 '''module merging all extraction steps into user friendly functions'''
+import itertools
+
 import pandas as pd
 from typing import List, Tuple
 import numpy as np
@@ -7,13 +9,14 @@ import torch
 from .numeric import embedding_local_similarity
 from .alignment import gather_all_paths
 from .prepare import search_paths
+from .postprocess import filter_result_dataframe
 
 
 class Extractor:
     '''
     main class for handling alignment extaction
     '''
-    MIN_SPAN_LEN : int = 20
+    MIN_SPAN_LEN: int = 20
     WINDOW_SIZE: int = 20
     NORM: bool = 'rows'
     LIMIT_RECORDS: int = 20
@@ -21,6 +24,8 @@ class Extractor:
     SIGMA_FACTOR: float = 1
     GAP_OPEN: float = 0
     GAP_EXT: float = 0
+    FILTER_RESULTS : bool = False
+    
     def __init__(self, *args, **kw_args):
         pass
 
@@ -37,7 +42,7 @@ class Extractor:
                 target_embedding = embeddings[target_idx]
                 yield (query_embedding, target_embedding, query_row, target_row)
     
-    def embedding_to_span(self, X : np.ndarray, Y : np.ndarray) -> pd.DataFrame:
+    def embedding_to_span(self, X: np.ndarray, Y: np.ndarray) -> pd.DataFrame:
         '''
         convert embeddings of given X and Y tensors into dataframe
         Returns:
@@ -64,6 +69,56 @@ class Extractor:
 
         return results
 
+    def full_compare(self, emb1: np.ndarray, emb2: np.ndarray, idx: int, file: str, alncut: float) -> pd.DataFrame:
+        res = self.embedding_to_span(emb1, emb2)
+        if len(res) > 0:
+            if res.score.max() >= alncut:
+                # add referece index to each hit
+                res['i'] = idx
+                res['dbfile'] = file
+                # filter out redundant hits
+                if self.FILTER_RESULTS:
+                    res = filter_result_dataframe(res)
+                return res
+        return []
+    
     @staticmethod
     def validate_argument(X : np.ndarray) -> bool:
         pass
+
+
+class BatchIterator:
+     '''
+     batch iterator for multiprocessing
+     '''
+     batchsize: int
+     iterlen: int
+     max_batchsize: int = 300
+     iter: int = 0
+     def __init__(self, filedict : dict, batch_size : int):
+        self.num_record = len(filedict)
+        self.batchsize = min(self.max_batchsize, batch_size, self.num_record)
+        self.filedict = filedict
+        self.iterlen = int(max(np.ceil(self.num_record/batch_size), 1))
+        self.filedict_items = self.filedict.items()
+        
+     def __len__(self):
+        return self.iterlen
+     
+     def __iter__(self):
+        return self
+
+     def __next__(self):
+        if self.iter >= self.iterlen:
+            # for multiple uses of single iterator
+            self.iter = 0
+            raise StopIteration
+        bstart = self.iter * self.batchsize
+        bend = bstart + self.batchsize
+        self.iter += 1
+        # clip batch end
+        bend = min(bend, self.num_record)
+        # create slice object
+        batchslice = slice(bstart, bend, 1)
+        batchdata = itertools.islice(self.filedict_items, bstart, bend)
+        return batchdata, batchslice
