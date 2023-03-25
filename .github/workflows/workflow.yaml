@@ -32,7 +32,7 @@ jobs:
       run: |
         $CONDA/bin/activate plmblast3
         conda install flake8
-        flake8 --count --show-source --statistics
+        flake8 --count --show-source --statistics alntools/
     - name: Pytest run
       run: |
         $CONDA/bin/activate plmblast3
