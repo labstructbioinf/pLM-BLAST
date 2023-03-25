@@ -18,6 +18,10 @@ jobs:
         auto-activate-base: true
     - name: flake8 lint
       uses: py-actions/flake8@v2
+      with:
+        max-line-length: "100"
+        path: "alntools"
+        plugins: "flake8-bugbear==22.1.11 flake8-black"
     - name: Conda info
       run: |
         which python
@@ -28,11 +32,6 @@ jobs:
         conda env create -f environment.yml
     - name: list environments
       run: conda env list
-    - name: lint check
-      run: |
-        $CONDA/bin/activate plmblast3
-        conda install flake8
-        flake8 --count --show-source --statistics alntools/
     - name: Pytest run
       run: |
         $CONDA/bin/activate plmblast3
