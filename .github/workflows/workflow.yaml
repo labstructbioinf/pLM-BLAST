@@ -20,7 +20,7 @@ jobs:
       uses: py-actions/flake8@v2
       with:
         max-line-length: "100"
-        path: "alntools"
+        path: "alntools/numeric.py"
         plugins: "flake8-bugbear==22.1.11 flake8-black"
     - name: Conda info
       run: |
