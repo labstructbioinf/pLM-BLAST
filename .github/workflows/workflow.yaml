@@ -16,6 +16,8 @@ jobs:
         miniconda-version: "latest"
         auto-update-conda: true
         auto-activate-base: true
+    - name: flake8 lint
+      uses: py-actions/flake8@v2
     - name: Conda info
       run: |
         which python
@@ -26,6 +28,11 @@ jobs:
         conda env create -f environment.yml
     - name: list environments
       run: conda env list
+    - name: flake8
+        run: |
+        $CONDA/bin/activate plmblast3
+        conda install flake8
+        flake8 --count --show-source --statistics
     - name: Pytest run
       run: |
         $CONDA/bin/activate plmblast3
