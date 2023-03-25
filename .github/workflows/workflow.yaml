@@ -28,8 +28,8 @@ jobs:
         conda env create -f environment.yml
     - name: list environments
       run: conda env list
-    - name: flake8
-        run: |
+    - name: lint check
+      run: |
         $CONDA/bin/activate plmblast3
         conda install flake8
         flake8 --count --show-source --statistics
