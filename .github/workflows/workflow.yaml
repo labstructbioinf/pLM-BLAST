@@ -25,6 +25,7 @@ jobs:
         conda info
     - name: Pytest run
       run: |
+        conda install pytest
         python -m pytest
     - name: Coveralls
       uses: coverallsapp/github-action@master
