@@ -29,4 +29,4 @@ jobs:
       run: |
         $CONDA/bin/activate plmblast3
         conda install pytest
-        $CONDA -m pytest
+        $CONDA/bin/python -m pytest
