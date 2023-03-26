@@ -10,11 +10,8 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
-        miniconda-version: "latest"
-        auto-update-conda: true
         activate-environment: plmblast3
         python-version: 3.9
-        environment-file: environment.yml
     - name: list environments
       run: conda env list
     - name: Conda info
@@ -26,6 +23,7 @@ jobs:
     - name: Pytest run
       run: |
         conda env update --file environment.yml
+        conda activate plmblast3
         conda install -c pytorch pytorch
         conda install pytest
         python -m pytest
