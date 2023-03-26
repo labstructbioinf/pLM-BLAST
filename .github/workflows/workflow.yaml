@@ -22,11 +22,11 @@ jobs:
     - name: Conda info
       run: |
         pwd
-        echo $CONDA
+        echo "$CONDA"
         which python
         conda info
     - name: Pytest run
       run: |
         $CONDA/bin/activate plmblast3
         conda install pytest
-        python -m pytest
+        $CONDA -m pytest
