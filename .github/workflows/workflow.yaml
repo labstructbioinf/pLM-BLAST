@@ -19,11 +19,14 @@ jobs:
         echo "$CONDA"
         which python
         conda info
-    - name: Pytest run
+    - name: run lint
       run: |
         conda env update --file environment.yml
         conda activate plmblast3
-        conda install -c pytorch pytorch
+        conda install flake8
+        flake8 alntools/
+    - name: Pytest run
+      run: |
         conda install pytest
         python -m pytest
     - name: Coveralls
