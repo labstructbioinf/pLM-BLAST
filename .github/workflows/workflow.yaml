@@ -24,7 +24,8 @@ jobs:
         conda info
     - name: Pytest run
       run: |
-        conda install pytest numpy
+        conda env update --file environment.yml
+        conda install pytest
         python -m pytest
     - name: Coveralls
       uses: coverallsapp/github-action@master
