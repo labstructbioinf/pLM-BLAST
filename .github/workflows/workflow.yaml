@@ -13,6 +13,7 @@ jobs:
         miniconda-version: "latest"
         auto-update-conda: true
         activate-environment: plmblast3
+        python-version: 3.9
         environment-file: environment.yml
     - name: list environments
       run: conda env list
