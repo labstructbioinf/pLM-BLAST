@@ -25,8 +25,7 @@ jobs:
         conda info
     - name: Pytest run
       run: |
-        $CONDA/bin/conda list
-        $CONDA/bin/python -m pytest
+        python -m pytest
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
