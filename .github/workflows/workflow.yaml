@@ -22,7 +22,6 @@ jobs:
     - name: run lint
       run: |
         conda env update --file environment.yml
-        conda activate plmblast3
         conda install flake8
         flake8 alntools/
     - name: Coveralls
