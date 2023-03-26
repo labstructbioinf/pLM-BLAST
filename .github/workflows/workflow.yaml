@@ -10,7 +10,7 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
-        miniconda-version: "23.1.0"
+        miniconda-version: "Miniconda3-py39_23.1.0-1-Linux-x86_64.sh"
         python-version: 3.9
     - name: list environments
       run: conda env list
