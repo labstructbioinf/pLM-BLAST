@@ -16,17 +16,11 @@ jobs:
         miniconda-version: "latest"
     - name: list environments
       run: conda env list
-    - name: Conda info
-      run: |
-        pwd
-        echo "$CONDA"
-        which python
-        conda info
     - name: run lint
       run: |
         conda env update --file environment.yml
         conda install flake8
-        run: "flake8 --format github"
+        flake8 --format github
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
