@@ -12,12 +12,9 @@ jobs:
       with:
         miniconda-version: "latest"
         auto-update-conda: true
-        auto-activate-base: true
-    - name: install anaconda environment
-      run: |
-        conda remove --name plmblast3 --all
-        conda env create -f environment.yml
-        conda install pytest
+        environment-file: environment.yml
+        auto-activate-base: false
+        activate-environment: plmblast3
     - name: list environments
       run: conda env list
     - name: Conda info
@@ -30,3 +27,9 @@ jobs:
       run: |
         $CONDA/bin/conda list
         $CONDA/bin/python -m pytest
+
+      - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path--to-lcov: coverage.xml
