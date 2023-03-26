@@ -10,7 +10,7 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
-        miniconda-version: "lastest"
+        miniconda-version: "last"
     - name: list environments
       run: conda env list
     - name: Conda info
@@ -25,12 +25,13 @@ jobs:
         conda activate plmblast3
         conda install flake8
         flake8 alntools/
-    - name: Pytest run
-      run: |
-        conda install pytest
-        python -m pytest
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path--to-lcov: coverage.xml
+    - name: Pytest run
+      run: |
+        conda install pytest
+        python -m pytest
+    
