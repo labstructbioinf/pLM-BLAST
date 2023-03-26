@@ -12,9 +12,8 @@ jobs:
       with:
         miniconda-version: "latest"
         auto-update-conda: true
-        environment-file: environment.yml
-        auto-activate-base: false
         activate-environment: plmblast3
+        environment-file: environment.yml
     - name: list environments
       run: conda env list
     - name: Conda info
@@ -25,7 +24,7 @@ jobs:
         conda info
     - name: Pytest run
       run: |
-        conda install pytest
+        conda install pytest numpy
         python -m pytest
     - name: Coveralls
       uses: coverallsapp/github-action@master
