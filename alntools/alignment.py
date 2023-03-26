@@ -201,6 +201,42 @@ def border_argmaxpool(array: np.ndarray,
         return boderindices
 
 
+def border_argmaxlenpool(array: np.ndarray,
+                    cutoff: int = 10,
+                    factor: int = 2) -> np.ndarray:
+    '''
+    get border indices of an array satysfing
+    Args:
+        array: (np.ndarray)
+        cutoff: (int)
+        factor: (int)
+    Returns:
+        borderindices: (np.ndarray)
+    '''
+    assert factor > 0
+    assert cutoff >= 0
+    assert isinstance(factor, int)
+    assert cutoff*2 < (array.shape[0] + array.shape[1]), 'cutoff exeed array size'
+
+    boderindices = get_borderline(array, cutoff=cutoff)
+    if factor > 1:
+        y, x = boderindices[:, 0], boderindices[:, 1]
+        bordevals = array[y, x]
+        num_values = bordevals.shape[0]    
+        # make num_values divisible by `factor` 
+        num_values = (num_values - (num_values % factor))
+        # arange shape (num_values//factor, factor)
+        # argmax over 1 axis is desired index over pool 
+        arange2d = np.arange(0, num_values).reshape(-1, factor)
+        arange2d_idx = np.arange(0, num_values, factor, dtype=np.int32)
+        borderargmax = bordevals[arange2d].argmax(1)
+        # add push factor so values  in range (0, factor) are translated
+        # into (0, num_values)
+        borderargmax += arange2d_idx
+        return boderindices[borderargmax, :]
+    else:
+        return boderindices
+
 def gather_all_paths(array: np.ndarray,
                     minlen: int = 10,
                     norm: Union[bool, str] = 'rows',
@@ -244,8 +280,6 @@ def gather_all_paths(array: np.ndarray,
     paths = list()
     for ind in indices:
         yi, xi = ind
-        if score_matrix[yi, xi] < 1:
-            continue
         path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, gap_extension=gap_extension)
         paths.append(path)
     if with_scores:
