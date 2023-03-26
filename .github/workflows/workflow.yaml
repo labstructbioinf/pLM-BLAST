@@ -17,6 +17,7 @@ jobs:
       run: |
         conda remove --name plmblast3 --all
         conda env create -f environment.yml
+        conda install pytest
     - name: list environments
       run: conda env list
     - name: Conda info
@@ -27,5 +28,4 @@ jobs:
         conda info
     - name: Pytest run
       run: |
-        $CONDA/bin/conda install pytest
         python -m pytest
