@@ -3,7 +3,7 @@ name: "build"
 on:
   push:
     branches:
-     - dev
+     - master
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
       run: |
         conda env update --file environment.yml
         conda install flake8
-        flake8 alntools/
+        run: "flake8 --format github"
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
