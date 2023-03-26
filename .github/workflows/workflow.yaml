@@ -6,9 +6,6 @@ jobs:
   build:
     runs-on: self-hosted
     # not ignore bash profile files
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
@@ -16,17 +13,18 @@ jobs:
         miniconda-version: "latest"
         auto-update-conda: true
         auto-activate-base: true
-    - name: Conda info
-      run: |
-        pwd
-        which python
-        conda info
     - name: install anaconda environment
       run: |
         conda remove --name plmblast3 --all
         conda env create -f environment.yml
     - name: list environments
       run: conda env list
+    - name: Conda info
+      run: |
+        pwd
+        echo $CONDA
+        which python
+        conda info
     - name: Pytest run
       run: |
         $CONDA/bin/activate plmblast3
