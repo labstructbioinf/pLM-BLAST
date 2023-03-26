@@ -28,4 +28,4 @@ jobs:
     - name: Pytest run
       run: |
         $CONDA/bin/conda install pytest
-        $CONDA/bin/pytest
+        python -m pytest
