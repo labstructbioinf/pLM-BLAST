@@ -25,6 +25,7 @@ jobs:
     - name: Pytest run
       run: |
         conda env update --file environment.yml
+        conda install -c pytorch pytorch
         conda install pytest
         python -m pytest
     - name: Coveralls
