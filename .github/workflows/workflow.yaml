@@ -10,7 +10,7 @@ jobs:
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
-        activate-environment: plmblast3
+        miniconda-version: "23.1.0"
         python-version: 3.9
     - name: list environments
       run: conda env list
