@@ -295,7 +295,3 @@ def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     emb2_normed = Y / emb2_norm
     density = (emb1_normed @ emb2_normed.T).T
     return density
-
-
-def embedding_global_similarity():
-    raise NotImplementedError('not implemented yet')
