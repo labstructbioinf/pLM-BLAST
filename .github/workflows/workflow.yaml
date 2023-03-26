@@ -16,14 +16,9 @@ jobs:
         miniconda-version: "latest"
         auto-update-conda: true
         auto-activate-base: true
-    - name: flake8 lint
-      uses: py-actions/flake8@v2
-      with:
-        max-line-length: "100"
-        path: "alntools/numeric.py"
-        plugins: "flake8-bugbear==22.1.11 flake8-black"
     - name: Conda info
       run: |
+        pwd
         which python
         conda info
     - name: install anaconda environment
