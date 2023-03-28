@@ -2,8 +2,10 @@ import sys
 import time
 import os
 import argparse
-import pandas as pd
 import concurrent
+
+import pandas as pd
+import numpy as np
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -21,7 +23,7 @@ def get_parser():
 		)
 	parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 						type=str)
-																					
+	parser.add_argument('emb', help='embeddings', type=str)																				
 	parser.add_argument('output', help='Output csv file',
 						type=str)
 												
@@ -72,8 +74,8 @@ if __name__=='__main__':
 	module.GAP_EXT = args.GAP_EXT
 	module.BFACTOR = 1
 	module.FILTER_RESULTS = args.filter
-	data = pd.read_csv(args.db + '.csv')
-	embedding_list = ...
+	data = pd.read_csv(args.db)
+	embedding_list = np.load(args.emb)
 	step = 50
 	indices1 = data.idx1.tolist()
 	indices2 = data.idx2.tolist()
