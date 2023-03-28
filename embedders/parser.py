@@ -104,7 +104,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
             raise KeyError(f'no column: {args.cname} available in file: {args.input}')
         else:
             print(f'using column: {args.cname}')
-            if 'seq' in df.columns:
+            if 'seq' in df.columns and args.cname != 'seq':
                 df.drop(columns=['seq'], inplace=True)
             df.rename(columns={args.cname: 'seq'}, inplace=True)
 
