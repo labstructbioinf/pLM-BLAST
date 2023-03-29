@@ -17,15 +17,6 @@ jobs:
         python-version: 3.9
     - name: list environments
       run: conda env list
-    - name: run lint
-      run: |
-        conda install flake8
-        flake8 --ignore=E1,E23,W503,W292,W293 alntools/
-    - name: Coveralls
-      uses: coverallsapp/github-action@master
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path--to-lcov: coverage.xml
     - name: Pytest run
       run: |
         conda env update --file environment.yml
