@@ -19,9 +19,8 @@ jobs:
       run: conda env list
     - name: run lint
       run: |
-        conda env update --file environment.yml
         conda install flake8
-        flake8 --ignore=E1,E23,W503 --format github
+        flake8 --ignore=E1,E23,W503 alntools/
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
@@ -29,6 +28,7 @@ jobs:
         path--to-lcov: coverage.xml
     - name: Pytest run
       run: |
+        conda env update --file environment.yml
         conda install pytest
         python -m pytest
     
