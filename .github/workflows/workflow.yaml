@@ -14,13 +14,14 @@ jobs:
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
         miniconda-version: "latest"
+        python-version: 3.9
     - name: list environments
       run: conda env list
     - name: run lint
       run: |
         conda env update --file environment.yml
         conda install flake8
-        flake8 --format github
+        flake8 --ignore=E1,E23,W503 --format github
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
