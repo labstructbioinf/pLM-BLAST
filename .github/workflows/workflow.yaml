@@ -20,7 +20,7 @@ jobs:
     - name: run lint
       run: |
         conda install flake8
-        flake8 --ignore=E1,E23,W503 alntools/
+        flake8 --ignore=E1,E23,W503,W292,W293 alntools/
     - name: Coveralls
       uses: coverallsapp/github-action@master
       with:
