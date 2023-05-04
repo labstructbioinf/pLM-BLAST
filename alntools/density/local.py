@@ -1,5 +1,6 @@
 '''functions for local density extracting'''
 from typing import List, Union, Tuple
+import concurrent
 
 from tqdm import tqdm
 import torch as th
@@ -41,6 +42,7 @@ def last_pad(a: th.Tensor, dim: int, pad: Tuple[int, int]):
 
 def sequence_to_filters(protein: th.Tensor,
                         kernel_size : int,
+                        stride: int = 1,
                         norm :bool = True,
                         with_padding : bool = True):
     r'''
@@ -49,12 +51,12 @@ def sequence_to_filters(protein: th.Tensor,
     from input `protein` with shape: 
     (seq_len, emb_size)
     params:
-        kernel_size List[int]
+        kernel_size: List[int]
+        stride: (int)
         norm (bool) whether to apply normalization to filters
     returns:
         
     '''
-    filter_stride = 1
     device = protein.device
     if kernel_size % 2 == 0:
         paddingh = kernel_size//2 - 1
@@ -67,25 +69,26 @@ def sequence_to_filters(protein: th.Tensor,
         pass
     elif protein.ndim < 3:
         raise ArithmeticError(f'protein arg must be at least 2 dim, bug given: {protein.shape}')
-    seq_len, emb_size = protein.shape[-2], protein.shape[-1]
+    seqlen, emb_size = protein.shape[-2], protein.shape[-1]
     if with_padding:
         protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
     # protein = F.pad(protein, (0, 0, paddingh, paddingw), 'constant', 0.0)
     filter_list = []
-    for start in range(0, seq_len, filter_stride):
+    num_filters = (seqlen - kernel_size)//stride
+    for start in range(0, seqlen-kernel_size, stride):
             # single filter of size (1, kerenl_size, num_emb_feats)
             # last sample boundary when padding is false
-            if start + kernel_size > seq_len:
-                start = seq_len - kernel_size
+            if start + kernel_size > seqlen:
+                start = seqlen - kernel_size
             filt = protein.narrow(0, start, kernel_size).unsqueeze(0)
             filter_list.append(filt)
     filters = th.cat(filter_list, 0)
-    filters = filters.view(seq_len, 1, kernel_size, emb_size)
+    filters = filters.view(num_filters, 1, kernel_size, emb_size)
     # normalize filters
     if norm:
-        norm_val = filters.view(seq_len, -1).pow(2).sum(1, keepdim=True)
+        norm_val = filters.view(num_filters, -1).pow(2).sum(1, keepdim=True)
         norm_val[norm_val == 0] = 1e-5
-        norm_val = norm_val.sqrt().view(seq_len, 1, 1, 1)
+        norm_val = norm_val.sqrt().view(num_filters, 1, 1, 1)
         filters /= norm_val
     return filters.to(device)
 
@@ -95,13 +98,17 @@ def calc_density(protein: th.Tensor, filters: th.Tensor,
     '''
     convolve `protein` with set of `filters`
     params:
-        filters (num_filters, 1, kernel_size, emb_size)
+        protein: (seqlen, emb_size)
+        filters: (num_filters, 1, kernel_size, emb_size)
     '''
     assert filters.ndim == 4, 'invalid filters shape required (num_filters, 1, kernel_size, emb_size)'
+    # add dimensions up to 4
     if protein.ndim == 2:
-        protein = protein.unsqueeze(0)
-    elif protein.ndim == 3:
         protein = protein.unsqueeze(0).unsqueeze(0)
+    elif protein.ndim == 3:
+        protein = protein.unsqueeze(0)
+    else:
+        raise ValueError(f'protein incorrect number of dimensions: {protein.ndim} expected 2 or 3')
     kernel_size = filters.shape[2]
     if kernel_size % 2 == 0:
         paddingh = kernel_size//2 - 1
@@ -225,10 +232,12 @@ def chunk_cosine_similarity(query : th.Tensor,
                             stride = 3, kernel_size = 30) -> List[dict]:
     
     assert isinstance(targets, list)
+    assert query.ndim == 2
+    
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)
     assert len(targets) == len(dataset_files), f'{len(targets)} != {len(dataset_files)}'
-    scorestack = chunk_score(query, targets, stride = 3, kernel_size=20)
+    scorestack = chunk_score(query, targets, stride = stride, kernel_size=kernel_size)
     quantile_threshold = th.quantile(scorestack, quantile)
     scoremask = (scorestack >= quantile_threshold)
     # convert mask to indices
@@ -237,26 +246,26 @@ def chunk_cosine_similarity(query : th.Tensor,
         }
     return filedict
 
+
 def chunk_score(query, targets, stride: int , kernel_size: int) -> th.FloatTensor:
     '''
     perform chunk cosine similarity screening
+    Args:
+        query: (torch.FloatTensor)
+        targets: (list of torch.FloatTensor)
+        stride: (int)
+        kernel_size: (int)
+    Returns:
+        scorestack: (torch.FloatTensor)
     '''
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)
-    embedding_dim_size = query.shape[1]
+    embdim = query.shape[1]
     query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
                                         norm=True, with_padding=False)
     with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
         for i, target in enumerate(targets, 0):
-            density = calc_density(target, query_kernels,
-                                   stride=stride, with_padding=False)
-            target = target.unsqueeze(0).unsqueeze(0)
-            target_norm = th.nn.functional.unfold(target,
-                                                  (kernel_size, embedding_dim_size),
-                                                  stride=(stride, 1))
-            target_norm = target_norm.squeeze()
-            target_norm = target_norm.pow(2).sum(0).sqrt()
-            density = density/target_norm
+            density = single_process(query_kernels, target, stride=stride)
             scorestack[i] = density.max()
             if i % 10 == 0:
                 pbar.update(10)
@@ -265,3 +274,51 @@ def chunk_score(query, targets, stride: int , kernel_size: int) -> th.FloatTenso
           number of embeddings than db {scorestack.shape[0]} - {num_targets}'''
                          )
     return scorestack
+
+
+def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: int=6) -> th.FloatTensor:
+    '''
+    perform chunk cosine similarity screening
+    '''
+
+    num_targets = len(targets)
+    scorestack = th.zeros(num_targets)
+    embdim = query.shape[1]
+    batch_size = 500*num_workers
+    query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
+                                        norm=True, with_padding=False)
+    with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
+        with concurrent.futures.ProcessPoolExecutor(max_workers = num_workers) as executor:
+            for batch_start in range(0, len(targets), batch_size):
+                batch_end = min(batch_start + batch_size, num_targets)
+                job_stack = {}
+                for i in range(batch_start, batch_end):
+                    job = executor.submit(single_process, query_kernels, targets[i], stride, kernel_size, embdim)
+                    job_stack[job] = i
+                for job in concurrent.futures.as_completed(job_stack):
+                    i = job_stack[job]
+                    scorestack[i] = job.result()
+                    if i % 100 == 0:
+                        pbar.update(100)
+    if scorestack.shape[0] != num_targets:
+        raise ValueError(f'''cosine sim screening result different
+          number of embeddings than db {scorestack.shape[0]} - {num_targets}'''
+                         )
+    return scorestack
+
+
+def single_process(query_kernels, target, stride: int) -> th.FloatTensor:
+    embdim : int = target.shape[-1]
+    kernel_size: int = query_kernels.shape[-2]
+    density = calc_density(target, query_kernels, stride=stride, with_padding=False)
+    target_norm = norm_chunk(target=target, kernel_size=kernel_size, embdim=embdim, stride=stride)
+    density_chunk = density/target_norm
+    return density_chunk
+
+
+def norm_chunk(target, kernel_size, embdim, stride) -> th.FloatTensor:
+    target = target.unsqueeze(0).unsqueeze(0)
+    target_norm = th.nn.functional.unfold(target, (kernel_size, embdim), stride=(stride, 1))
+    target_norm = target_norm.squeeze()
+    target_norm = target_norm.pow(2).sum(0).sqrt()
+    return target_norm
