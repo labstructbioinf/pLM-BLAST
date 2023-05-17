@@ -2,7 +2,7 @@
 import itertools
 
 import pandas as pd
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import numpy as np
 import torch
 
@@ -46,44 +46,59 @@ class Extractor:
                 yield (
                     query_embedding, target_embedding, query_row, target_row)
 
-    def embedding_to_span(self, X: np.ndarray, Y: np.ndarray) -> pd.DataFrame:
+    def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
         '''
         convert embeddings of given X and Y tensors into dataframe
+        Args:
+            X: (np.ndarray)
+            Y: (np.ndarray)
+            mode: (str) if set to `all` densitymap and alignment paths are returned
         Returns:
             results: (pd.DataFrame) alignment hits frame
+            densitymap: (np.ndarray)
+            paths: (list[np.array])
+            scorematrix: (np.ndarray)
         '''
         if not np.issubdtype(X.dtype, np.float32):
             X = X.astype(np.float32)
         if not np.issubdtype(Y.dtype, np.float32):
             Y = Y.astype(np.float32)
+        if mode not in {'results', 'all'}:
+            raise AttributeError(f'mode must me results or all, but given: {mode}')
         densitymap = embedding_local_similarity(X, Y)
         paths = gather_all_paths(densitymap,
                                  norm=self.NORM,
                                  minlen=self.MIN_SPAN_LEN,
                                  bfactor=self.BFACTOR,
                                  gap_opening=self.GAP_OPEN,
-                                 gap_extension=self.GAP_EXT)
+                                 gap_extension=self.GAP_EXT,
+                                 with_scores = True if mode == 'all' else False)
+        if mode == 'all':
+            scorematrix = paths[1]
+            paths = paths[0]
+            
         results = search_paths(densitymap,
                                paths=paths,
                                window=self.WINDOW_SIZE,
                                min_span=self.MIN_SPAN_LEN,
                                sigma_factor=self.SIGMA_FACTOR,
                                as_df=True)
-
-        return results
+        if mode == 'all':
+            return (results, densitymap, paths, scorematrix)
+        else:
+            return results
 
     def full_compare(self, emb1: np.ndarray, emb2: np.ndarray,
-                     idx: int, file: str, alncut: float) -> pd.DataFrame:
+                     idx: int, file: str) -> pd.DataFrame:
         res = self.embedding_to_span(emb1, emb2)
         if len(res) > 0:
-            if res.score.max() >= alncut:
-                # add referece index to each hit
-                res['i'] = idx
-                res['dbfile'] = file
-                # filter out redundant hits
-                if self.FILTER_RESULTS:
-                    res = filter_result_dataframe(res)
-                return res
+            # add referece index to each hit
+            res['i'] = idx
+            res['dbfile'] = file
+            # filter out redundant hits
+            if self.FILTER_RESULTS:
+                res = filter_result_dataframe(res)
+            return res
         return []
 
     @staticmethod

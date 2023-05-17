@@ -185,16 +185,20 @@ def load_full_embeddings(filelist : List[os.PathLike],
         stack.extend(batch)
     '''
     missing_files : int = 0
-    for file in tqdm(filelist, desc="loading embeddings"):
-        if not os.path.isfile(file):
-                missing_files += 1
-                continue
-        if poolfactor is not None:
-            embedding = torch.load(file).float()
-            embedding = avg_pool1d(embedding, poolfactor)
-            stack.append(embedding)
-        else:
-            stack.append(torch.load(file).numpy())
+
+    with tqdm(total=len(filelist), desc="load embeddings") as pbar:
+        for itr, file in enumerate(filelist):
+            if not os.path.isfile(file):
+                    missing_files += 1
+                    continue
+            if poolfactor is not None:
+                embedding = torch.load(file).float()
+                embedding = avg_pool1d(embedding.unsqueeze(0), poolfactor)
+                stack.append(embedding.squeeze(0))
+            else:
+                stack.append(torch.load(file).numpy())
+            if itr % 5 == 0:
+                pbar.update(5)
     print('embedding missing files: ', missing_files)
     return stack
 

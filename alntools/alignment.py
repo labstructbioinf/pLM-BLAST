@@ -239,7 +239,7 @@ def border_argmaxlenpool(array: np.ndarray,
 
 def gather_all_paths(array: np.ndarray,
                     minlen: int = 10,
-                    norm: Union[bool, str] = 'rows',
+                    norm: Union[bool, str] = True,
                     bfactor: int = 1,
                     gap_opening: float = 0,
                     gap_extension: float = 0,
@@ -279,11 +279,10 @@ def gather_all_paths(array: np.ndarray,
     indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
     paths = list()
     for ind in indices:
-        yi, xi = ind
         path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, gap_extension=gap_extension)
         paths.append(path)
     if with_scores:
-        return paths, score_matrix
+        return (paths, score_matrix)
     else:
         return paths
 

@@ -30,7 +30,7 @@ def mask_like(densitymap: np.array,
 def search_paths(submatrix: np.ndarray,
                  paths: Tuple[list, list],
                   window: int = 10,
-                   min_span: int = 10,
+                   min_span: int = 20,
                     sigma_factor: float = 1.0,
                      as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
     '''
@@ -48,10 +48,11 @@ def search_paths(submatrix: np.ndarray,
     assert isinstance(submatrix, np.ndarray)
     assert isinstance(paths, list)
     assert isinstance(window, int) and window > 0
-    assert isinstance(min_span, int) and min_span > -1
+    assert isinstance(min_span, int) and min_span > 0
     assert isinstance(sigma_factor, (int, float))
     assert isinstance(as_df, bool)
 
+    min_span = max(min_span, window)
     if not np.issubsctype(submatrix, np.float32):
         submatrix = submatrix.astype(np.float32)
     arr_sigma = submatrix.std()
@@ -80,11 +81,18 @@ def search_paths(submatrix: np.ndarray,
         # check if there is non empty alignment
         if any(spans):
             for idx, (start, stop) in enumerate(spans):
-                if stop - start < min_span:
+                alnlen = stop - start
+                if alnlen < min_span:
                     continue
-                y1, x1 = y[start:stop], x[start:stop]
-                arr_indices = np.stack([y1, x1], axis=1)
+                y1, x1 = y[start:stop-1], x[start:stop-1]
                 arr_values = submatrix[y1, x1]
+                '''
+                if arr_values.mean() < path_threshold:
+                    print(arr_values)
+                    print(line_mean[start:stop])
+                    raise ValueError('array values are wrong', arr_values.mean(), path_threshold)
+                '''
+                arr_indices = np.stack([y1, x1], axis=1)
                 keyid = f'{ipath}_{idx}'
                 spans_locations[keyid] = {
                     'pathid': ipath,
@@ -93,7 +101,7 @@ def search_paths(submatrix: np.ndarray,
                     'span_end': stop,
                     'indices': arr_indices,
                     'score': arr_values.mean(),
-                    "len": stop - start
+                    "len": alnlen
                 }
     if as_df:
         return pd.DataFrame(spans_locations.values())

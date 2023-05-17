@@ -56,12 +56,12 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
         for j in range(1, ncols):
             # gap = abs(i - j)*gap_penalty
             h_tmp[0] = H[i-1, j-1] + a[i-1, j-1]
-            h_tmp[1] = H[i-1, j] - gap_penalty
-            h_tmp[2] = H[i, j-1] - gap_penalty
+            #h_tmp[1] = H[i-1, j] - gap_penalty
+            #h_tmp[2] = H[i, j-1] - gap_penalty
             # max over first dimension - y
-            # h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
+            h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
             # max over second dimension - x
-            # h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
+            h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
             H[i, j] = np.max(h_tmp)
     return H
 
@@ -113,8 +113,8 @@ def move_mean(a: np.ndarray, window_width: int):
     if pad_end < 0:
         pad_end = a_size
     for i in range(0, pad_start):
-        asum = asum + a[i]
-        count = count + 1
+        asum +=  a[i]
+        count += 1
     mean0 = asum / count
     # fill first elements with its mean
     for i in range(pad_start):
@@ -126,6 +126,8 @@ def move_mean(a: np.ndarray, window_width: int):
     # fill last elements
     for i in range(pad_end, a_size):
         out[i] = asum / count
+
+    out = out * (a > 0)
     return out
 
 
@@ -252,7 +254,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
             if minlen < alnlen:
                 alnstop = i - 1
                 spans.append((alnstart, alnstop))
-            # start new alignment
+            # start new alignment or reset
             # reinitialize params setting start point to the next iteration
             alnstart = i + 1
             alnstop = i + 1

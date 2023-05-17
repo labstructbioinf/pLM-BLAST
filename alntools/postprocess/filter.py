@@ -95,7 +95,7 @@ def filter_result_dataframe(data: pd.DataFrame,
     indices = data.indices.tolist()
     data['y1'] = [yx[0][0] for yx in indices]
     data['x1'] = [yx[0][1] for yx in indices]
-    data['score'] = data['score'].round(2)
+    data['score'] = data['score'].round(3)
 
     if isinstance(column, str):
         column = [column]

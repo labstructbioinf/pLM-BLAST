@@ -280,7 +280,6 @@ def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: 
     '''
     perform chunk cosine similarity screening
     '''
-
     num_targets = len(targets)
     scorestack = th.zeros(num_targets)
     embdim = query.shape[1]
