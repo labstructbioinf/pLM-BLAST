@@ -273,13 +273,13 @@ def gather_all_paths(array: np.ndarray,
         elif norm == 'cols':
             array = array - array.mean(axis=0, keepdims=True)
             array = array / array.std(axis=0, keepdims=True)
-    score_matrix = fill_score_matrix(array)
+    score_matrix = fill_score_matrix(array, gap_penalty=gap_opening)
     # get all edge indices for left and bottom
     # score_matrix shape array.shape + 1
     indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
     paths = list()
     for ind in indices:
-        path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, gap_extension=gap_extension)
+        path = traceback_from_point_opt2(score_matrix, ind, gap_opening=0, gap_extension=0)
         paths.append(path)
     if with_scores:
         return (paths, score_matrix)

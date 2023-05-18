@@ -169,6 +169,8 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
     fi_argmax: int = 2
     y_size: int = scoremx.shape[0]
     x_size: int = scoremx.shape[1]
+    y_border: int = y_size - 1
+    x_border: int = x_size - 1
     yi: int = point[0]
     xi: int = point[1]
     assert y_size > yi
@@ -188,10 +190,10 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
     while (yi > 1) and (xi > 1):
         # find previous fi_argmax was diagnal
         if fi_argmax == 2:
-            gap_penalty = gap_opening
+            gap_penalty = 0
         # otherwise gap is prolongning
         else:
-            gap_penalty = gap_extension
+            gap_penalty = gap_opening
         f_right = scoremx[yi-1, xi] - gap_penalty
         f_left = scoremx[yi, xi-1] - gap_penalty
         f_diag = scoremx[yi-1, xi-1]
