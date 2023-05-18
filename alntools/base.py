@@ -22,8 +22,8 @@ class Extractor:
     LIMIT_RECORDS: int = 20
     BFACTOR: float = 1
     SIGMA_FACTOR: float = 1
-    GAP_OPEN: float = 0
-    GAP_EXT: float = 0
+    GAP_OPEN: float = 0.0
+    GAP_EXT: float = 0.0
     FILTER_RESULTS: bool = False
 
     def __init__(self, *args, **kw_args):
