@@ -85,6 +85,12 @@ paths = aln.alignment.gather_all_paths(densitymap)
 results = aln.prepare.search_paths(densitymap, paths=paths, as_df=True)
 # remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results)
+
+# all at once
+extr = Extractor()
+results = extr.embedding_to_span(emb1, emb2)
+# remove redundant hits
+results = aln.postprocess.filter_result_dataframe(results)
 ```
 
 ## Remarks
