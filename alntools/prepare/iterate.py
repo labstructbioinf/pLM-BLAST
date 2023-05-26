@@ -36,7 +36,7 @@ def search_paths(submatrix: np.ndarray,
     '''
     iterate over all paths and search for routes matching alignmnet criteria
     Args:
-        submatrix: (np.ndarray) score matrix
+        submatrix: (np.ndarray) density matrix
         paths: (list) list of paths to scan
         window: (int) size of moving average window
         min_span: (int) minimal length of alignment to collect

@@ -239,7 +239,7 @@ def border_argmaxlenpool(array: np.ndarray,
 
 def gather_all_paths(array: np.ndarray,
                     minlen: int = 10,
-                    norm: Union[bool, str] = True,
+                    norm: bool = True,
                     bfactor: int = 1,
                     gap_opening: float = 0,
                     gap_extension: float = 0,
@@ -256,24 +256,18 @@ def gather_all_paths(array: np.ndarray,
         paths: (list) list of all valid paths through scoring matrix
         score_matrix: (np.ndarray) scoring matrix used
     '''
+    
     if not isinstance(array, np.ndarray):
         array = array.numpy().astype(np.float32)
     if not isinstance(norm, (str, bool)):
-        raise ValueError(f'norm_rows arg should be bool/str type, but given: {norm}')
+        raise ValueError(f'norm_rows arg should be bool type, but given: {norm}')
     # standarize embedding
     if isinstance(norm, bool):
         if norm:
-            array -= array.mean()
-            array /= (array.std() + 1e-3)
-        
-    elif isinstance(norm, str):
-        if norm == 'rows':
-            array = array - array.mean(axis=1, keepdims=True)
-            array = array / array.std(axis=1, keepdims=True)
-        elif norm == 'cols':
-            array = array - array.mean(axis=0, keepdims=True)
-            array = array / array.std(axis=0, keepdims=True)
-    score_matrix = fill_score_matrix(array, gap_penalty=gap_opening)
+            arraynorm = (array - array.mean())/(array.std() + 1e-3)
+        else:
+            arraynorm = array.copy()
+    score_matrix = fill_score_matrix(arraynorm, gap_penalty=gap_opening)
     # get all edge indices for left and bottom
     # score_matrix shape array.shape + 1
     indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)

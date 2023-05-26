@@ -58,14 +58,15 @@ def test_embedding_similarity(emb1, emb2):
     np.random.rand(300, EMB_DIM),
     10 + np.random.rand(213, EMB_DIM) # big values
     ])
-def test_path_gathering(emb1, emb2):
+@pytest.mark.parametrize('norm', [False, True])
+def test_path_gathering(emb1, emb2, norm):
 
     emb1 = emb1.astype(np.float32)
     emb2 = emb2.astype(np.float32)
     density = embedding_local_similarity(emb1, emb2)
     density_cp = density.copy()
     density_T = embedding_local_similarity(emb2, emb1)
-    paths = gather_all_paths(density, norm=True,
+    paths = gather_all_paths(density, norm=norm,
                                  minlen=10,
                                  bfactor=1,
                                  gap_opening=0,

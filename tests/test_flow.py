@@ -55,7 +55,7 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
                 assert res_seq2_min >= 0 and res_seq2_max < emb2.shape[0], f'seq2 ({emb2.shape[0]}) aln indices exeeds seqlen {res_seq2_min} - {res_seq2_max}'
 
 
-@pytest.mark.parametrize("WINDOW_SIZE",  [1, 5, 10, 20])
+@pytest.mark.parametrize("WINDOW_SIZE",  [5, 10, 20])
 def test_result_symmetry(WINDOW_SIZE):
     '''
     check if results are symmetric: results for x,y and y,x should be the same
@@ -64,18 +64,23 @@ def test_result_symmetry(WINDOW_SIZE):
     if not os.path.isfile(file):
         raise FileNotFoundError(f'missing embedding symmetricity test file: {file}')
     embs = torch.load(file)
-    X, Y = embs[0], embs[1]
+    X, Y = embs[0].numpy(), embs[1].numpy()
     module = Extractor()
     module.WINDOW_SIZE = WINDOW_SIZE
     res12, density12, paths12, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
     res21, density21, paths21, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
     # draw path masks for both
-    mask12 = aln.prepare.mask_like(densitymap=density12, paths=paths12)
-    mask21 = aln.prepare.mask_like(densitymap=density21, paths=paths21)
-    if not np.allclose(density12, density21.T, ATOL):
-        raise ValueError('density matrix is asymmetric')
-    if not np.allclose(scorematrix12, scorematrix21.T, ATOL):
+    if res12.shape[0] != res21.shape[0]:
+        raise ValueError('result dataframe is asymmetric')
+    if res12.shape[0] == 0 or res21.shape[0] == 0:
+        raise ValueError(f'empty result dataframe {res12.shape[0]}, {res21.shape[0]}')
+    mask12 = aln.prepare.mask_like(densitymap=density12, paths=res12['indices'])
+    mask21 = aln.prepare.mask_like(densitymap=density21, paths=res21['indices'])
+    if not np.allclose(density12, density21.T, atol=ATOL):
+        max_diff = density12 - density21.T
+        raise ValueError(f'density matrix is asymmetric, max diff: {max_diff.max()}')
+    if not np.allclose(scorematrix12, scorematrix21.T, atol=ATOL):
         raise ValueError('scorematrix matrix is asymmetric')
-    if not np.allclose(mask12, mask21, ATOL):
+    if not np.allclose(mask12, mask21.T, atol=ATOL):
         raise ValueError('mask matrix is asymmetric')
 

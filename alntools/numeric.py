@@ -1,6 +1,6 @@
 '''numerical array calculations powered by numba'''
 
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import numpy as np
 import numba
@@ -67,7 +67,7 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
 
 
 def fill_score_matrix(sub_matrix: np.ndarray,
-                      gap_penalty: float = 0.0) -> np.ndarray:
+                      gap_penalty: Union[int, float] = 0.0) -> np.ndarray:
     '''
     use substitution matrix to create score matrix
     Params:
@@ -270,7 +270,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
 
 @numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, nopython=True,
            fastmath=True, cache=True)
-def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
+def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
     '''
     compute X, Y similarity by matrix multiplication
     result shape [num X residues, num Y residues]
@@ -280,18 +280,18 @@ def embedding_local_similarity(X: np.array, Y: np.array) -> np.array:
     Returns:
         density (torch.Tensor)
     '''
+    assert X.ndim == 2 and Y.ndim == 2
+    assert X.shape[1] == Y.shape[1]
+
     xlen: int = X.shape[0]
     ylen: int = Y.shape[0]
     embdim: int = X.shape[1]
+    # normalize
     emb1_norm: np.ndarray = np.empty((xlen, 1), dtype=np.float32)
     emb2_norm: np.ndarray = np.empty((ylen, 1), dtype=np.float32)
     emb1_normed: np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
     emb2_normed: np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
     density: np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
-
-    assert X.ndim == 2 and Y.ndim == 2
-    assert X.shape[1] == Y.shape[1]
-    # normalize
     # numba does not support sum() args other then first
     emb1_norm = np.expand_dims(np.sqrt(np.power(X, 2).sum(1)), 1)
     emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)

@@ -18,9 +18,10 @@ class Extractor:
     '''
     MIN_SPAN_LEN: int = 20
     WINDOW_SIZE: int = 20
-    NORM: bool = 'rows'
+    # NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
+    NORM: Union[bool, str] = True
     LIMIT_RECORDS: int = 20
-    BFACTOR: float = 1
+    BFACTOR: int = 1
     SIGMA_FACTOR: float = 1
     GAP_OPEN: float = 0.0
     GAP_EXT: float = 0.0
