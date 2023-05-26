@@ -7,8 +7,10 @@ import numpy as np
 import torch
 
 from alntools.base import Extractor
+import alntools as aln
 
-
+PATH_SYMMETRIC_TEST = 'tests/test_data/asymetric'
+ATOL=1e-6
 # only zero gap penalty will produce normalized results
 @pytest.mark.parametrize("GAP_OPEN", [0])
 @pytest.mark.parametrize("GAP_EXT", [0])
@@ -41,5 +43,39 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
             if len(res) != 0:
                 # check results
                 assert res['score'].max() <= 1.01, 'score is higher then one'
+                res['indices_seq1'] = res['indices'].apply(lambda aln : [x[1] for x in aln])
+                res['indices_seq2'] = res['indices'].apply(lambda aln : [x[0] for x in aln])
+                # check alignment borders
+                res_seq1_max = res['indices_seq1'].apply(max).max()
+                res_seq1_min = res['indices_seq1'].apply(min).min()
+                res_seq2_max = res['indices_seq2'].apply(max).max()
+                res_seq2_min = res['indices_seq2'].apply(min).min()
 
+                assert res_seq1_min >= 0 and res_seq1_max < emb1.shape[0], f'seq1 ({emb1.shape[0]}) aln indices exeeds seqlen {res_seq1_min} - {res_seq1_max}'
+                assert res_seq2_min >= 0 and res_seq2_max < emb2.shape[0], f'seq2 ({emb2.shape[0]}) aln indices exeeds seqlen {res_seq2_min} - {res_seq2_max}'
+
+
+@pytest.mark.parametrize("WINDOW_SIZE",  [1, 5, 10, 20])
+def test_result_symmetry(WINDOW_SIZE):
+    '''
+    check if results are symmetric: results for x,y and y,x should be the same
+    '''
+    file = PATH_SYMMETRIC_TEST + '.pt'
+    if not os.path.isfile(file):
+        raise FileNotFoundError(f'missing embedding symmetricity test file: {file}')
+    embs = torch.load(file)
+    X, Y = embs[0], embs[1]
+    module = Extractor()
+    module.WINDOW_SIZE = WINDOW_SIZE
+    res12, density12, paths12, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
+    res21, density21, paths21, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
+    # draw path masks for both
+    mask12 = aln.prepare.mask_like(densitymap=density12, paths=paths12)
+    mask21 = aln.prepare.mask_like(densitymap=density21, paths=paths21)
+    if not np.allclose(density12, density21.T, ATOL):
+        raise ValueError('density matrix is asymmetric')
+    if not np.allclose(scorematrix12, scorematrix21.T, ATOL):
+        raise ValueError('scorematrix matrix is asymmetric')
+    if not np.allclose(mask12, mask21, ATOL):
+        raise ValueError('mask matrix is asymmetric')
 
