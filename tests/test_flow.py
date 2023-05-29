@@ -83,4 +83,6 @@ def test_result_symmetry(WINDOW_SIZE):
         raise ValueError('scorematrix matrix is asymmetric')
     if not np.allclose(mask12, mask21.T, atol=ATOL):
         raise ValueError('mask matrix is asymmetric')
+    if res12['score'].max() > 1.01 or res12['score'].max() > 1.01:
+        raise ValueError('score is higher then one')
 

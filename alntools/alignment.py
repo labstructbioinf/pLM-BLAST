@@ -273,7 +273,7 @@ def gather_all_paths(array: np.ndarray,
     indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
     paths = list()
     for ind in indices:
-        path = traceback_from_point_opt2(score_matrix, ind, gap_opening=0, gap_extension=0)
+        path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, gap_extension=gap_extension)
         paths.append(path)
     if with_scores:
         return (paths, score_matrix)
