@@ -39,20 +39,19 @@ matplotlib
 Pre-calculated databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. To create a custom database, use `embeddings.py` script:
 
 ```
-embeddings.py -embedder pt -cname column_name database.csv database.pt_emb.p --gpu
+embeddings.py database.csv database -embedder pt -cname column_name --gpu -bs -1 --asdir
 ```
 
 `database.csv` is an index file defining sequences and their descriptions. For example, the first lines of the ECOD database index are:
-
 ```
 ,id,description,sequence
 0,ECOD_000151743_e4aybQ1,"ECOD_000151743_e4aybQ1 | 4146.1.1.2 | 4AYB Q:33-82 | A: alpha bundles, X: NO_X_NAME, H: NO_H_NAME, T: YqgQ-like, F: RNA_pol_Rpo13 | Protein: DNA-DIRECTED RNA POLYMERASE",FPKLSIQDIELLMKNTEIWDNLLNGKISVDEAKRLFEDNYKDYEKRDSRR
 1,ECOD_000399743_e3nmdE1,"ECOD_000399743_e3nmdE1 | 5027.1.1.3 | 3NMD E:3-53 | A: extended segments, X: NO_X_NAME, H: NO_H_NAME, T: Preprotein translocase SecE subunit, F: DD_cGKI-beta | Protein: cGMP Dependent PRotein Kinase",LRDLQYALQEKIEELRQRDALIDELELELDQKDELIQMLQNELDKYRSVI
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
+Program will generate directory `database` in which each file is a separate sequence embedding. `bs -1` for adaptive batch size - especially helpful when using `--gpu`.
 
 Index can be generated from a FASTA file using `scripts/makeindex.py`. 
-
 Use `-cname` to specify in which column of the `database.csv` file sequences are stored \
 The resulting embeddings will be stored in `database.pt_emb.p` \
 Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower)
@@ -75,6 +74,13 @@ embs = torch.load(emb_file)
 # a self-comparison will be performed
 seq1_emb, seq2_emb = embs[0], embs[0]
 
+# all at once
+extr = Extractor()
+results = extr.embedding_to_span(emb1, emb2)
+# remove redundant hits
+results = aln.postprocess.filter_result_dataframe(results)
+
+# step by step appraoch
 # calculate embedding similarity aka substitution matrix
 densitymap = aln.density.embedding_similarity(seq1_emb, seq2_emb)
 # convert to numpy array
@@ -85,13 +91,8 @@ paths = aln.alignment.gather_all_paths(densitymap)
 results = aln.prepare.search_paths(densitymap, paths=paths, as_df=True)
 # remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results)
-
-# all at once
-extr = Extractor()
-results = extr.embedding_to_span(emb1, emb2)
-# remove redundant hits
-results = aln.postprocess.filter_result_dataframe(results)
 ```
+
 
 ## Remarks
 

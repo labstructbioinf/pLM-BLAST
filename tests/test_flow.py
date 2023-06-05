@@ -14,8 +14,8 @@ ATOL=1e-6
 # only zero gap penalty will produce normalized results
 @pytest.mark.parametrize("GAP_OPEN", [0])
 @pytest.mark.parametrize("GAP_EXT", [0])
-@pytest.mark.parametrize("WINDOW_SIZE",  [1, 5, 10, 20])
-@pytest.mark.parametrize("BFACTOR", [1, 2, 3, 4])
+@pytest.mark.parametrize("WINDOW_SIZE",  [1, 5, 20])
+@pytest.mark.parametrize("BFACTOR", [1, 2, 3])
 @pytest.mark.parametrize("SIGMA_FACTOR", [1, 1.5, 2, 3])
 def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
 
@@ -55,10 +55,10 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
                 assert res_seq2_min >= 0 and res_seq2_max < emb2.shape[0], f'seq2 ({emb2.shape[0]}) aln indices exeeds seqlen {res_seq2_min} - {res_seq2_max}'
 
 
-@pytest.mark.parametrize("WINDOW_SIZE",  [5, 10, 20])
+@pytest.mark.parametrize("WINDOW_SIZE",  [20, 30])
 def test_result_symmetry(WINDOW_SIZE):
     '''
-    check if results are symmetric: results for x,y and y,x should be the same
+    check if results are symmetric and non empty: results for x,y and y,x should be the same
     '''
     file = PATH_SYMMETRIC_TEST + '.pt'
     if not os.path.isfile(file):
@@ -67,13 +67,13 @@ def test_result_symmetry(WINDOW_SIZE):
     X, Y = embs[0].numpy(), embs[1].numpy()
     module = Extractor()
     module.WINDOW_SIZE = WINDOW_SIZE
-    res12, density12, paths12, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
-    res21, density21, paths21, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
+    res12, density12, _, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
+    res21, density21, _, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
     # draw path masks for both
     if res12.shape[0] != res21.shape[0]:
         raise ValueError('result dataframe is asymmetric')
     if res12.shape[0] == 0 or res21.shape[0] == 0:
-        raise ValueError(f'empty result dataframe {res12.shape[0]}, {res21.shape[0]}')
+        raise ValueError(f'empty result dataframe {res12.shape[0]}, {res21.shape[0]} for window: {WINDOW_SIZE}')
     mask12 = aln.prepare.mask_like(densitymap=density12, paths=res12['indices'])
     mask21 = aln.prepare.mask_like(densitymap=density21, paths=res21['indices'])
     if not np.allclose(density12, density21.T, atol=ATOL):

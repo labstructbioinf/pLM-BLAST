@@ -72,14 +72,16 @@ def test_path_validpoints(arr, spans):
             raise AssertionError(f'missing results for arr {arr.size} with {spans_in_range} and {spans_results}') 
     
 
-def test_fill_score_matrix():
-
+@pytest.mark.parametrize("gap", [20, 50, 100])
+def test_fill_score_matrix(gap):
+    '''
+    when grap penalty is high (> 1) there shouldnt be any gaps in resulting alignments
+    '''
     # convert to numpy
     densitymap = densitymap_test['densitymap']
-
-    score_matrix = fill_score_matrix(densitymap)
+    n, c = densitymap.shape
+    score_matrix = fill_score_matrix(densitymap, gap_penalty=gap)
     assert not np.isnan(score_matrix).any(), 'nan values in score_matrix'
-
     #score_matrix_with_penalty = fill_score_matrix(densitymap, gap_penalty=0.1)
     #assert not np.isnan(score_matrix_with_penalty).any(), 'nan values in score_matrix'
     #assert not (score_matrix == score_matrix_with_penalty).all(), 'penalty score dont affect score_matrix'
@@ -107,4 +109,5 @@ def test_cosine_similarity(X, Y):
     assert not np.isnan(result).any()
     assert not np.isinf(result).any()
     assert result.shape[0] == Y.shape[0]
+
 

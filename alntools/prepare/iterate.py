@@ -6,7 +6,7 @@ import pandas as pd
 
 from .. numeric import move_mean, find_alignment_span
 
-AVG_EMBEDDING_STD = 0.075
+AVG_EMBEDDING_STD = 0.1
 
 
 def mask_like(densitymap: np.array,
@@ -58,7 +58,7 @@ def search_paths(submatrix: np.ndarray,
     arr_sigma = submatrix.std()
     # force sigma to be not greater then average std of embeddings
     # also not too small
-    arr_sigma = min(arr_sigma, AVG_EMBEDDING_STD)
+    arr_sigma = max(arr_sigma, AVG_EMBEDDING_STD)
     path_threshold = sigma_factor*arr_sigma
     spans_locations = dict()
     # iterate over all paths

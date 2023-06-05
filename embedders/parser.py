@@ -1,7 +1,8 @@
 import os
 import argparse
-from typing import List, Union
+from typing import List, Union, Iterable
 
+import numpy as np
 from Bio import SeqIO
 import pandas as pd
 import torch
@@ -40,10 +41,12 @@ def create_parser() -> argparse.Namespace:
                         dest='cname', type=str, default='')
     parser.add_argument('-r', '-head', help='number of rows from begining to use',
                         dest='head', type=int, default=0)
+    parser.add_argument('-tail', help='number of rows from end to use',
+                        dest='tail', type=int, default=0)
     parser.add_argument('--cuda', '--gpu', help='if specified cuda device is used default False',
                         dest='gpu', default=False, action='store_true')
     parser.add_argument('-batch_size', '-b', '-bs', help=\
-        '''batch size for loader longer sequences may require lower batch size''',
+        '''batch size for loader longer sequences may require lower batch size set -1 to adaptive batch mode''',
                         dest='batch_size', type=int, default=32)
     parser.add_argument('--asdir', '-ad', '-dir', help=\
         """
@@ -119,6 +122,11 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
         df = df.head(args.head)
     elif args.head < 0:
         raise ValueError('head value is negative')
+    if args.tail > 0:
+        df = df.tail(args.tail)
+    elif args.tail < 0:
+        raise ValueError('tail value is negative')
+    
     
     df.reset_index(inplace=True)
     print('embedder: ', args.embedder)
@@ -167,3 +175,27 @@ def save_as_separate_files(embeddings: List[torch.Tensor],
         filelist.append(path_i)
 
     return filelist
+
+
+def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterable:
+    '''
+    create slice iterator over sequence list
+    Returns:
+        endbatch_index: (Iterable[slice]) iterator over start stop batch indices
+    '''
+    assert len(seqlen_list) > 1
+    len_cumsum = np.cumsum(seqlen_list)
+    # add zero at the begining
+    endbatch_index = []
+    batchend = resperbatch
+    for i, csum in enumerate(len_cumsum):
+        if csum > batchend:
+            endbatch_index.append(i - 1)
+            # increment batch size
+            batchend += resperbatch
+    # add last index and 0
+    startbatch_index =  [0] + endbatch_index
+    endbatch_index = endbatch_index + [len(seqlen_list)]
+    batch_iterator = [slice(start, stop) for start, stop in \
+                       zip(startbatch_index, endbatch_index)]
+    return batch_iterator
