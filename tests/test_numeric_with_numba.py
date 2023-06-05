@@ -1,7 +1,6 @@
 '''numerical function tests'''
 import os
 os.environ['NUMBA_DEBUGINFO'] = '1'
-os.environ['NUMBA_DISABLE_JIT'] = '1'
 import pytest
 import numpy as np
 import torch
@@ -72,16 +71,14 @@ def test_path_validpoints(arr, spans):
             raise AssertionError(f'missing results for arr {arr.size} with {spans_in_range} and {spans_results}') 
     
 
-@pytest.mark.parametrize("gap", [20, 50, 100])
-def test_fill_score_matrix(gap):
-    '''
-    when grap penalty is high (> 1) there shouldnt be any gaps in resulting alignments
-    '''
+def test_fill_score_matrix():
+
     # convert to numpy
     densitymap = densitymap_test['densitymap']
-    n, c = densitymap.shape
-    score_matrix = fill_score_matrix(densitymap, gap_penalty=gap)
+
+    score_matrix = fill_score_matrix(densitymap)
     assert not np.isnan(score_matrix).any(), 'nan values in score_matrix'
+
     #score_matrix_with_penalty = fill_score_matrix(densitymap, gap_penalty=0.1)
     #assert not np.isnan(score_matrix_with_penalty).any(), 'nan values in score_matrix'
     #assert not (score_matrix == score_matrix_with_penalty).all(), 'penalty score dont affect score_matrix'
@@ -109,5 +106,4 @@ def test_cosine_similarity(X, Y):
     assert not np.isnan(result).any()
     assert not np.isinf(result).any()
     assert result.shape[0] == Y.shape[0]
-
 

@@ -1,7 +1,5 @@
 '''functions used to find and handle redundant alignments'''
-
-import sys
-from typing import List
+from typing import List, Union
 import numpy as np
 import pandas as pd
 
@@ -27,7 +25,6 @@ def calc_aln_sim(aln_xy: List[np.ndarray]) -> np.ndarray:
     return aln_similarity
 
 
-
 def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
     '''
     create mask indicating unique alignment over alignment similarity matrix
@@ -36,7 +33,7 @@ def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
         tolerance: (float) similarity cutoff, alignment with similarity lower
          then `tolerance` will be treated as unique
     Returns:
-        mask (np.ndarray) 
+        mask (np.ndarray)
     '''
     assert isinstance(tolerance, float)
     assert isinstance(simgrid, np.ndarray)
@@ -67,7 +64,8 @@ def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
     return index_mask
 
 
-def filter_aln(aln_list: List[np.array], tolerance: float = 0.8, with_similarity=False) -> np.ndarray:
+def filter_aln(aln_list: List[np.array], tolerance: float = 0.8,
+               with_similarity=False) -> np.ndarray:
     '''
     Args:
         aln_list: (list of np.ndarrays) list of alignments
@@ -83,20 +81,34 @@ def filter_aln(aln_list: List[np.array], tolerance: float = 0.8, with_similarity
         return mask
 
 
-def filter_result_dataframe(data: pd.DataFrame, column: str = 'score') -> pd.DataFrame:
+def filter_result_dataframe(data: pd.DataFrame,
+                            column: Union[str, List[str]] = ['len']) -> \
+                                pd.DataFrame:
+    '''
+    keep spans with biggest score and len
+    Args:
+        data: (pd.DataFrame)
+    Returns:
+        filtred frame sorted by score
+    '''
     data = data.sort_values(by=['len'], ascending=False)
     indices = data.indices.tolist()
     data['y1'] = [yx[0][0] for yx in indices]
     data['x1'] = [yx[0][1] for yx in indices]
-    data['score'] = data['score'].round(2)
+    data['score'] = data['score'].round(3)
 
-
+    if isinstance(column, str):
+        column = [column]
     resultsflt = list()
     iterator = data.groupby(['y1', 'x1'])
-    for groupid, group in iterator:
-        tmp = group.nlargest(1, [column], keep='first')
-        resultsflt.append(tmp)
+    for col in column:
+        for groupid, group in iterator:
+            tmp = group.nlargest(1, [col], keep='first')
+            resultsflt.append(tmp)
     resultsflt = pd.concat(resultsflt)
+    # drop duplicates sometimes
+    resultsflt = resultsflt.drop_duplicates(
+        subset=['pathid', 'i', 'len', 'score'])
     # filter
-    resultsflt = resultsflt.sort_values(by=[column], ascending=False)
+    resultsflt = resultsflt.sort_values(by=['score'], ascending=False)
     return resultsflt

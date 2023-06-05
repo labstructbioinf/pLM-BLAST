@@ -56,7 +56,7 @@ def draw_alignment(coords: List[Tuple[int, int]], seq1: str, seq2: str, output: 
     last_position = coords[-1]
     lp1, lp2 = last_position[0], last_position[1]
     if lp1 >= len(seq1):
-        raise KeyError(f'mismatch between seq1 length and coords {lp1} - {len(seq1)}')
+        raise KeyError(f'mismatch between seq1 length and coords {lp1} - {len(seq1)} for seq2 {lp2} - {len(seq2)}')
     if lp2 >= len(seq2):
         raise KeyError(f'mismatch between seq1 length and coords {lp2} - {len(seq2)}')
 
@@ -201,9 +201,45 @@ def border_argmaxpool(array: np.ndarray,
         return boderindices
 
 
+def border_argmaxlenpool(array: np.ndarray,
+                    cutoff: int = 10,
+                    factor: int = 2) -> np.ndarray:
+    '''
+    get border indices of an array satysfing
+    Args:
+        array: (np.ndarray)
+        cutoff: (int)
+        factor: (int)
+    Returns:
+        borderindices: (np.ndarray)
+    '''
+    assert factor > 0
+    assert cutoff >= 0
+    assert isinstance(factor, int)
+    assert cutoff*2 < (array.shape[0] + array.shape[1]), 'cutoff exeed array size'
+
+    boderindices = get_borderline(array, cutoff=cutoff)
+    if factor > 1:
+        y, x = boderindices[:, 0], boderindices[:, 1]
+        bordevals = array[y, x]
+        num_values = bordevals.shape[0]    
+        # make num_values divisible by `factor` 
+        num_values = (num_values - (num_values % factor))
+        # arange shape (num_values//factor, factor)
+        # argmax over 1 axis is desired index over pool 
+        arange2d = np.arange(0, num_values).reshape(-1, factor)
+        arange2d_idx = np.arange(0, num_values, factor, dtype=np.int32)
+        borderargmax = bordevals[arange2d].argmax(1)
+        # add push factor so values  in range (0, factor) are translated
+        # into (0, num_values)
+        borderargmax += arange2d_idx
+        return boderindices[borderargmax, :]
+    else:
+        return boderindices
+
 def gather_all_paths(array: np.ndarray,
                     minlen: int = 10,
-                    norm: Union[bool, str] = 'rows',
+                    norm: bool = True,
                     bfactor: int = 1,
                     gap_opening: float = 0,
                     gap_extension: float = 0,
@@ -213,43 +249,34 @@ def gather_all_paths(array: np.ndarray,
     find all Smith-Waterman-like paths from bottom and right edges of scoring matrix
     Args:
         array: (np.ndarray) raw subtitution matrix aka densitymap
-        norm_rows: (bool) whether to normalize array per row or per array
+        norm_rows: (bool, str) whether to normalize array per row or per array
         bfactor: (int) use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
         with_scores: (bool) if True return score matrix
     Returns:
         paths: (list) list of all valid paths through scoring matrix
         score_matrix: (np.ndarray) scoring matrix used
     '''
+    
     if not isinstance(array, np.ndarray):
         array = array.numpy().astype(np.float32)
     if not isinstance(norm, (str, bool)):
-        raise ValueError(f'norm_rows arg should be bool/str type, but given: {norm}')
+        raise ValueError(f'norm_rows arg should be bool type, but given: {norm}')
     # standarize embedding
     if isinstance(norm, bool):
         if norm:
-            array -= array.mean()
-            array /= (array.std() + 1e-3)
-        
-    elif isinstance(norm, str):
-        if norm == 'rows':
-            array = array - array.mean(axis=1, keepdims=True)
-            array = array / array.std(axis=1, keepdims=True)
-        elif norm == 'cols':
-            array = array - array.mean(axis=0, keepdims=True)
-            array = array / array.std(axis=0, keepdims=True)
-    score_matrix = fill_score_matrix(array)
+            arraynorm = (array - array.mean())/(array.std() + 1e-3)
+        else:
+            arraynorm = array.copy()
+    score_matrix = fill_score_matrix(arraynorm, gap_penalty=gap_opening)
     # get all edge indices for left and bottom
     # score_matrix shape array.shape + 1
     indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
     paths = list()
     for ind in indices:
-        yi, xi = ind
-        if score_matrix[yi, xi] < 1:
-            continue
         path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, gap_extension=gap_extension)
         paths.append(path)
     if with_scores:
-        return paths, score_matrix
+        return (paths, score_matrix)
     else:
         return paths
 

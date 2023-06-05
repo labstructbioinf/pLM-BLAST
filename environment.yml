@@ -10,5 +10,3 @@ dependencies:
   - numba
   - matplotlib
   - sentencepiece
-  - tqdm
-  - scikit-learn

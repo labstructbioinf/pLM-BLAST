@@ -1,11 +1,15 @@
-import sys, os, gc, math
+import sys
+import os
+import gc
+import math
+import time
 import argparse
 import concurrent
+import itertools
 
 import pandas as pd
 import numpy as np
 import torch
-from torch.nn.functional import cosine_similarity
 from tqdm import tqdm
 
 from Bio.Align import substitution_matrices
@@ -66,7 +70,7 @@ def get_parser():
 						type=float, default=1, dest='SIGMA_FACTOR')		    			    
 						
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')				    
+						type=int, default=20, choices=range(40), metavar="[1-40]", dest='WINDOW_SIZE')				    
 
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
 						type=int, default=15, dest='MIN_SPAN_LEN')
@@ -84,33 +88,34 @@ def get_parser():
 						type=float, default=0, dest='GAP_OPEN')				    
 						
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
-						type=float, default=0, dest='GAP_EXT')				    
+						type=float, default=0, dest='GAP_EXT')
+
+	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
+						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
+
+	parser.add_argument('-use_chunkcs', help='if True use chunk cosine similarity screening instead of regular cs (default: %(default)s) ',
+		     action='store_true', default=False)
+
+	parser.add_argument('-verbose', help='verbose', action='store_true', default=False)	    
 
 	args = parser.parse_args()
 	# validate provided parameters
-	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'Span has to be >= window!'
 	assert args.MAX_TARGETS > 0
 	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
 	assert args.COS_SIM_CUT != None or args.COS_PER_CUT != None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
 
 	return args
 
-def check(df, embs):
-    for seq, emb in zip(df.sequence.tolist(), embs):
-        assert len(seq) == len(emb), 'index and embeddings files differ'
+def check_cohesion(frame, filedict, embeddings, truncate=600):
+	sequences = frame.sequence.tolist()
+	for (idx,file), emb in zip(filedict.items(), embeddings):
+		seqlen = len(sequences[idx])
+		if seqlen < 600:
+			assert seqlen == emb.shape[0], f'''
+			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
+		else:
+			pass
 
-def full_compare(emb1, emb2, i):
-	global module   
-	res = module.embedding_to_span(emb1, emb2)
-	if len(res) > 0:
-		res = pd.DataFrame(res)
-		if res.score.max() >= args.ALN_CUT:
-			# add referece index to each hit
-			res['i'] = i
-			# filter out redundant hits
-			res = aln.postprocess.filter_result_dataframe(res)
-			return res
-	return []
     
 def calc_con(s1, s2):
 	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
@@ -119,32 +124,32 @@ def calc_con(s1, s2):
 		if c1=='-' or c2=='-': 
 			res+=' '
 			continue
-
 		bscore = blosum62[aa_list.index(c1)][aa_list.index(c2)]
-
 		if bscore >= 6 or c1==c2:
 			res+='|'
 		elif bscore >= 0:
 			res+='+'
 		else:
 			res+='.'
-
 	return ''.join(res)
     
+
 def calc_similarity(s1, s2):
     def aa_to_group(aa):
         for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-']):
             g = list(g)
             if aa in g: return pos
         assert False
-        
     res = [aa_to_group(c1)==aa_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
-    return np.mean(res)         
+    return sum(res)/len(res)         
     
+
 def calc_ident(s1, s2):
     res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
-    return np.mean(res)     
+    return sum(res)/len(res)
     
+
+time_start = datetime.datetime.now()
 
 args = get_parser()
 module = aln.base.Extractor()
@@ -154,142 +159,162 @@ module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
 module.BFACTOR = 1
 
-
 ### MAIN
-
 # read database 
-db_index = args.db+'.csv'
-db_emb = args.db+'.pt_emb.p'
-print('Loading database...')
+db_index = args.db + '.csv'
+if args.verbose:
+	print(f'Using database: {args.db}')
+	print('Loading database...')
+if not os.path.isfile(db_index):
+	raise FileNotFoundError(f'invalid database frame file, {db_index}')
 db_df = pd.read_csv(db_index)
 db_df.set_index(db_df.columns[0], inplace=True)
-db_embs = torch.load(db_emb)
-check(db_df, db_embs)
-print(f'{len(db_embs)} sequences in the database')
-
 
 # read query 
-query_index = args.query+'.csv'
-query_emb = args.query+'.pt_emb.p'
-print('Loading query...')
+query_index = args.query + '.csv'
+query_emb = args.query + '.pt_emb.p'
+
 query_df = pd.read_csv(query_index)
-query_embs = torch.load(query_emb)
-assert len(query_embs) == 1
-query_emb = query_embs[0]
-query_seq = query_df.iloc[0].sequence
-print(f'query sequence length is {len(query_seq)}')
-check(query_df, query_embs)
-
-# Cosine similarity pre-screening
-print("cosine similarity pre-screening")
-all_embs = [i.mean(0) for i in db_embs]
-query_emb_mean = query_emb.mean(0)
-cos_sim = [cosine_similarity(query_emb_mean, emb, dim=0).item() for emb in all_embs]
-cos_sim = np.asarray(cos_sim)
-
-if args.COS_PER_CUT:
-	defined_COS_CUT = np.percentile(cos_sim, float(args.COS_PER_CUT))
+query_emb = torch.load(query_emb)[0]
+# select embeddings pool factor
+if args.EMB_POOL == 1:
+	emb_type = ''
+elif args.EMB_POOL == 2:
+	emb_type =  '.512'
+elif args.EMB_POOL == 4:
+	emb_type = '.256'
 else:
-	assert args.COS_SIM_CUT
-	defined_COS_CUT = args.COS_SIM_CUT
-print(f'using {np.round(defined_COS_CUT, 2)} cosine similarity cut-off')
+	raise ValueError(f'invalid EMB_POOL value: {args.EMB_POOL}')
 
-cos_count = np.sum(cos_sim >= defined_COS_CUT)
-print(f'{cos_count} hits after pre-filtering')
+query_seq = str(query_df.iloc[0].sequence)
 
-if cos_count == 0:
+if args.use_chunkcs:
+	if args.verbose:
+		print('chunk cosine similarity screening ...')
+	query_emb_chunkcs = torch.nn.functional.avg_pool1d(query_emb.unsqueeze(0), 16).squeeze()
+	##########################################################################
+	# 					fixed												 #
+	##########################################################################
+	dbfile = os.path.join(args.db, 'emb.64')
+	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])]
+	embedding_list = torch.load(dbfile)
+	filedict = ds.local.chunk_cosine_similarity(query = query_emb_chunkcs,
+					       targets = embedding_list,
+						     quantile = args.COS_PER_CUT/100,
+						     dataset_files = filelist,
+							 stride = 10)
+else:
+	if args.verbose:
+		print('cosine similarity screening ...')
+	filedict = ds.load_and_score_database(query_emb,
+										dbpath = args.db,
+										quantile = args.COS_PER_CUT/100,
+										num_workers = args.MAX_WORKERS)
+	filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
+if args.verbose:
+	print(f'{len(filedict)} hits after pre-filtering')
+	print(f'loading per residue embeddings with pool: {emb_type} size: {len(filedict)}')
+filelist = list(filedict.values())
+embedding_list = ds.load_full_embeddings(filelist=filelist)
+#check_cohesion(db_df, filedict, embedding_list)
+
+
+if len(filedict) == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
 
-            
-# Multi-CPU search
-time_start = datetime.datetime.now()
+query_emb_pool = torch.nn.functional.avg_pool1d(query_emb.T.unsqueeze(0), args.EMB_POOL).T.squeeze()
+query_emb_pool = query_emb_pool.numpy()
 iter_id = 0
 records_stack = []
-indices = np.flatnonzero(cos_sim >= defined_COS_CUT)
-num_indices = indices.size
-batch_start = 0
+num_indices = len(filedict)
 batch_size = 20*args.MAX_WORKERS
 batch_size = min(300, batch_size)
 num_batch = max(math.floor(num_indices/batch_size), 1)
 # Multi-CPU search
-with tqdm(total=num_indices) as progress_bar:
+print('running plm blast')
+with tqdm(total=num_batch) as progress_bar:
 	for batch_start in range(0, num_batch):
-		batch_start_idx = batch_start*batch_size
-		batch_end_idx = batch_start_idx + batch_size
+		bstart = batch_start*batch_size
+		bend = bstart + batch_size
 		# batch indices should not exeed num_indices
-		batch_end_idx = min(batch_end_idx, num_indices)
+		bend = min(bend, num_indices)
+		batchslice = slice(bstart, bend, 1)
+		filedictslice = itertools.islice(filedict.items(), bstart, bend)
 		# submit a batch of jobs
 		# concurrent poolexecutor may spawn to many processes which will lead 
 		# to OS error batching should fix this issue
 		job_stack = {}
-		with concurrent.futures.ProcessPoolExecutor(max_workers=args.MAX_WORKERS) as executor:
-			for i in indices[batch_start_idx:batch_end_idx]:
-				job = executor.submit(full_compare, query_emb, db_embs[i], i)
+		with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
+			for (idx, file), emb in zip(filedictslice, embedding_list[batchslice]):
+				job = executor.submit(module.full_compare, query_emb_pool, emb, idx, file)
 				job_stack[job] = iter_id
+				iter_id += 1
+			time.sleep(0.1)
 			for job in concurrent.futures.as_completed(job_stack):
-				res = job.result()
-				if len(res) > 0:
-					records_stack.append(res)
-				progress_bar.update(1)
+				try:
+					res = job.result()
+					if len(res) > 0:
+						records_stack.append(res)
+				except Exception as e:
+					raise AssertionError('job not done', e)	
+			progress_bar.update(1)
 		gc.collect()
-		
+
+resdf = pd.concat(records_stack)
+if resdf.score.max() > 1:
+	print(records_stack[0].score.max())
+	print('score is greater then one', resdf.score.min(), resdf.score.max())
+	sys.exit(0)
+
 time_end = datetime.datetime.now()
 
 print(f'Time {time_end-time_start}')
-
 # Prepare output
-if len(records_stack)==0:
+if len(records_stack) == 0:
 	print('No hits found!')
 else:
-	res_df = pd.concat(records_stack)
-	res_df = res_df[res_df.score>=args.ALN_CUT]
-
-	if len(res_df)==0:
+	resdf = pd.concat(records_stack)
+	resdf.to_csv('tmpres.csv')
+	resdf = resdf[resdf.score>=args.ALN_CUT]
+	if len(resdf) == 0:
 		print(f'No hits found! Try decreasing the alignment_cutoff parameter. Current cut-off is {args.ALN_CUT}')	
 	else:
-
 		print('Preparing output...')
-	
-		res_df.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len', 'y1', 'x1'], inplace=True)
+		resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)
+		resdf['sid'] = resdf['i'].apply(lambda i:db_df.iloc[i]['id'])
+		resdf['sdesc'] = resdf['i'].apply(lambda i:db_df.iloc[i]['description'])
+		resdf['tlen'] = resdf['i'].apply(lambda i:len(db_df.iloc[i]['sequence']))
+		resdf['qlen'] = len(query_seq)
+		resdf['qstart'] = resdf['indices'].apply(lambda i:i[0][1])
+		resdf['qend'] = resdf['indices'].apply(lambda i:i[-1][1])
+		resdf['tstart'] = resdf['indices'].apply(lambda i:i[0][0])
+		resdf['tend'] = resdf['indices'].apply(lambda i:i[-1][0])
 
-		res_df['sid'] = res_df['i'].apply(lambda i:db_df.iloc[i]['id'])
-		res_df['sdesc'] = res_df['i'].apply(lambda i:db_df.iloc[i]['description'])
-		res_df['qstart'] = res_df['indices'].apply(lambda i:i[0][1])
-		res_df['qend'] = res_df['indices'].apply(lambda i:i[-1][1])
-		res_df['tstart'] = res_df['indices'].apply(lambda i:i[0][0])
-		res_df['tend'] = res_df['indices'].apply(lambda i:i[-1][0])
+		assert all(resdf['qstart'].apply(lambda i: i <= len(query_seq)-1))
+		assert all(resdf['qend'].apply(lambda i: i <= len(query_seq)-1))
 
-		assert all(res_df['qstart'].apply(lambda i: i <= len(query_seq)-1))
-		assert all(res_df['qend'].apply(lambda i: i <= len(query_seq)-1))
-
-	
-		res_df.sort_values(by='score', ascending=False, inplace=True)
-		res_df.reset_index(inplace=True)
+		resdf.sort_values(by='score', ascending=False, inplace=True)
+		resdf.reset_index(inplace=True)
 
 		# alignment, conservation, etc.
-		for idx, row in res_df.iterrows():
-			tmp_aln=aln.alignment.draw_alignment(row.indices, 
+		for idx, row in resdf.iterrows():
+			tmp_aln = aln.alignment.draw_alignment(row.indices, 
 										   db_df.iloc[row.i].sequence,
 										   query_seq,
 										   output='str')
-	
 			tmp_aln=tmp_aln.split('\n')
-			res_df.at[idx, 'qseq'] = tmp_aln[2]
-			res_df.at[idx, 'tseq'] = tmp_aln[0]
-			res_df.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
-			res_df.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
-			res_df.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
-	
+			resdf.at[idx, 'qseq'] = tmp_aln[2]
+			resdf.at[idx, 'tseq'] = tmp_aln[0]
+			resdf.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
 		# reset index
-		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
-		res_df.index.name = 'index'
- 
+		resdf.drop(columns=['index', 'indices', 'i'], inplace=True)
+		resdf.index.name = 'index'
 		# order columns
-		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend']]
-	
+		resdf = resdf[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen']]
 		# clip df
-		res_df = res_df.head(args.MAX_TARGETS)
-	
+		resdf = resdf.head(args.MAX_TARGETS)
 		# save
-		res_df.to_csv(args.output)
+		resdf.to_csv(args.output)

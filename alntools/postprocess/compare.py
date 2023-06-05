@@ -4,8 +4,8 @@ import numpy as np
 
 
 def measure_aln_overlap_with_pdblist(seq1_true: Union[np.array, List[int]],
-    seq2_true: Union[np.array, List[int]],
-    alignment: Union[np.array, List[int]]) -> dict:
+                                     seq2_true: Union[np.array, List[int]],
+                                     alignment: Union[np.array, List[int]]) -> dict:
     '''
     measure cover of given pdb indices (seq1_true and seq2_true)
     with alignment extracted by plm-SEARCH
@@ -46,9 +46,7 @@ def measure_aln_overlap_with_pdblist(seq1_true: Union[np.array, List[int]],
     return record
 
 
-
 def mean_over_trace(arr: np.ndarray) -> Tuple[float, float]:
-
     offset_down, offset_up = arr.shape
     offset_down_max, offset_up_max = 0, 0
     iterator = np.arange(-offset_down, offset_up, 1)
@@ -60,4 +58,3 @@ def mean_over_trace(arr: np.ndarray) -> Tuple[float, float]:
     offset_down_max = trace_stack.max()
     offset_up_max = offset_down_max
     return offset_down_max, offset_up_max
-
