@@ -26,7 +26,7 @@ QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
-ALIGNMENT_CUTOFF="0.35"
+ALIGNMENT_CUTOFF="0.30"
 COSINE_CUTOFF=99
 NUM_WORKERS=4
 

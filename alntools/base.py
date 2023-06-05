@@ -83,6 +83,7 @@ class Extractor:
                                window=self.WINDOW_SIZE,
                                min_span=self.MIN_SPAN_LEN,
                                sigma_factor=self.SIGMA_FACTOR,
+                               mode='global' if isinstance(self.BFACTOR, str) else 'local',
                                as_df=True)
         if mode == 'all':
             return (results, densitymap, paths, scorematrix)

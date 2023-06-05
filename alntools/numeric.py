@@ -39,7 +39,7 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 
 @numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True,
            fastmath=True, cache=True)
-def fill_matrix(a: np.ndarray, gap_penalty: float):
+def fill_matrix_local(a: np.ndarray, gap_penalty: float):
     '''
     fill score matrix
     Params:
@@ -66,25 +66,60 @@ def fill_matrix(a: np.ndarray, gap_penalty: float):
     return H
 
 
+
+@numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True,
+           fastmath=True, cache=True)
+def fill_matrix_global(a: np.ndarray, gap_penalty: float):
+    '''
+    fill score matrix in Needleman-Wunch procedure - global alignment
+    Params:
+        a: (np.array)
+        gap_penalty (float)
+    Return:
+        b: (np.array)
+    '''
+    nrows: int = a.shape[0] + 1
+    ncols: int = a.shape[1] + 1
+    H: np.ndarray = np.zeros((nrows, ncols), dtype=np.float32)
+    h_tmp: np.ndarray = np.zeros(4, dtype=np.float32)
+    for i in range(1, nrows):
+        for j in range(1, ncols):
+            # gap = abs(i - j)*gap_penalty
+            h_tmp[0] = H[i-1, j-1] + a[i-1, j-1]
+            h_tmp[1] = H[i-1, j] - gap_penalty
+            h_tmp[2] = H[i, j-1] - gap_penalty
+            H[i, j] = np.max(h_tmp)
+    return H
+
+
 def fill_score_matrix(sub_matrix: np.ndarray,
-                      gap_penalty: Union[int, float] = 0.0) -> np.ndarray:
+                      gap_penalty: Union[int, float] = 0.0,
+                      mode: str = 'local') -> np.ndarray:
     '''
     use substitution matrix to create score matrix
+    set mode = local for Smith-Waterman like procedure (many local alignments)
+    and mode = global for Needleamn-Wunsch like procedure (one global alignment)
     Params:
         sub_matrix: (np.array) substitution matrix in form of 2d
             array with shape: [num_res1, num_res2]
         gap_penalty: (float)
+        mode: (str) set global or local alignment procedure
     Return:
         score_matrix: (np.array)
     '''
     assert gap_penalty >= 0, 'gap penalty must be positive'
+    assert isinstance(mode, str)
+    assert mode in {"global", "local"}
     assert isinstance(gap_penalty, (int, float, np.float32))
     assert isinstance(sub_matrix, np.ndarray), \
         'substitution matrix must be numpy array'
     # func fill_matrix require np.float32 array as input
     if not np.issubsctype(sub_matrix, np.float32):
         sub_matrix = sub_matrix.astype(np.float32)
-    score_matrix = fill_matrix(sub_matrix, gap_penalty=gap_penalty)
+    if mode == 'local':
+        score_matrix = fill_matrix_local(sub_matrix, gap_penalty=gap_penalty)
+    elif mode == 'global':
+        score_matrix = fill_matrix_global(sub_matrix, gap_penalty=gap_penalty)
     return score_matrix
 
 
@@ -169,8 +204,6 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
     fi_argmax: int = 2
     y_size: int = scoremx.shape[0]
     x_size: int = scoremx.shape[1]
-    y_border: int = y_size - 1
-    x_border: int = x_size - 1
     yi: int = point[0]
     xi: int = point[1]
     assert y_size > yi
@@ -232,13 +265,12 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
                         mthreshold: float = 0.10) -> List[Tuple[int, int]]:
     '''
-    search for points matching `mu` and `sigma` criteria
+    search for points matching `mthreshold`
     Args:
         means: (np.ndarray)
-        minlen: (int) minimal allowed length of span
-        window (int) window length
+        mthreshold: (int) minimal allowed length of span
     Returns:
-        spans: (list of tuples)
+        spans: (list of tuples) coresponding to similarity sequence range 
     '''
     assert minlen > 0
 

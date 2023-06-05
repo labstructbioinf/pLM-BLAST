@@ -76,7 +76,7 @@ if __name__=='__main__':
 	data = pd.read_csv(args.db + '.csv').head(head)
 	dbsize = data.shape[0]
 	num_combinations = dbsize * (dbsize - 1) // 2
-	filelist = [os.path.join(args.db, f'{fileid}.emb') for fileid in range(0, 59990)]
+	filelist = [os.path.join(args.db, f'{fileid}.emb') for fileid in range(0, dbsize)]
 	filelist = filelist[:head]
 	filedict = {i : file for i, file in enumerate(filelist)}
 	#assert dbsize == len(filelist)
