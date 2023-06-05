@@ -32,6 +32,7 @@ def search_paths(submatrix: np.ndarray,
                   window: int = 10,
                    min_span: int = 20,
                     sigma_factor: float = 1.0,
+                    mode: str = 'local',
                      as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
     '''
     iterate over all paths and search for routes matching alignmnet criteria
@@ -50,6 +51,7 @@ def search_paths(submatrix: np.ndarray,
     assert isinstance(window, int) and window > 0
     assert isinstance(min_span, int) and min_span > 0
     assert isinstance(sigma_factor, (int, float))
+    assert mode in {"local", "global"}
     assert isinstance(as_df, bool)
 
     min_span = max(min_span, window)
@@ -70,14 +72,17 @@ def search_paths(submatrix: np.ndarray,
         # revert indices and and split them into x, y
         y, x = diag_ind[::-1, 0].ravel(), diag_ind[::-1, 1].ravel()
         pathvals = submatrix[y, x].ravel()
-        # smooth values
-        if window != 1:
-            line_mean = move_mean(pathvals, window)
+        if mode == 'local':
+            # smooth values in local mode
+            if window != 1:
+                line_mean = move_mean(pathvals, window)
+            else:
+                line_mean = pathvals
+            spans = find_alignment_span(means=line_mean,
+                                        mthreshold=path_threshold,
+                                        minlen=min_span)
         else:
-            line_mean = pathvals
-        spans = find_alignment_span(means=line_mean,
-                                     mthreshold=path_threshold,
-                                       minlen=min_span)
+            spans = [(0, len(path))]
         # check if there is non empty alignment
         if any(spans):
             for idx, (start, stop) in enumerate(spans):
@@ -101,7 +106,8 @@ def search_paths(submatrix: np.ndarray,
                     'span_end': stop,
                     'indices': arr_indices,
                     'score': arr_values.mean(),
-                    "len": alnlen
+                    "len": alnlen,
+                    "mode": mode
                 }
     if as_df:
         return pd.DataFrame(spans_locations.values())

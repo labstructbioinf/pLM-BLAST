@@ -23,7 +23,8 @@ def get_parser():
 		)
 	parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 						type=str)
-	parser.add_argument('emb', help='embeddings', type=str)																				
+	parser.add_argument('emb', help='embeddings', type=str)			
+
 	parser.add_argument('output', help='Output csv file',
 						type=str)
 												
@@ -74,7 +75,10 @@ if __name__=='__main__':
 	module.GAP_EXT = args.GAP_EXT
 	module.BFACTOR = 1
 	module.FILTER_RESULTS = args.filter
-	data = pd.read_csv(args.db)
+	if args.db.endswith('.csv'):
+		data = pd.read_csv(args.db)
+	elif args.db.endswith('.p'):
+		data = pd.read_pickle(args.db)
 	embedding_list = np.load(args.emb)
 	step = 50
 	indices1 = data.idx1.tolist()

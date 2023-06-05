@@ -15,7 +15,7 @@ ATOL=1e-6
 @pytest.mark.parametrize("GAP_OPEN", [0])
 @pytest.mark.parametrize("GAP_EXT", [0])
 @pytest.mark.parametrize("WINDOW_SIZE",  [1, 5, 20])
-@pytest.mark.parametrize("BFACTOR", [1, 2, 3])
+@pytest.mark.parametrize("BFACTOR", [1, 2, 3, 'global'])
 @pytest.mark.parametrize("SIGMA_FACTOR", [1, 1.5, 2, 3])
 def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
 
@@ -53,7 +53,9 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
 
                 assert res_seq1_min >= 0 and res_seq1_max < emb1.shape[0], f'seq1 ({emb1.shape[0]}) aln indices exeeds seqlen {res_seq1_min} - {res_seq1_max}'
                 assert res_seq2_min >= 0 and res_seq2_max < emb2.shape[0], f'seq2 ({emb2.shape[0]}) aln indices exeeds seqlen {res_seq2_min} - {res_seq2_max}'
-
+            # in global mode one alignment is expected
+            if BFACTOR == 'global':
+                assert res.shape[0] == 1
 
 @pytest.mark.parametrize("WINDOW_SIZE",  [20, 30])
 def test_result_symmetry(WINDOW_SIZE):
