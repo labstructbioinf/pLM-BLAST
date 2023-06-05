@@ -271,11 +271,17 @@ else:
 		
 		res_df['qstart'] = res_df['indices'].apply(lambda i:i[0][1])
 		res_df['qend'] = res_df['indices'].apply(lambda i:i[-1][1])
+		
+		res_df['match_len'] = res_df['qend'] - res_df['qstart'] + 1
+		
+		
 		res_df['tstart'] = res_df['indices'].apply(lambda i:i[0][0])
 		res_df['tend'] = res_df['indices'].apply(lambda i:i[-1][0])
 
 		assert all(res_df['qstart'].apply(lambda i: i <= len(query_seq)-1))
 		assert all(res_df['qend'].apply(lambda i: i <= len(query_seq)-1))
+		
+		res_df['score'] = res_df['score'].apply(lambda x:np.round(float(x), 2))
 
 		res_df.sort_values(by='score', ascending=False, inplace=True)
 		res_df.reset_index(inplace=True)
@@ -293,13 +299,17 @@ else:
 			res_df.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
 			res_df.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
 			res_df.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
+			
+		res_df['ident'] = res_df['ident'].apply(lambda x:np.round(float(x), 2))
+		res_df['similarity'] = res_df['similarity'].apply(lambda x:np.round(float(x), 2))
 	
 		# reset index
 		res_df.drop(columns=['index', 'indices', 'i'], inplace=True)
+		res_df.index = np.arange(1,len(res_df)+1)
 		res_df.index.name = 'index'
  
 		# order columns
-		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen']]
+		res_df = res_df[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen', 'match_len']]
 	
 		# clip df
 		res_df = res_df.head(args.MAX_TARGETS)

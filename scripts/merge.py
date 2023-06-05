@@ -32,34 +32,44 @@ print(f'{len(hits_df)} hits after applying {args.score} score cut-off')
 # merge
 def merge(current_subg):
 
+	seq_spacer = '~~~~~'
+
 	first_subg = current_subg[0]
 	last_subg = current_subg[-1]
 
 	print(f'merging {len(current_subg)} hits to {first_subg.sid}')
 
+	# score;ident;similarity;sid;sdesc;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len
+
 	new_subg = np.array([0,
-				np.mean([i.score for i in current_subg]),
-				0,
-				0,
+				np.round(np.mean([i.score for i in current_subg]), 2),
+				np.round(np.mean([i.ident for i in current_subg]), 2),
+				np.round(np.mean([i.similarity for i in current_subg]), 2),
 				first_subg.sid,
 				first_subg.sdesc,
 				first_subg.qstart,
 				last_subg.qend,
-				'',
-				'',
-				'',
+				seq_spacer.join([i.qseq for i in current_subg]),
+				(" "*len(seq_spacer)).join([i.con for i in current_subg]),
+				seq_spacer.join([i.tseq for i in current_subg]),
 				first_subg.tstart,
 				last_subg.tend,
 				first_subg.tlen,
-				first_subg.qlen
+				first_subg.qlen,
+				last_subg.qend - first_subg.qstart + 1
+				
+				
 						], dtype=object)
 						
 	return new_subg
 
 res=[]
 for gidx, g in hits_df.groupby('sid'):
-	# more than one hit to a target 
-	if len(g) > 1:
+
+	# more than one hit to a single target 
+	if len(g)>1:
+			
+		# sort hits by starting position in the query	
 		g_sorted = g.sort_values(by='qstart', ascending=False).copy()
 		assert g_sorted.index.is_unique
 		g_sorted_index = g_sorted.index.to_list()
@@ -69,7 +79,9 @@ for gidx, g in hits_df.groupby('sid'):
 		# list of hits for potential merging
 		current_subg = []
 		while g_sorted_index:
+	
 			hit = g_sorted.loc[g_sorted_index.pop()]
+
 			if len(current_subg) == 0:
 				current_subg.append(hit)
 				continue
@@ -82,15 +94,12 @@ for gidx, g in hits_df.groupby('sid'):
 				if len(current_subg) > 1:
 					res.append(merge(current_subg))
 				else:
-					#print('\twritting one')
 					res.append(current_subg[0].values)					
 				current_subg = []
 			current_subg.append(hit)
 		if len(current_subg) > 1:
-			#print('merge post')
 			res.append(merge(current_subg))
 		else:
-			#print('\twritting one post')
 			res.append(current_subg[0])	
 	else:
 		for subg in g.values:

@@ -3,6 +3,8 @@
 
 pLM-BLAST is a sensitive remote homology detection tool that is based on the comparison of residue embeddings obtained from the protein language model ProtTrans5. It is available as a standalone package as well as an easy-to-use web server within the MPI Bioinformatics Toolkit, where several precomputed databases (e.g., ECOD, InterPro, and PDB) can be searched.
 
+Note: the method is being actively developed, please expect soon new features, such as speed improvement, global alignment, and others.
+
 ## Table of contents
 * [ Installation ](#Installation)
 * [ Usage ](#Usage)
@@ -99,9 +101,9 @@ results = aln.postprocess.filter_result_dataframe(results)
 ### How to cite?
 If you find the `pLM-BLAST` useful, please cite the preprint:
 
-"*pLM-BLAST – distant homology detection based on protein language models*" \
+"*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Vikram Alva, and Stanislaw Dunin-Horkawicz \
-bioRxiv ... 
+bioRxiv https://www.biorxiv.org/content/10.1101/2022.11.24.517862v1
 
 ### Contact
 If you have any questions, problems or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).

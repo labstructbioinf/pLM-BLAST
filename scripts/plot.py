@@ -2,6 +2,7 @@ import argparse, os
 import pandas as pd
 import matplotlib.pylab as pl
 import matplotlib.patches as mpatches
+import matplotlib.font_manager as font_manager
 
 parser = argparse.ArgumentParser(description =  
 	"""
@@ -63,8 +64,9 @@ if args.maxseqs > 0:
 	hits_df = hits_df.head(args.maxseqs)
 	print(f'only top {len(hits_df)} hits will be ploted')
 
-
 if args.ecod:
+
+	T2H = {}
 
 	tmp_df=pd.DataFrame(hits_df.apply(get_group, axis=1).tolist(), columns=['X', 'H', 'T'])
 	hits_df = pd.concat([hits_df, tmp_df], axis=1)
@@ -75,9 +77,9 @@ if args.ecod:
 	colors={}
 	cidx=0
 	order = []
-	for idx, g in hits_df.groupby('X'):
+	for idx, g in hits_df.groupby('H'):
 		print(idx)
-		if idx=='X:NO_X_NAME': 
+		if idx=='H: NO_H_NAME': 
 			c = 'grey'
 		else:
 			c = cmap(cidx)
@@ -88,6 +90,9 @@ if args.ecod:
 			assert not t in colors, t
 			colors[t] = c
 			order.append(t)
+			
+			T2H[t] = idx
+			
 	print('-'*20)
 
 	if len(colors)>20:
@@ -97,9 +102,9 @@ else:
 
 # PLOT
 
-tick_font_size = 10 # 10
-label_font_size = 12 # 9
-bar_size = 5 # 5
+tick_font_size = 10 
+bar_size = 5 
+bar_spacing_factor = 2.5
 
 if args.mode == 'score':
 	by = 'score'
@@ -134,26 +139,26 @@ for _ in range(len(hits_idx_sorted)):
 
 	next_hit = next_hit.iloc[0]
 	lastend = next_hit.qend
-		
+	
 	if args.ecod:
 		a = {"color":colors[next_hit['T']]}
 	else:
 		c = (next_hit.score - hits_idx_sorted.score.min()) / (hits_idx_sorted.score.max() - hits_idx_sorted.score.min())
 		a = {"color":cmap(c)}
 	
-	# 
-	
-	rows.append([[next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], a])
+	rows.append([[next_hit.qstart+1, next_hit.qend+1], [pos+1, pos+1], a, int(next_hit.name)+1])
 	
 	hits_idx_sorted.at[next_hit.name, 'done'] = True
 	if hits_idx_sorted.done.all(): break
 
 total_pos = pos
 
-fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*4)/100), dpi=100)
+fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*bar_spacing_factor)/100), dpi=100)
 
 for row in rows:
 	ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2]) #solid_capstyle='round')
+	#ax.annotate(row[3], xy=(row[0][0], row[1][0]), va='center', weight='bold', fontsize = bar_text_size,
+	#		color='white')
 
 ax.spines.top.set_visible(False)
 ax.spines.left.set_visible(False)
@@ -162,7 +167,6 @@ ax.spines.right.set_visible(False)
 if args.mode in ['qend', 'qstart', 'score']:	
 	ax.invert_yaxis()
 
-#	order = order[::-1]
 ax.set_xlim(0, len(query_seq)+1)
 ax.tick_params(axis='both', which='major', labelsize=tick_font_size)
 axbox = ax.get_position()
@@ -170,17 +174,28 @@ axbox = ax.get_position()
 fig.gca().axes.get_yaxis().set_visible(False)
 fig.savefig(args.output, bbox_inches='tight')
 
-fig, ax = pl.subplots(1, 1, figsize=(10,10), dpi=100)
-pl.axis('off')
+# Generate labels
 
-if args.ecod:
-	h = [mpatches.Patch(color=colors[d], label=d) for d in order]  
-	legend = fig.legend(handles=h, shadow=False, fontsize=label_font_size, frameon=False)
-	
 def export_legend(legend, filename="legend.png"):
     fig  = legend.figure
     fig.canvas.draw()
     bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
-export_legend(legend, filename=os.path.splitext(args.output)[0]+'.legend.png')
+# legend is exported only for ECOD
+if args.ecod:
+
+	label_font_size = 10
+
+	fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*bar_spacing_factor)/100), dpi=100)
+	
+	h = [mpatches.Patch(color=colors[d], label=T2H[d]+'\n'+d) for d in order]  
+	
+	font = font_manager.FontProperties(family='monospace',
+                                   weight='normal',
+                                   style='normal', size=label_font_size)
+	
+	legend = fig.legend(handles=h, shadow=False, prop=font, frameon=False)
+	
+	pl.axis('off')
+	export_legend(legend, filename=os.path.splitext(args.output)[0]+'.legend.png')

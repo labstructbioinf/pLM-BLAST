@@ -1,6 +1,7 @@
 import argparse
 from Bio import SeqIO
 import pandas as pd
+import warnings
 
 parser = argparse.ArgumentParser(description =  
 	"""
@@ -26,15 +27,29 @@ parser.add_argument('-min_seq_len', help='min allowed seq len (default: %(defaul
 
 args = parser.parse_args()
 
+
+### Warnings class
+
+class ToShortSeq(UserWarning):
+    pass
+
+
+class UnexpectedCharSeq(UserWarning):
+    pass
+
+
 ### MAIN
 
 gres = []
 
 for seq in SeqIO.parse(args.fasta_file, 'fasta'):
 
-	if len(seq.seq)<args.MIN_SEQ_LEN: continue
-	if set(seq.seq) - set('QWERTYIPASDFGHKLCVNM') != set(): continue
-
+        if len(seq.seq)<args.MIN_SEQ_LEN:
+            warnings.warn(f"{seq.id} is to short. The Sequence has not been added", ToShortSeq)
+            continue
+        if set(seq.seq) - set('QWERTYIPASDFGHKLCVNM') != set():
+            warnings.warn(f"{seq.id} has characters that do not encode amino acids. The Sequence has not been added", UnexpectedCharSeq)
+            continue
 	if args.uniprot:
 		new_id = ' '.join(seq.id.split('|')[1:])
 		new_desc = ' '.join(seq.description.split('|')[1:])
