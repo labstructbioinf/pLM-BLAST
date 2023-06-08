@@ -1,6 +1,7 @@
 from modulefinder import Module
 import os
 import re
+from typing import List
 import warnings
 import tempfile
 import shutil
@@ -43,7 +44,7 @@ def fsdb_wrappered_setup(embedder_name) -> torch.nn.Module:
     return model, batch_converter
 
 
-def main_esm(df: pd.DataFrame, args, num_batches):
+def main_esm(df: pd.DataFrame, args, iterator: List[slice]):
     
     embedder_name = args.embedder if args.embedder != "esm" else EMBEDDER
     print('loading model: ', embedder_name)
@@ -55,27 +56,15 @@ def main_esm(df: pd.DataFrame, args, num_batches):
         model.eval()  # disables dropout for deterministic resultsS
     if args.gpu:
         model = model.cuda()
-    # stats
-    seqlens = df['seq'].apply(len)
-
-    if seqlens.max() > 1000:
-        warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
     batch_files = []
+    seqlist_all = df['seq'].tolist()
+    lenlist_all = df['seqlens'].tolist()
     with tempfile.TemporaryDirectory() as tmpdirname:
-        for batch_id in tqdm(range(num_batches)):
-            seqlist = []
-            lenlist = []
-            batch_index = []
-            for i, (idx, row) in enumerate(df.iterrows()):
-                # use only current batch sequences
-                if batch_id*args.batch_size <= i < (batch_id + 1)*args.batch_size:
-                    sequence = row.seq
-                    sequence = regex_aa.sub("X", row.seq)
-                    sequence_len = len(sequence)
-                    lenlist.append(sequence_len)
-                    seqlist.append(sequence)
-                    batch_index.append(idx)
-                
+
+        for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
+            seqlist = seqlist_all[batchslice]
+            lenlist = lenlist_all[batchslice]
+            batch_index = list(range(batchslice.start, batchslice.stop))
             data = [
             (f'seq_{i}', seq)
             for i, seq in enumerate(seqlist)]
@@ -108,7 +97,7 @@ def main_esm(df: pd.DataFrame, args, num_batches):
             if args.asdir:
                 save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=tmpdirname)
             else:
-                batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id}")
+                batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
                 torch.save(embeddings_filt, batch_id_filename)
                 batch_files.append(batch_id_filename)
         # creating output

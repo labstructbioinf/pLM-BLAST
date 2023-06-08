@@ -4,7 +4,7 @@ import argparse
 import warnings
 import tempfile
 import gc
-from typing import Union
+from typing import Union, List
 
 import pandas as pd
 from tqdm import tqdm
@@ -18,7 +18,7 @@ regex_aa = re.compile(r"[UZOB]")
 EMBEDDER = 'Rostlab/prot_t5_xl_half_uniref50-enc'
 
 
-def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int):
+def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[slice]):
     print('loading model')
     tokenizer = T5Tokenizer.from_pretrained(EMBEDDER, do_lower_case=False)
     model = T5EncoderModel.from_pretrained(EMBEDDER, torch_dtype=torch.float32)
@@ -35,14 +35,9 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int)
     batch_files = []
     if args.asdir and not os.path.isdir(args.output):
         os.mkdir(args.output)
+    seqlist_all = df['seq'].tolist()
+    lenlist_all = df['seqlens'].tolist()
     with tempfile.TemporaryDirectory() as tmpdirname:
-        seqlist_all = [regex_aa.sub("X", str(seq)) for seq in df.seq.tolist()]
-        lenlist_all = [len(seq) for seq in seqlist_all]
-        if args.batch_size != -1:
-            startbatch = list(range(0, num_batches, args.batch_size))
-            iterator = [slice(start, stop) for start, stop in zip(startbatch[:-1], startbatch[1:])]
-        else:
-            iterator = calculate_adaptive_batchsize(seqlen_list = lenlist_all)
         for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
             seqlist = seqlist_all[batchslice]
             lenlist = lenlist_all[batchslice]
@@ -67,7 +62,7 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, num_batches: int)
             if args.asdir:
                 save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
             else:
-                batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_index}")
+                batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
                 torch.save(embeddings_filt, batch_id_filename)
                 batch_files.append(batch_id_filename)
             del embeddings
