@@ -1,6 +1,6 @@
 import os
 import argparse
-from typing import List, Union, Iterable
+from typing import List, Union, Iterable, Tuple
 
 import numpy as np
 from Bio import SeqIO
@@ -104,7 +104,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 
     if args.cname != '':
         if args.cname not in df.columns:
-            raise KeyError(f'no column: {args.cname} available in file: {args.input}')
+            raise KeyError(f'no column: {args.cname} available in file: {args.input}, columns: {df.columns}')
         else:
             print(f'using column: {args.cname}')
             if 'seq' in df.columns and args.cname != 'seq':
@@ -139,25 +139,42 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
     return df
 
     
-def prepare_dataframe(df: pd.DataFrame, batch_size: int, truncate: int):
+def prepare_dataframe(df: pd.DataFrame, batch_size: int, truncate: int) -> Tuple[pd.DataFrame, List[slice]]:
         '''preprocess frame'''
         # prepare dataframe
         df.reset_index(inplace=True)
         num_records = df.shape[0]
-        residues = num_records % batch_size
-        num_batches = int(num_records/batch_size)
         # cut sequences
         #df['seq'] = df['seq'].apply(lambda x : x if len(x) < 600 else x[:600])
         # stats
         df['seqlens'] = df['seq'].apply(len)
         df['seq'] = df.apply(lambda row: row['seq'][:truncate] if row['seqlens'] > truncate else row['seq'], axis=1)
         df['seqlens'] = df['seq'].apply(len)
-        if residues > 0:
-            num_batches += 1
+        batch_iterator = make_iterator(df['seqlens'].tolist(), batch_size)
+        num_batches = len(batch_iterator)
         print('num seq:', num_records)
         print('num batches:', num_batches)
         print(f'sequence len range {df.seqlens.min()} - {int(df.seqlens.mean())} - {df.seqlens.max()}')
-        return df, num_batches
+        
+        return df, batch_iterator
+
+
+def make_iterator(seqlens: List[int], batch_size: int) -> List[slice]:
+    '''
+    create batch iterator over sequence lists via slices
+    '''
+    iterator: List[slice]
+    seqnum = len(seqlens)
+    if batch_size != 0:
+        startbatch = list(range(0, seqnum, batch_size))
+        if startbatch[-1] != seqnum:
+            startbatch += [seqnum]
+        iterator = [slice(start, stop) for start, stop in zip(startbatch[:-1], startbatch[1:])]
+    else:
+        iterator = calculate_adaptive_batchsize(seqlen_list = seqlens)
+    if len(iterator) == 0:
+        raise ValueError('sequence batch iterator is empty')
+    return iterator
 
 
 def save_as_separate_files(embeddings: List[torch.Tensor],
