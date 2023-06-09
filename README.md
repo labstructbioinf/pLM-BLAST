@@ -76,11 +76,17 @@ embs = torch.load(emb_file)
 # a self-comparison will be performed
 seq1_emb, seq2_emb = embs[0], embs[0]
 
-# all at once
+# all at once - local alignments
 extr = Extractor()
 results = extr.embedding_to_span(emb1, emb2)
 # remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results)
+
+#all at once - global alignment
+extr.BFACTOR = 'global'
+# one alignment per protein pair
+results = extr.embedding_to_span(emb1, emb2)
+
 
 # step by step appraoch
 # calculate embedding similarity aka substitution matrix
