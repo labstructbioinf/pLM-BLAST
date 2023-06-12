@@ -41,13 +41,16 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[sl
         for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
             seqlist = seqlist_all[batchslice]
             lenlist = lenlist_all[batchslice]
+            # add empty character between all residues
+            # his is mandatory for pt5 embedders
+            seqlist = [' '.join(list(seq)) for seq in seqlist]
             batch_index = list(range(batchslice.start, batchslice.stop))
             ids = tokenizer.batch_encode_plus(seqlist, add_special_tokens=True, padding="longest")
             input_ids = torch.tensor(ids['input_ids']).to(device, non_blocking=True)
             attention_mask = torch.tensor(ids['attention_mask']).to(device, non_blocking=True)
             with torch.no_grad():
                 embeddings = model(input_ids=input_ids, attention_mask=attention_mask)
-                embeddings = embeddings[0].float().cpu()
+                embeddings = embeddings.last_hidden_state.float().cpu()
             # remove sequence padding
             num_batch_embeddings = len(embeddings)
             assert num_batch_embeddings == len(seqlist)
@@ -55,8 +58,8 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[sl
             for i in range(num_batch_embeddings):
                 seq_len = lenlist[i]
                 emb = embeddings[i]
-                if emb.shape[1] < seq_len:
-                    raise KeyError(f'sequence is longer then embedding {emb.shape[1]} and {seq_len} ')       
+                if emb.shape[0] < seq_len:
+                    raise KeyError(f'sequence is longer then embedding {emb.shape} and {seq_len} ')       
                 embeddings_filt.append(emb[:seq_len])
             # store each batch depending on save mode
             if args.asdir:
