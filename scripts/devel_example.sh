@@ -16,7 +16,7 @@ export OMP_NUM_THREADS=1
 # from a one-sequence FASTA file use `query_emb.py`
 
 # example cases `A9A4Y8`, `cupredoxin`
-case='A9A4Y8'
+case='rum'
 
 # data paths
 INDIR="./input"
@@ -26,8 +26,8 @@ QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 #OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
-ALIGNMENT_CUTOFF="0.30"
-COSINE_CUTOFF=99
+ALIGNMENT_CUTOFF="0.3"
+COSINE_CUTOFF=95
 NUM_WORKERS=4
 
 mkdir -p $OUTDIR
@@ -54,6 +54,6 @@ fi
 #python merge.py $OUTFILE $OUTFILE_MERGED -score $ALIGNMENT_CUTOFF # 0.39
 
 # plot hits
-#python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod
-#python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_qend_ecod.png -mode qend -ecod
+python plot.py $OUTFILE $QUERY_INDEX $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
+python plot.py $OUTFILE $QUERY_INDEX $OUTDIR/$case.hits_qend_ecod.png -mode qend -ecod
 

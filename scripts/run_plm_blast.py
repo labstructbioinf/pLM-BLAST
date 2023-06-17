@@ -20,8 +20,6 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.density as ds
 import alntools as aln
 
-
-
 ### FUNCTIONS
 
 def range_limited_float_type(arg, MIN, MAX):
@@ -149,6 +147,7 @@ if args.verbose:
 	print('Loading database...')
 if not os.path.isfile(db_index):
 	raise FileNotFoundError(f'invalid database frame file, {db_index}')
+
 db_df = pd.read_csv(db_index)
 db_df.set_index(db_df.columns[0], inplace=True)
 
@@ -167,6 +166,8 @@ if args.verbose:
 query_seqs = query_df['sequence'].tolist()
 query_seqs: List[str]= [str(seq) for seq in query_seqs]
 
+assert len(query_seqs) == 1, "the multi-query input not implemented" 
+
 query_seq = query_seqs[0]
 
 ##########################################################################
@@ -174,19 +175,24 @@ query_seq = query_seqs[0]
 ##########################################################################
 query_filedict = dict()
 if args.use_chunkcs:
+	
 	if args.verbose:
 		print('chunk cosine similarity screening ...')
-	query_emb_chunkcs = [
-		avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
+			
 	dbfile = os.path.join(args.db, 'emb.64')
-	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])]
 	embedding_list = torch.load(dbfile)
+	
+	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])] # db_df is database index
+	
+	query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
+	
 	for i, emb in enumerate(query_emb_chunkcs):
-		filedict = ds.local.chunk_cosine_similarity(query=emb,
-							targets=embedding_list,
-								quantile=args.COS_PER_CUT/100,
-								dataset_files=filelist,
-								stride=10)
+		filedict = ds.local.chunk_cosine_similarity(
+			query=emb,
+			targets=embedding_list,
+			quantile=args.COS_PER_CUT/100,
+			dataset_files=filelist,
+			stride=10)
 		query_filedict[i] = filedict
 else:
 	if args.verbose:
@@ -198,19 +204,24 @@ else:
 											num_workers = args.MAX_WORKERS)
 		filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
 		query_filedict[i] = filedict
+
 if args.verbose:
 	print(f'loading per residue embeddings')
+
 filelist = list(filedict.values())
 
-#check_cohesion(db_df, filedict, embedding_list)
-
+# check_cohesion(db_df, filedict, embedding_list)
 
 if len(filedict) == 0:
 	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
 	sys.exit(0)
+	
+print (f"{len(filedict)} hits after cosine similarity pre-filtering")
 
 query_embs_pool = [
-	avg_pool1d(emb.T.unsqueeze(0), args.EMB_POOL).T.squeeze() for emb in query_embs]
+	avg_pool1d(emb.T.unsqueeze(0), args.EMB_POOL).T.squeeze() for emb in query_embs
+	]
+	
 query_embs_pool = [emb.numpy() for emb in query_embs_pool]
 iter_id = 0
 records_stack = []
