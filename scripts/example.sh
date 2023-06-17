@@ -36,7 +36,7 @@ export OMP_NUM_THREADS=1
 
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database
-	python plm_blast.py \
+	python  run_plm_blast.py\
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \

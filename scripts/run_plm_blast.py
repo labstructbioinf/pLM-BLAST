@@ -157,12 +157,17 @@ query_index = args.query + '.csv'
 query_embs = args.query + '.pt_emb.p'
 query_df = pd.read_csv(query_index)
 query_embs = torch.load(query_embs)
+
 if query_df.shape[0] != len(query_embs):
-	raise ValueError(f'length of embedding file and sequences df is different {query_df.shape[0]} != {len(query_emb)}')
+	raise ValueError(f'the length of embedding file and sequences df is different {query_df.shape[0]} != {len(query_emb)}')
+
 if args.verbose:
 	print(f'query sequences: {query_df.shape[0]}')
+
 query_seqs = query_df['sequence'].tolist()
 query_seqs: List[str]= [str(seq) for seq in query_seqs]
+
+query_seq = query_seqs[0]
 
 ##########################################################################
 # 						filtering										 #

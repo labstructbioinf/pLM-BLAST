@@ -24,8 +24,8 @@ OUTDIR="./output"
 
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
-OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
+#OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
 ALIGNMENT_CUTOFF="0.30"
 COSINE_CUTOFF=99
 NUM_WORKERS=4
@@ -34,12 +34,12 @@ mkdir -p $OUTDIR
 
 if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
 	echo "calculate query embedding"
-	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p
+	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX
 fi
 
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database
-	python devel_plm_blast.py \
+	python run_plm_blast.py \
 		$DB_PATH \
 		$OUTDIR/$case \
 		$OUTFILE \
@@ -51,9 +51,9 @@ fi
 
 # pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
 # with a single database sequence; additionally, a more strict score cut-off is used
-python merge.py $OUTFILE $OUTFILE_MERGED -score $ALIGNMENT_CUTOFF # 0.39
+#python merge.py $OUTFILE $OUTFILE_MERGED -score $ALIGNMENT_CUTOFF # 0.39
 
 # plot hits
-python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod
-python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_qend_ecod.png -mode qend -ecod
+#python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_score_ecod.png -mode score -ecod
+#python plot.py $OUTFILE_MERGED $QUERY_INDEX $OUTDIR/$case.hits_merged_qend_ecod.png -mode qend -ecod
 
