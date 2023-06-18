@@ -186,7 +186,7 @@ def load_full_embeddings(filelist : List[os.PathLike],
     '''
     missing_files : int = 0
 
-    with tqdm(total=len(filelist), desc="load embeddings") as pbar:
+    with tqdm(total=len(filelist), desc="Loading embeddings") as pbar:
         for itr, file in enumerate(filelist):
             if not os.path.isfile(file):
                     missing_files += 1
@@ -199,7 +199,7 @@ def load_full_embeddings(filelist : List[os.PathLike],
                 stack.append(torch.load(file).numpy())
             if itr % 5 == 0:
                 pbar.update(5)
-    print('embedding missing files: ', missing_files)
+    assert missing_files==0, f'embedding missing files: {missing_files}'
     return stack
 
 

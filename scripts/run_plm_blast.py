@@ -20,7 +20,20 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.density as ds
 import alntools as aln
 
-### FUNCTIONS
+### FUNCTIONS and helper data
+
+# ANSI escape sequences for colors
+colors = {
+	'black': '\033[30m',
+	'red': '\033[31m',
+	'green': '\033[32m',
+	'yellow': '\033[33m',
+	'blue': '\033[34m',
+	'magenta': '\033[35m',
+	'cyan': '\033[36m',
+	'white': '\033[37m',
+	'reset': '\033[0m'  # Reset to default color
+    }
 
 def range_limited_float_type(arg, MIN, MAX):
 	""" Type function for argparse - a float within some predefined bounds """
@@ -48,22 +61,23 @@ def get_parser():
 	parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 						type=str)										
 	parser.add_argument('output', help='Output csv file',
-						type=str)								
+						type=str)	
+													
 	group = parser.add_mutually_exclusive_group()				
-	group.add_argument('-cosine_cutoff', help='Cosine similarity cut-off (0..1)',
-						type=range01, default=0.2, dest='COS_SIM_CUT')					
+					
 	group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
 						type=range0100, default=99, dest='COS_PER_CUT')						 							
+	
 	parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
-						type=float, default=0.4, dest='ALN_CUT')						
+						type=float, default=0.2, dest='ALN_CUT')						
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
 						type=float, default=1, dest='SIGMA_FACTOR')		    			    				
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=20, choices=range(40), metavar="[1-40]", dest='WINDOW_SIZE')				    
+						type=int, default=15, choices=range(40), metavar="[1-40]", dest='WINDOW_SIZE')				    
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
-						type=int, default=15, dest='MIN_SPAN_LEN')				
+						type=int, default=35, dest='MIN_SPAN_LEN')				
 	parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
-						type=int, default=500, dest='MAX_TARGETS')				
+						type=int, default=1500, dest='MAX_TARGETS')				
 	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
 	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')							
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
@@ -76,14 +90,16 @@ def get_parser():
 						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
 	parser.add_argument('-use_chunkcs', help='if True use chunk cosine similarity screening instead of regular cs (default: %(default)s) ',
 		     action='store_true', default=False)
-	parser.add_argument('-verbose', help='verbose', action='store_true', default=False)
+		     
+	parser.add_argument('-verbose', help='verbose', action='store_true', default=True)
+	
 	parser.add_argument('--raw', help='if true remove postprocessing steps and return dataframe with alignments', 
-		     action='store_true', default=False)	    
+		     action='store_true', default=False)
+		     	    
 	args = parser.parse_args()
 	# validate provided parameters
 	assert args.MAX_TARGETS > 0
 	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
-	assert args.COS_SIM_CUT != None or args.COS_PER_CUT != None, 'Please define COS_PER_CUT _or_ COS_SIM_CUT!'
 	return args
 
 def check_cohesion(frame, filedict, embeddings, truncate=600):
@@ -129,55 +145,63 @@ def calc_ident(s1, s2):
     return sum(res)/len(res)
     
 
+##########################################################################
+# 						MAIN    										 #
+##########################################################################
+
 time_start = datetime.datetime.now()
 
 args = get_parser()
 module = aln.base.Extractor()
+module.FILTER_RESULTS = True
+
 module.SIGMA_FACTOR = args.SIGMA_FACTOR
 module.WINDOW_SIZE = args.WINDOW_SIZE
 module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
 module.BFACTOR = 1
 
-### MAIN
-# read database 
+# Load database 
 db_index = args.db + '.csv'
 if args.verbose:
-	print(f'Using database: {args.db}')
-	print('Loading database...')
+	print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
 if not os.path.isfile(db_index):
-	raise FileNotFoundError(f'invalid database frame file, {db_index}')
+	raise FileNotFoundError(f'Invalid database index file name {db_index}')
 
 db_df = pd.read_csv(db_index)
 db_df.set_index(db_df.columns[0], inplace=True)
 
-# read query 
+# Read query 
+if args.verbose:
+	print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
+		
 query_index = args.query + '.csv'
 query_embs = args.query + '.pt_emb.p'
 query_df = pd.read_csv(query_index)
 query_embs = torch.load(query_embs)
 
 if query_df.shape[0] != len(query_embs):
-	raise ValueError(f'the length of embedding file and sequences df is different {query_df.shape[0]} != {len(query_emb)}')
-
-if args.verbose:
-	print(f'query sequences: {query_df.shape[0]}')
+	raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_emb)}')
 
 query_seqs = query_df['sequence'].tolist()
 query_seqs: List[str]= [str(seq) for seq in query_seqs]
 
-assert len(query_seqs) == 1, "the multi-query input not implemented" 
+assert len(query_seqs) == 1, "Multi-query input not implemented" 
 
 query_seq = query_seqs[0]
 
 ##########################################################################
 # 						filtering										 #
 ##########################################################################
+
+def tensor_transform(x):
+	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
+
 query_filedict = dict()
 if args.use_chunkcs:
 	
 	if args.verbose:
-		print('chunk cosine similarity screening ...')
+		print('Using chunk cosine similarity screening...')
 			
 	dbfile = os.path.join(args.db, 'emb.64')
 	embedding_list = torch.load(dbfile)
@@ -196,7 +220,7 @@ if args.use_chunkcs:
 		query_filedict[i] = filedict
 else:
 	if args.verbose:
-		print('cosine similarity screening ...')
+		print('Using regular cosine similarity screening...')
 	for i, emb in enumerate(query_embs):
 		filedict = ds.load_and_score_database(emb,
 											dbpath = args.db,
@@ -205,24 +229,30 @@ else:
 		filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
 		query_filedict[i] = filedict
 
-if args.verbose:
-	print(f'loading per residue embeddings')
 
 filelist = list(filedict.values())
 
 # check_cohesion(db_df, filedict, embedding_list)
 
 if len(filedict) == 0:
-	print('No hits after pre-filtering. Consider lowering `cosine_cutoff`')
+	print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
 	sys.exit(0)
 	
-print (f"{len(filedict)} hits after cosine similarity pre-filtering")
-
-query_embs_pool = [
-	avg_pool1d(emb.T.unsqueeze(0), args.EMB_POOL).T.squeeze() for emb in query_embs
-	]
+##########################################################################
+# 						plm-blast										 #
+##########################################################################
 	
+# Multi-CPU search
+if args.verbose:
+	print(f'Running pLM-BLAST for {colors["yellow"]}{len(filedict)}{colors["reset"]} hits...')
+	
+query_embs_pool = [
+	tensor_transform(
+		avg_pool1d(tensor_transform(emb).unsqueeze(0), args.EMB_POOL)
+		).squeeze() for emb in query_embs
+	]
 query_embs_pool = [emb.numpy() for emb in query_embs_pool]
+
 iter_id = 0
 records_stack = []
 num_indices_per_query = [len(vals) for vals in query_filedict.values()]
@@ -230,48 +260,58 @@ batch_size = 20*args.MAX_WORKERS
 batch_size = min(300, batch_size)
 num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
 num_batches = sum(num_batches_per_query)
-# Multi-CPU search
-print('running plm blast')
-with tqdm(total=num_batches) as progress_bar:
-	for filedict, query_emb, batches in zip(query_filedict.values(), query_embs_pool, num_batches_per_query):
-		embedding_list = embedding_list = ds.load_full_embeddings(filelist=filelist)
-		num_indices = len(embedding_list)
-		for batch_start in range(0, batches):
-			bstart = batch_start*batch_size
-			bend = bstart + batch_size
-			# batch indices should not exeed num_indices
-			bend = min(bend, num_indices)
-			batchslice = slice(bstart, bend, 1)
-			filedictslice = itertools.islice(filedict.items(), bstart, bend)
-			# submit a batch of jobs
-			# concurrent poolexecutor may spawn to many processes which will lead 
-			# to OS error batching should fix this issue
-			job_stack = {}
-			with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
-				for (idx, file), emb in zip(filedictslice, embedding_list[batchslice]):
-					job = executor.submit(module.full_compare, query_emb, emb, idx, file)
-					job_stack[job] = iter_id
-					iter_id += 1
-				time.sleep(0.1)
-				for job in concurrent.futures.as_completed(job_stack):
-					try:
-						res = job.result()
-						if len(res) > 0:
-							records_stack.append(res)
-					except Exception as e:
-						raise AssertionError('job not done', e)	
-				progress_bar.update(1)
-			gc.collect()
+	
+#with tqdm(total=num_batches, desc='Comparison of embeddings') as progress_bar:
+	#for filedict, query_emb, batches in zip(query_filedict.values(), query_embs_pool, num_batches_per_query):
+		
+filedict = list(query_filedict.values())[0]
+query_emb = query_embs_pool[0]
+batches = num_batches_per_query[0]
+		
+embedding_list = embedding_list = ds.load_full_embeddings(filelist=filelist)
+num_indices = len(embedding_list)
+
+for batch_start in tqdm(range(0, batches), desc='Comparison of embeddings', leave=False):
+	bstart = batch_start*batch_size
+	bend = bstart + batch_size
+	# batch indices should not exeed num_indices
+	bend = min(bend, num_indices)
+	batchslice = slice(bstart, bend, 1)
+	filedictslice = itertools.islice(filedict.items(), bstart, bend)
+	# submit a batch of jobs
+	# concurrent poolexecutor may spawn to many processes which will lead 
+	# to OS error batching should fix this issue
+	job_stack = {}
+	with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
+
+		for (idx, file), emb in zip(filedictslice, embedding_list[batchslice]):
+			job = executor.submit(module.full_compare, query_emb, emb, idx, file)
+			job_stack[job] = iter_id
+			iter_id += 1
+		
+		time.sleep(0.1)
+		for job in concurrent.futures.as_completed(job_stack):
+			try:
+				res = job.result()
+				if len(res) > 0:
+					records_stack.append(res)
+			except Exception as e:
+				raise AssertionError('job not done', e)	
+	gc.collect()
 
 resdf = pd.concat(records_stack)
+
 if resdf.score.max() > 1:
 	print(records_stack[0].score.max())
-	print('score is greater then one', resdf.score.min(), resdf.score.max())
+	print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', resdf.score.min(), resdf.score.max())
 	sys.exit(0)
 
 time_end = datetime.datetime.now()
 
-print(f'Time {time_end-time_start}')
+print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
+
+sys.exit(-1)
+
 # Prepare output
 if args.raw:
 	resdf.to_pickle(args.output)

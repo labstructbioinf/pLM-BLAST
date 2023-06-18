@@ -263,7 +263,7 @@ def chunk_score(query, targets, stride: int , kernel_size: int) -> th.FloatTenso
     embdim = query.shape[1]
     query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
                                         norm=True, with_padding=False)
-    with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
+    with tqdm(total=num_targets, desc='Scoring embeddings') as pbar:
         for i, target in enumerate(targets, 0):
             density = single_process(query_kernels, target, stride=stride)
             scorestack[i] = density.max()
@@ -286,7 +286,7 @@ def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: 
     batch_size = 500*num_workers
     query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
                                         norm=True, with_padding=False)
-    with tqdm(total=num_targets, desc='scoring embeddings') as pbar:
+    with tqdm(total=num_targets, desc='Scoring embeddings') as pbar:
         with concurrent.futures.ProcessPoolExecutor(max_workers = num_workers) as executor:
             for batch_start in range(0, len(targets), batch_size):
                 batch_end = min(batch_start + batch_size, num_targets)

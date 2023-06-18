@@ -82,7 +82,7 @@ def filter_aln(aln_list: List[np.array], tolerance: float = 0.8,
 
 
 def filter_result_dataframe(data: pd.DataFrame,
-                            column: Union[str, List[str]] = ['len']) -> \
+                            column: Union[str, List[str]] = ['score']) -> \
                                 pd.DataFrame:
     '''
     keep spans with biggest score and len
