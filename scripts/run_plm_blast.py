@@ -59,24 +59,24 @@ def get_parser():
 
 	# input and output
 
-	parser.add_argument('db', help='Database embeddings and index',
+	parser.add_argument('db', help='database embeddings and index',
 						type=str)	
 											
-	parser.add_argument('query', help='Query embedding and index',
+	parser.add_argument('query', help='query embedding and index',
 						type=str)	
 															
-	parser.add_argument('output', help='Output file (csv by default or pickle if --raw option is used)',
+	parser.add_argument('output', help='output file (csv by default or pickle if --raw option is used)',
 						type=str)	
 												
-	parser.add_argument('--raw', help='If true, skip postprocessing steps and return pickled pandas dataframe with all alignments', 
+	parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
 		     			action='store_true', default=False)
 													
 	# cosine similarity scan
 					
-	parser.add_argument('-cosine_percentile_cutoff', help='Percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
+	parser.add_argument('-cosine_percentile_cutoff', help='percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=95, dest='COS_PER_CUT')	
 						
-	parser.add_argument('-use_chunkcs', help='If True, use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
+	parser.add_argument('-use_chunks', help='use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 		     action='store_true', default=True)
 		     
 	# plmblast					 							
@@ -92,29 +92,29 @@ def get_parser():
 							
 	parser.add_argument('-max_targets', help='Maximum number of targets to include in output (default: %(default)s)',
 						type=int, default=1500, dest='MAX_TARGETS')	
-									
-	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
-	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')	
-							
-	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-						type=int, default=1, dest='MAX_WORKERS')	
-								    					
-	parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
-						type=float, default=0, dest='GAP_OPEN')	
-									    				
+						
+	parser.add_argument('--global_aln', help='use global pLM-BLAST alignment. Use only if you expect the query to be a single-domain sequence (default: %(default)s)', 
+		     			action='store_true', default=False)
+																 														    				
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
 						
-	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
-						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
-
 	# misc
 	     
-	parser.add_argument('-verbose', help='verbose', action='store_true', default=True)
+	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=True)
+	
+	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
+						type=int, default=10, dest='MAX_WORKERS')	
 	
 	#parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
 	#					type=float, default=1, dest='SIGMA_FACTOR')	
+		   
+	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
+	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')
 		     	    
+	#parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
+	#					type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
+		    
 	args = parser.parse_args()
 	
 	# validate provided parameters
@@ -136,7 +136,6 @@ def check_cohesion(frame, filedict, embeddings, truncate=600):
 		else:
 			pass
 
-    
 def calc_con(s1, s2):
 	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
 	res=[]
@@ -153,7 +152,6 @@ def calc_con(s1, s2):
 			res+='.'
 	return ''.join(res)
     
-
 def calc_similarity(s1, s2):
     def aa_to_group(aa):
         for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-']):
@@ -163,7 +161,6 @@ def calc_similarity(s1, s2):
     res = [aa_to_group(c1)==aa_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
     return sum(res)/len(res)         
     
-
 def calc_ident(s1, s2):
     res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
     return sum(res)/len(res)
@@ -178,11 +175,20 @@ time_start = datetime.datetime.now()
 args = get_parser()
 module = aln.base.Extractor()
 module.FILTER_RESULTS = True
-
 module.WINDOW_SIZE = args.WINDOW_SIZE
-module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
-module.BFACTOR = 1
+
+EMB_POOL = 1
+
+if args.global_aln:
+	module.BFACTOR = 'global'
+	if args.verbose:
+		print('Global alignment will be used')
+else:
+	module.BFACTOR = 1
+	if args.verbose:
+		print('Local alignment will be used')
+
 module.SIGMA_FACTOR = 1
 
 # Load database 
@@ -222,7 +228,7 @@ def tensor_transform(x):
 	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
 
 query_filedict = dict()
-if args.use_chunkcs:
+if args.use_chunks:
 	
 	if args.verbose:
 		print('Using chunk cosine similarity screening...')
@@ -272,7 +278,7 @@ if args.verbose:
 	
 query_embs_pool = [
 	tensor_transform(
-		avg_pool1d(tensor_transform(emb).unsqueeze(0), args.EMB_POOL)
+		avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
 		).squeeze() for emb in query_embs
 	]
 query_embs_pool = [emb.numpy() for emb in query_embs_pool]
