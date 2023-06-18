@@ -56,22 +56,30 @@ def get_parser():
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
 	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
-	parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+	# input and output
+
+	parser.add_argument('db', help='Database embeddings and index',
 						type=str)						
-	parser.add_argument('query', help='Query embedding and index (`csv` and `pt_emb.p` extensions will be added automatically)',
+	parser.add_argument('query', help='Query embedding and index',
 						type=str)										
-	parser.add_argument('output', help='Output csv file',
-						type=str)	
+	parser.add_argument('output', help='Output file (csv by default or pickle if --raw option is used)',
+						type=str)							
+	parser.add_argument('--raw', help='If true, skip postprocessing steps and return dataframe with all alignments', 
+		     			action='store_true', default=False)
 													
-	group = parser.add_mutually_exclusive_group()				
+	# cosine similarity scan
 					
-	group.add_argument('-cosine_percentile_cutoff', help='Cosine similarity percentile cut-off (0-100)',
-						type=range0100, default=99, dest='COS_PER_CUT')						 							
+	parser.add_argument('-cosine_percentile_cutoff', help='Percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
+						type=range0100, default=95, dest='COS_PER_CUT')	
+	parser.add_argument('-use_chunkcs', help='If True, use fast chunk cosine similarity screening instead of regular cosine similarity screening',
+		     action='store_true', default=True)
+		     
+	# plmblast					 							
 	
 	parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
 						type=float, default=0.2, dest='ALN_CUT')						
-	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
-						type=float, default=1, dest='SIGMA_FACTOR')		    			    				
+
+							    			    				
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
 						type=int, default=15, choices=range(40), metavar="[1-40]", dest='WINDOW_SIZE')				    
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
@@ -88,13 +96,13 @@ def get_parser():
 						type=float, default=0, dest='GAP_EXT')
 	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
 						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
-	parser.add_argument('-use_chunkcs', help='if True use chunk cosine similarity screening instead of regular cs (default: %(default)s) ',
-		     action='store_true', default=False)
-		     
+
+	# misc
+	     
 	parser.add_argument('-verbose', help='verbose', action='store_true', default=True)
 	
-	parser.add_argument('--raw', help='if true remove postprocessing steps and return dataframe with alignments', 
-		     action='store_true', default=False)
+	#parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
+	#					type=float, default=1, dest='SIGMA_FACTOR')	
 		     	    
 	args = parser.parse_args()
 	# validate provided parameters
@@ -155,11 +163,11 @@ args = get_parser()
 module = aln.base.Extractor()
 module.FILTER_RESULTS = True
 
-module.SIGMA_FACTOR = args.SIGMA_FACTOR
 module.WINDOW_SIZE = args.WINDOW_SIZE
 module.GAP_OPEN = args.GAP_OPEN
 module.GAP_EXT = args.GAP_EXT
 module.BFACTOR = 1
+module.SIGMA_FACTOR = 1
 
 # Load database 
 db_index = args.db + '.csv'
@@ -310,19 +318,15 @@ time_end = datetime.datetime.now()
 
 print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
 
-sys.exit(-1)
-
 # Prepare output
 if args.raw:
 	resdf.to_pickle(args.output)
-elif len(records_stack) == 0:
+elif len(resdf) == 0:
 	print('No hits found!')
 else:
-	resdf = pd.concat(records_stack)
-	resdf.to_csv('tmpres.csv')
 	resdf = resdf[resdf.score>=args.ALN_CUT]
 	if len(resdf) == 0:
-		print(f'No hits found! Try decreasing the alignment_cutoff parameter. Current cut-off is {args.ALN_CUT}')	
+		print(f'No matches found! Try reducing the alignment_cutoff parameter. The current cutoff is {args.ALN_CUT}')	
 	else:
 		print('Preparing output...')
 		resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)
