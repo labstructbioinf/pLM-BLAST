@@ -53,47 +53,58 @@ def get_parser():
 		""",
 		formatter_class=argparse.RawDescriptionHelpFormatter
 		)
+		
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
 	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
 	# input and output
 
 	parser.add_argument('db', help='Database embeddings and index',
-						type=str)						
+						type=str)	
+											
 	parser.add_argument('query', help='Query embedding and index',
-						type=str)										
+						type=str)	
+															
 	parser.add_argument('output', help='Output file (csv by default or pickle if --raw option is used)',
-						type=str)							
-	parser.add_argument('--raw', help='If true, skip postprocessing steps and return dataframe with all alignments', 
+						type=str)	
+												
+	parser.add_argument('--raw', help='If true, skip postprocessing steps and return pickled pandas dataframe with all alignments', 
 		     			action='store_true', default=False)
 													
 	# cosine similarity scan
 					
 	parser.add_argument('-cosine_percentile_cutoff', help='Percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=95, dest='COS_PER_CUT')	
-	parser.add_argument('-use_chunkcs', help='If True, use fast chunk cosine similarity screening instead of regular cosine similarity screening',
+						
+	parser.add_argument('-use_chunkcs', help='If True, use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 		     action='store_true', default=True)
 		     
 	# plmblast					 							
 	
-	parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
-						type=float, default=0.2, dest='ALN_CUT')						
-
-							    			    				
+	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
+						type=range01, default=0.3, dest='ALN_CUT')						
+		    			    				
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=15, choices=range(40), metavar="[1-40]", dest='WINDOW_SIZE')				    
-	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
-						type=int, default=35, dest='MIN_SPAN_LEN')				
-	parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
-						type=int, default=1500, dest='MAX_TARGETS')				
+						type=int, default=15, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
+									    
+	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
+						type=int, default=35, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')			
+							
+	parser.add_argument('-max_targets', help='Maximum number of targets to include in output (default: %(default)s)',
+						type=int, default=1500, dest='MAX_TARGETS')	
+									
 	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
-	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')							
+	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')	
+							
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-						type=int, default=1, dest='MAX_WORKERS')			    					
+						type=int, default=1, dest='MAX_WORKERS')	
+								    					
 	parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
-						type=float, default=0, dest='GAP_OPEN')				    				
+						type=float, default=0, dest='GAP_OPEN')	
+									    				
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
+						
 	parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
 						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
 
@@ -105,9 +116,14 @@ def get_parser():
 	#					type=float, default=1, dest='SIGMA_FACTOR')	
 		     	    
 	args = parser.parse_args()
+	
 	# validate provided parameters
 	assert args.MAX_TARGETS > 0
-	assert args.MAX_WORKERS > 0, 'At least one CPU core is needed!'
+	assert args.MAX_WORKERS > 0
+	
+	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
+	
+
 	return args
 
 def check_cohesion(frame, filedict, embeddings, truncate=600):
