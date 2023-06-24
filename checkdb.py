@@ -24,22 +24,22 @@ num_miss_shape = 0
 sizediff_list = []
 for idx, row in dbdata.iterrows():
 
-    file = os.path.join(pathdb, str(idx) + '.emb')
-    if not os.path.isfile(file):
-        print('missing file ', file)
-        num_miss += 1
-    else:
-        emb = torch.load(file)
-        sequence = str(row.sequence)
-        #print(emb.shape, len(sequence), file, idx)
-        if emb.shape[0] != len(sequence):
-            if len(sequence) <= 600:
-                sizediff = len(sequence) - emb.shape[0]
-                sizediff_list.append(sizediff)
-                num_miss_shape += 1
-                print(sizediff, emb.shape, file)
-        if idx % 1000 == 0:
-            print(idx)
+	file = os.path.join(pathdb, str(idx) + '.emb')
+	if not os.path.isfile(file):
+		print('missing file ', file)
+		num_miss += 1
+	else:
+		emb = torch.load(file)
+		sequence = str(row.sequence)
+		#print(emb.shape, len(sequence), file, idx)
+		if emb.shape[0] != len(sequence):
+			if len(sequence) <= 600:
+				sizediff = len(sequence) - emb.shape[0]
+				sizediff_list.append(sizediff)
+				num_miss_shape += 1
+				print(sizediff, emb.shape, file)
+		if idx % 1000 == 0:
+			print(idx)
 
 print('missing embs:' ,num_miss)
 print('num_miss_shape: ', num_miss_shape)

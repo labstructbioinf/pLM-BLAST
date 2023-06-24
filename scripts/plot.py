@@ -4,7 +4,7 @@ import matplotlib.pylab as pl
 import matplotlib.patches as mpatches
 import matplotlib.font_manager as font_manager
 
-parser = argparse.ArgumentParser(description =  
+parser = argparse.ArgumentParser(description =
 	"""
 	Plots merged or unmerged results of ECOD database search
 	""",
@@ -45,7 +45,7 @@ def get_group(row):
 	assert x!="" and h!="" and t!=""
 	return x, h, t
 
-### GET DATA    
+### GET DATA
 
 # read query 
 query_index = args.query
@@ -95,7 +95,7 @@ if args.ecod:
 	print('-'*20)
 
 	if len(colors)>20:
-		print(f'warning: palette has 20 colors but {len(colors)} X groups were identified')       
+		print(f'warning: palette has 20 colors but {len(colors)} X groups were identified')  
 else:
 	cmap = pl.cm.get_cmap('coolwarm')
 
@@ -176,10 +176,10 @@ fig.savefig(args.output, bbox_inches='tight')
 # Generate labels
 
 def export_legend(legend, filename="legend.png"):
-    fig  = legend.figure
-    fig.canvas.draw()
-    bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+	fig  = legend.figure
+	fig.canvas.draw()
+	bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+	fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
 # legend is exported only for ECOD
 if args.ecod:
@@ -187,12 +187,12 @@ if args.ecod:
 	label_font_size = 10
 
 	fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*bar_spacing_factor)/100), dpi=100)
-	
+
 	h = [mpatches.Patch(color=colors[d], label=T2H[d]+'\n'+d) for d in order]  
-	
+
 	font = font_manager.FontProperties(family='monospace',
-                                   weight='normal',
-                                   style='normal', size=label_font_size)
+								   weight='normal',
+								   style='normal', size=label_font_size)
 	
 	legend = fig.legend(handles=h, shadow=False, prop=font, frameon=False)
 	

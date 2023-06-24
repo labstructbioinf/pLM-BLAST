@@ -33,13 +33,13 @@ colors = {
 	'cyan': '\033[36m',
 	'white': '\033[37m',
 	'reset': '\033[0m'  # Reset to default color
-    }
+	}
 
 def range_limited_float_type(arg, MIN, MAX):
 	""" Type function for argparse - a float within some predefined bounds """
 	try:
 		f = float(arg)
-	except ValueError:    
+	except ValueError:
 		raise argparse.ArgumentTypeError("Must be a floating point number")
 	if f <= MIN or f >= MAX :
 		raise argparse.ArgumentTypeError("Argument must be <= " + str(MAX) + " and >= " + str(MIN))
@@ -53,7 +53,7 @@ def get_parser():
 		""",
 		formatter_class=argparse.RawDescriptionHelpFormatter
 		)
-		
+
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
 	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
@@ -61,60 +61,60 @@ def get_parser():
 
 	parser.add_argument('db', help='database embeddings and index',
 						type=str)	
-											
+
 	parser.add_argument('query', help='query embedding and index',
 						type=str)	
-															
+
 	parser.add_argument('output', help='output file (csv by default or pickle if --raw option is used)',
 						type=str)	
-												
+
 	parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
-		     			action='store_true', default=False)
-													
+			 			action='store_true', default=False)
+
 	# cosine similarity scan
-					
+
 	parser.add_argument('-cosine_percentile_cutoff', help='percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=95, dest='COS_PER_CUT')	
-						
+
 	parser.add_argument('-use_chunks', help='use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
-		     action='store_true', default=True)
-		     
-	# plmblast					 							
-	
+			 action='store_true', default=True)
+
+	# plmblast
+
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
 						type=range01, default=0.3, dest='ALN_CUT')						
-		    			    				
+
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
 						type=int, default=15, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
-									    
+
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
 						type=int, default=35, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')			
-							
+
 	parser.add_argument('-max_targets', help='Maximum number of targets to include in output (default: %(default)s)',
 						type=int, default=1500, dest='MAX_TARGETS')	
-						
-	parser.add_argument('--global_aln', help='use global pLM-BLAST alignment. Use only if you expect the query to be a single-domain sequence (default: %(default)s)', 
-		     			action='store_true', default=False)
-																 														    				
+
+	parser.add_argument('--global_aln', help='use global pLM-BLAST alignment. Use only if you expect the query to be a single-domain sequence (default: %(default)s)',
+			 			action='store_true', default=False)
+
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
-						
+
 	# misc
-	     
+
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=True)
 	
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
 						type=int, default=10, dest='MAX_WORKERS')	
-	
+
 	#parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
 	#					type=float, default=1, dest='SIGMA_FACTOR')	
-		   
+
 	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
 	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')
-		     	    
+	
 	#parser.add_argument('-emb_pool', help='embedding type (default: %(default)s) ',
 	#					type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4])
-		    
+
 	args = parser.parse_args()
 	
 	# validate provided parameters
@@ -151,23 +151,23 @@ def calc_con(s1, s2):
 		else:
 			res+='.'
 	return ''.join(res)
-    
+	
 def calc_similarity(s1, s2):
-    def aa_to_group(aa):
-        for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-']):
-            g = list(g)
-            if aa in g: return pos
-        assert False
-    res = [aa_to_group(c1)==aa_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
-    return sum(res)/len(res)         
-    
+	def aa_to_group(aa):
+		for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-']):
+			g = list(g)
+			if aa in g: return pos
+		assert False
+	res = [aa_to_group(c1)==aa_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
+	return sum(res)/len(res)
+	
 def calc_ident(s1, s2):
-    res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
-    return sum(res)/len(res)
-    
+	res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
+	return sum(res)/len(res)
+	
 
 ##########################################################################
-# 						MAIN    										 #
+# 						MAIN											 #
 ##########################################################################
 
 time_start = datetime.datetime.now()
@@ -232,7 +232,7 @@ if args.use_chunks:
 	
 	if args.verbose:
 		print('Using chunk cosine similarity screening...')
-			
+
 	dbfile = os.path.join(args.db, 'emb.64')
 	embedding_list = torch.load(dbfile)
 	
@@ -297,7 +297,7 @@ num_batches = sum(num_batches_per_query)
 filedict = list(query_filedict.values())[0]
 query_emb = query_embs_pool[0]
 batches = num_batches_per_query[0]
-		
+
 embedding_list = embedding_list = ds.load_full_embeddings(filelist=filelist)
 num_indices = len(embedding_list)
 
@@ -348,7 +348,7 @@ elif len(resdf) == 0:
 else:
 	resdf = resdf[resdf.score>=args.ALN_CUT]
 	if len(resdf) == 0:
-		print(f'No matches found! Try reducing the alignment_cutoff parameter. The current cutoff is {args.ALN_CUT}')	
+		print(f'No matches found! Try reducing the alignment_cutoff parameter. The current cutoff is {args.ALN_CUT}')
 	else:
 		print('Preparing output...')
 		resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)

@@ -13,7 +13,7 @@ from alntools.postprocess import filter_result_dataframe
 
 
 def get_parser():
-	parser = argparse.ArgumentParser(description =  
+	parser = argparse.ArgumentParser(description =
 		"""
 		Searches a database of embeddings with a query embedding
 		""",
@@ -21,31 +21,31 @@ def get_parser():
 		)
 	parser.add_argument('db', help='Database embeddings and index (`csv` and `pt_emb.p` extensions will be added automatically)',
 						type=str)
-																					
+
 	parser.add_argument('output', help='Output csv file',
 						type=str)
-												
+
 	parser.add_argument('-alignment_cutoff', help='Alignment score cut-off (default: %(default)s)',
 						type=float, default=0.4, dest='ALN_CUT')		
-						
+
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
-						type=float, default=1, dest='SIGMA_FACTOR')		    			    
-						
+						type=float, default=1, dest='SIGMA_FACTOR')
+
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')				    
+						type=int, default=1, choices=range(26), metavar="[1-25]", dest='WINDOW_SIZE')
 
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s)',
 						type=int, default=15, dest='MIN_SPAN_LEN')
-						
+
 	parser.add_argument('-max_targets', help='Maximal number of targets that will be reported in output (default: %(default)s)',
 						type=int, default=500, dest='MAX_TARGETS')
-					
+
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-						type=int, default=1, dest='MAX_WORKERS')			    
-							
+						type=int, default=1, dest='MAX_WORKERS')
+
 	parser.add_argument('-gap_open', help='Gap opening penalty (default: %(default)s)',
-						type=float, default=0, dest='GAP_OPEN')				    
-						
+						type=float, default=0, dest='GAP_OPEN')
+
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
 
@@ -53,7 +53,7 @@ def get_parser():
 						type=int, default=1, dest='EMB_POOL', choices=[1, 2, 4]) 
 
 	parser.add_argument('--no-filter', dest='filter', help='filter results',
-		    	action='store_false', default=True)   
+						action='store_false', default=True)
 
 	args = parser.parse_args()
 	# validate provided parameters

@@ -15,13 +15,11 @@ from alntools.postprocess import calc_aln_sim
 
 data = pd.read_pickle('raw_data.p')
 
-
 def test_calc_aln_sim():
-    global data
-    for g, chunk in data.groupby(['query_pdbchain','target_pdbchain']):
-        alnlist = chunk.indices.apply(np.array).tolist()
-        indices = calc_aln_sim(alnlist)
+	global data
+	for g, chunk in data.groupby(['query_pdbchain','target_pdbchain']):
+		alnlist = chunk.indices.apply(np.array).tolist()
+		indices = calc_aln_sim(alnlist)
 
 import timeit
 print(timeit.timeit('test_calc_aln_sim()', globals=globals(), number=3))
-    
