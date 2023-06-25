@@ -76,9 +76,9 @@ if args.ecod:
 	colors={}
 	cidx=0
 	order = []
-	for idx, g in hits_df.groupby('H'):
+	for idx, g in hits_df.groupby('X'):
 		print(idx)
-		if idx=='H: NO_H_NAME': 
+		if idx=='H: NO_X_NAME': 
 			c = 'grey'
 		else:
 			c = cmap(cidx)

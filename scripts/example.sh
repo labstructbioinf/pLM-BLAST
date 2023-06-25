@@ -16,7 +16,7 @@ export OMP_NUM_THREADS=1
 # from a one-sequence FASTA file use `query_emb.py`
 
 # example cases `A9A4Y8`, `cupredoxin`
-case='rum'
+case='cupredoxin'
 
 # data paths
 INDIR="./input"
@@ -48,12 +48,8 @@ if [ ! -f $OUTFILE ]; then
 		-cosine_percentile_cutoff $COSINE_CUTOFF \
 		-alignment_cutoff $ALIGNMENT_CUTOFF \
 		-workers $NUM_WORKERS \
-		-use_chunkcs
+		-use_chunks
 fi
-
-# pLM-BLAST tends to yield rather short hits therefore it is beneficial to merge those associated
-# with a single database sequence; additionally, a more strict score cut-off is used
-#python merge.py $OUTFILE $OUTFILE_MERGED -score $ALIGNMENT_CUTOFF # 0.39
 
 # plot hits
 python plot.py $OUTFILE $QUERY_INDEX $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
