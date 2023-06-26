@@ -78,7 +78,7 @@ if args.ecod:
 	order = []
 	for idx, g in hits_df.groupby('X'):
 		print(idx)
-		if idx=='H: NO_X_NAME': 
+		if idx=='X: NO_X_NAME': 
 			c = 'grey'
 		else:
 			c = cmap(cidx)
@@ -155,7 +155,7 @@ total_pos = pos
 fig, ax = pl.subplots(1, 1, figsize=(10, total_pos*(bar_size*bar_spacing_factor)/100), dpi=100)
 
 for row in rows:
-	ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2]) #solid_capstyle='round')
+	ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2], solid_capstyle='round')
 	#ax.annotate(row[3], xy=(row[0][0], row[1][0]), va='center', weight='bold', fontsize = bar_text_size,
 	#		color='white')
 

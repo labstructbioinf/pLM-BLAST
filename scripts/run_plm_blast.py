@@ -231,7 +231,7 @@ query_filedict = dict()
 if args.use_chunks:
 	
 	if args.verbose:
-		print('Using chunk cosine similarity screening...')
+		print('Loading database for chunk cosine similarity screening...')
 
 	dbfile = os.path.join(args.db, 'emb.64')
 	embedding_list = torch.load(dbfile)
