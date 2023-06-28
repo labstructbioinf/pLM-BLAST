@@ -74,7 +74,7 @@ emb_file = './scripts/output/A9A4Y8.pt_emb.p'
 embs = torch.load(emb_file)
 
 # a self-comparison will be performed
-seq1_emb, seq2_emb = embs[0], embs[0]
+seq1_emb, seq2_emb = embs[0].numpy(), embs[0].numpy()
 
 # all at once - local alignments
 extr = Extractor()
