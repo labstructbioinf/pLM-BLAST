@@ -36,7 +36,7 @@ mkdir -p $OUTDIR
 
 if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
 	echo "calculate query embedding"
-	python query_emb.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p $QUERY_INDEX
+	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p
 fi
 
 if [ ! -f $OUTFILE ]; then

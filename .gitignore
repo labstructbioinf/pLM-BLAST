@@ -16,6 +16,12 @@ __pycache__/
 # temp logs
 **.txt
 **.logs
+**.log
+
+# exceptions
+!tests/test_data/*.pt
+!tests/test_data/*.fas
+!tests/test_data/*.fasta
 
 
 /*.csv

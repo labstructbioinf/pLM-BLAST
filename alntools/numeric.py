@@ -179,7 +179,7 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 		return y, 1
 
 
-@numba.jit(nopython=True, fastmath=True, cache=True)
+@numba.jit(fastmath=True, cache=True)
 def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 							gap_opening: float = 0, gap_extension: float = 0,
 							stop_value: float = 1e-3) -> np.ndarray:
@@ -210,10 +210,10 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	assert x_size > xi
 	# f'x size of scorematrix ({x_size}) is lower then point ({xi})'
 	# set starting position
-	position = 1
+	position: int = 1
 	# maximum size of path
-	size = y_size + x_size
-	path_arr = np.zeros((size, 2), dtype=np.int32)
+	size: int = y_size + x_size
+	path_arr: np.ndarray = np.zeros((size, 2), dtype=np.int32)
 	# do not insert starting point
 	path_arr[0, 0] = yi
 	path_arr[0, 1] = xi

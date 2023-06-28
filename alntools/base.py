@@ -95,7 +95,16 @@ class Extractor:
 
 
 	def full_compare(self, emb1: np.ndarray, emb2: np.ndarray,
-					 idx: int, file: str) -> pd.DataFrame:
+					 idx: int = 0, file: str = 'source.fasta') -> pd.DataFrame:
+		'''
+		Args:
+			emb1: (np.ndarray) sequence embedding [seqlen x embdim]
+			emb2: (np.ndarray) sequence embedding [seqlen x embdim]
+			idx: (int) identifier used when multiple function results are concatenated
+			file: (str) embedding/sequence source file may be omitted
+		Returns:
+			data: (pd.DataFrame) frame with alignments and their scores
+		'''
 		res = self.embedding_to_span(emb1, emb2)
 		if len(res) > 0:
 			# add referece index to each hit
