@@ -22,6 +22,7 @@ __pycache__/
 !tests/test_data/*.pt
 !tests/test_data/*.fas
 !tests/test_data/*.fasta
+!tests/test_data/embeddings/*.emb
 
 
 /*.csv
