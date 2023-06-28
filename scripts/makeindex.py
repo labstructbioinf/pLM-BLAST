@@ -12,7 +12,7 @@ class UnexpectedCharSeq(UserWarning):
 
 
 ### MAIN function
-def make_index(fasta_file, uniprot=False, max_seq_len=1000, min_seq_len=15):
+def make_index(fasta_file, output_file=None, uniprot=False, max_seq_len=1000, min_seq_len=15):
 	
 	gres = []
 
@@ -46,7 +46,10 @@ def make_index(fasta_file, uniprot=False, max_seq_len=1000, min_seq_len=15):
 	gres_df = gres_df.sort_values(by='sequence', key=lambda x: x.str.len())
 	gres_df.reset_index(inplace=True, drop=True)
 
-	return gres_df
+	if output_file:
+		gres_df.to_csv(output_file)
+	else:
+		return gres_df
 
 
 if __name__ == "__main__":

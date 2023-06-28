@@ -72,7 +72,7 @@ if args.ecod:
 
 	# group X/T ECOD groups
 	print('-'*20)
-	cmap = pl.cm.get_cmap('tab10')
+	cmap = pl.colormaps['tab10']
 	colors={}
 	cidx=0
 	order = []
@@ -97,7 +97,7 @@ if args.ecod:
 	if len(colors)>20:
 		print(f'warning: palette has 20 colors but {len(colors)} X groups were identified')  
 else:
-	cmap = pl.cm.get_cmap('coolwarm')
+	cmap = pl.colormaps['coolwarm']
 
 # PLOT
 
