@@ -5,9 +5,10 @@ assert len(sys.argv)>1, 'usage: csv2nice.py output_csv_file'
 infile = sys.argv[1]
 assert os.path.isfile(infile), f'file {infile} not found'
 
-df = pd.read_csv(infile)
-#df.set_index('index', inplace=True)
+df = pd.read_csv(infile, sep=';')
 df.reset_index(inplace=True)
+# Reset the index starting from 1
+df.index = range(1, len(df) + 1)
 
 print(' No Hit						 Score   Query	   Template')
 for pos, (idx, row) in enumerate(df.iterrows()):

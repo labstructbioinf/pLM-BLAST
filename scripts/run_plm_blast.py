@@ -360,12 +360,14 @@ else:
 		resdf['qend'] = resdf['indices'].apply(lambda i:i[-1][1])
 		resdf['tstart'] = resdf['indices'].apply(lambda i:i[0][0])
 		resdf['tend'] = resdf['indices'].apply(lambda i:i[-1][0])
+		resdf['match_len'] = resdf['qend'] - resdf['qstart'] + 1
 
 		assert all(resdf['qstart'].apply(lambda i: i <= len(query_seq)-1))
 		assert all(resdf['qend'].apply(lambda i: i <= len(query_seq)-1))
 
 		resdf.sort_values(by='score', ascending=False, inplace=True)
 		resdf.reset_index(inplace=True)
+		resdf.index = range(1, len(resdf) + 1)
 
 		# alignment, conservation, etc.
 		for idx, row in resdf.iterrows():
@@ -377,14 +379,14 @@ else:
 			resdf.at[idx, 'qseq'] = tmp_aln[2]
 			resdf.at[idx, 'tseq'] = tmp_aln[0]
 			resdf.at[idx, 'con'] = calc_con(tmp_aln[2], tmp_aln[0])
-			resdf.at[idx, 'ident'] = calc_ident(tmp_aln[2], tmp_aln[0])
-			resdf.at[idx, 'similarity'] = calc_similarity(tmp_aln[2], tmp_aln[0])
+			resdf.at[idx, 'ident'] = round(calc_ident(tmp_aln[2], tmp_aln[0]), 2)
+			resdf.at[idx, 'similarity'] = round(calc_similarity(tmp_aln[2], tmp_aln[0]), 2)
 		# reset index
 		resdf.drop(columns=['index', 'indices', 'i'], inplace=True)
 		resdf.index.name = 'index'
 		# order columns
-		resdf = resdf[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen']]
+		resdf = resdf[['score','ident','similarity','sid', 'sdesc','qstart','qend','qseq','con','tseq', 'tstart', 'tend', 'tlen', 'qlen', 'match_len']]
 		# clip df
 		resdf = resdf.head(args.MAX_TARGETS)
 		# save
-		resdf.to_csv(args.output)
+		resdf.to_csv(args.output, sep=';')

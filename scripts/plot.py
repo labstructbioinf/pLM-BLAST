@@ -55,7 +55,7 @@ query_seq = query_df.iloc[0].sequence
 print(f'query sequence length is {len(query_seq)}')
 
 # read results
-hits_df = pd.read_csv(args.csv, sep=',')
+hits_df = pd.read_csv(args.csv, sep=';')
 hits_df = hits_df[hits_df.score >= args.score]
 hits_df['len'] = hits_df['qend'] - hits_df['qstart']
 
