@@ -106,8 +106,8 @@ def get_parser():
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
 						type=int, default=10, dest='MAX_WORKERS')	
 
-	#parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure. Values <1 may result in longer alignments (default: %(default)s)',
-	#					type=float, default=1, dest='SIGMA_FACTOR')	
+	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure (default: %(default)s)',
+						type=float, default=2, dest='SIGMA_FACTOR')	
 
 	#parser.add_argument('-bfactor', help='bfactor (default: %(default)s)',
 	#					 type=int, default=3, choices=range(1,4), metavar="[1-3]", dest='BF')
@@ -189,7 +189,7 @@ else:
 	if args.verbose:
 		print('Local alignment will be used')
 
-module.SIGMA_FACTOR = 1
+module.SIGMA_FACTOR = args.SIGMA_FACTOR
 
 # Load database 
 db_index = args.db + '.csv'
