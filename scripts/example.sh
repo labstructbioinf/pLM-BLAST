@@ -24,21 +24,25 @@ OUTDIR="./output"
 
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
-#OUTFILE_MERGED="$OUTDIR/${case}.hits_merged.csv"
 DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
 
-ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=90
+ALIGNMENT_CUTOFF="0.35"
+COSINE_CUTOFF=95
 
 NUM_WORKERS=10
 
 mkdir -p $OUTDIR
 
+# calculate index
+python makeindex.py ./input/$case.fas ./output/$case.csv
+
+# calculate embeddings
 if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
 	echo "calculate query embedding"
 	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt_emb.p
 fi
 
+# run plm-blast
 if [ ! -f $OUTFILE ]; then
 	# search pre-calculated ECOD database
 	python run_plm_blast.py \

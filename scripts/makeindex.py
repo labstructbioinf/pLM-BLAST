@@ -32,7 +32,6 @@ def make_index(fasta_file, output_file=None, uniprot=False, max_seq_len=1000, mi
 			new_desc = seq.description
 
 		if len(seq.seq)>max_seq_len:
-
 			for pos, subseq in enumerate(
 				[seq.seq[i:i+max_seq_len] for i in range(0, len(seq.seq), max_seq_len)]
 			):
@@ -73,7 +72,7 @@ if __name__ == "__main__":
 						type=int, default=15, dest='MIN_SEQ_LEN')	
 	args = parser.parse_args()
 	
-	gres_df = make_index(args.fasta_file, args.uniprot, args.MAX_SEQ_LEN, args.MIN_SEQ_LEN)
+	gres_df = make_index(args.fasta_file, args.uniprot, max_seq_len=args.MAX_SEQ_LEN, min_seq_len=args.MIN_SEQ_LEN)
 	gres_df.to_csv(args.index_file)
 
 	print(f'{args.index_file} has been written. This file can be used to calculate embeddings with `embeddings.py`')
