@@ -94,7 +94,7 @@ def get_parser():
 						type=int, default=1500, dest='MAX_TARGETS')	
 
 	parser.add_argument('--global_aln', help='use global pLM-BLAST alignment. Use only if you expect the query to be a single-domain sequence (default: %(default)s)',
-			 			action='store_true', default=False)
+                    	default='False', choices=['True', 'False'])
 
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
@@ -180,7 +180,7 @@ module.GAP_EXT = args.GAP_EXT
 
 EMB_POOL = 1
 
-if args.global_aln:
+if args.global_aln=='True':
 	module.BFACTOR = 'global'
 	if args.verbose:
 		print('Global alignment will be used')
