@@ -2,11 +2,13 @@ name: plmblast
 channels:
   - defaults
 dependencies:
-  - biopython
   - python=3.9
-  - pytorch
-  - pandas
-  - transformers
-  - numba
-  - matplotlib
-  - sentencepiece
+  - pandas=1.5.3
+  - biopython=1.78
+  - pytorch=2.0.1
+  - pytest=7.3.1
+  - transformers=4.29.2
+  - numba=0.57.0
+  - sentencepiece=0.1.99
+  - matplotlib=3.7.1
+  - scipy=1.10.1
