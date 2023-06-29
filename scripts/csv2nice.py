@@ -5,8 +5,9 @@ assert len(sys.argv)>1, 'usage: csv2nice.py output_csv_file'
 infile = sys.argv[1]
 assert os.path.isfile(infile), f'file {infile} not found'
 
-df = pd.read_csv(infile, sep=';')
-df.set_index('index', inplace=True)
+df = pd.read_csv(infile)
+#df.set_index('index', inplace=True)
+df.reset_index(inplace=True)
 
 print(' No Hit						 Score   Query	   Template')
 for pos, (idx, row) in enumerate(df.iterrows()):
@@ -23,5 +24,5 @@ for pos, (idx, row) in enumerate(df.iterrows()):
 		print('Warning: this is a merged match. The linking points are indicated with "~~~~~"\n')
 	
 	print(f'Q {row.qstart+1:>6} {row.qseq} {row.qend:<6}')
-	print(f'		 {row.con}')
+	print(f'         {row.con}')
 	print(f'T {row.tstart+1:>6} {row.tseq} {row.tend:<6}')

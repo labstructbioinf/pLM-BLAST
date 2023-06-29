@@ -85,10 +85,10 @@ def get_parser():
 						type=range01, default=0.3, dest='ALN_CUT')						
 
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=15, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
+						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
-						type=int, default=35, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')			
+						type=int, default=25, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')			
 
 	parser.add_argument('-max_targets', help='Maximum number of targets to include in output (default: %(default)s)',
 						type=int, default=1500, dest='MAX_TARGETS')	
