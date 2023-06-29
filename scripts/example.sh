@@ -6,16 +6,16 @@ export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-# Databases comprise two files, an index file (.csv) containing sequences and their descriptions,
-# and an embeddings file (.pt_emb.p) containing PT5 embeddings of sequences listed in the index.
+# Databases consist of two files, an index file (.csv) containing sequences and their descriptions, and an embedding file (.pt_emb.p)
+# containing PT5 (or other model) embeddings of sequences listed in the index.
 
-# To create a database, first, use makeindex.py to create an index from a FASTA file, and then
-# use `embeddings.py` to calculate embeddings based on this index file.
+# To create a database, first use makeindex.py to create an index from a FASTA file,
+# and then use `embeddings.py` to compute embeddings based on this index file.
 
-# Query sequence needs to be represented as a one-item database. To create such a query database
-# from a one-sequence FASTA file use `query_emb.py`
+# The query sequence must be represented as a one-element database.
 
-# example cases `A9A4Y8`, `cupredoxin`
+# See the example below for the complete pipeline from the FASTA sequence to searching the ECOD database.
+
 case='cupredoxin'
 
 # data paths
@@ -24,10 +24,12 @@ OUTDIR="./output"
 
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
+# Replace with a path to the database
 DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
 
 ALIGNMENT_CUTOFF="0.35"
 COSINE_CUTOFF=95
+SIGMA=2
 
 NUM_WORKERS=10
 
@@ -52,6 +54,7 @@ if [ ! -f $OUTFILE ]; then
 		-cosine_percentile_cutoff $COSINE_CUTOFF \
 		-alignment_cutoff $ALIGNMENT_CUTOFF \
 		-workers $NUM_WORKERS \
+                -sigma_factor $SIGMA \
 		-use_chunks
 fi
 
