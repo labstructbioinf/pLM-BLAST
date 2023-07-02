@@ -1,9 +1,6 @@
 # pLM-BLAST
 
-pLM-BLAST is a sensitive remote homology detection tool that is based on the comparison of residue embeddings obtained from the protein language model ProtTrans5. \
-It is available as a standalone package as well as an easy-to-use web server within the [MPI Bioinformatics Toolkit](https://toolkit.tuebingen.mpg.de/tools/psiblast), where several precomputed databases (e.g., ECOD, InterPro, and PDB) can be searched.
-
-Note: the method is being actively developed, please expect soon new features, such as speed improvement, global alignment, and others.
+pLM-BLAST is a sensitive remote homology detection tool based on the comparison of residue embeddings obtained from protein language models such as ProtTrans5. It is available as a stand-alone package as well as an easy-to-use web server within the [MPI Bioinformatics Toolkit](https://toolkit.tuebingen.mpg.de/tools/psiblast), where pre-computed databases can be searched.
 
 ## Table of contents
 * [ Installation ](#Installation)
@@ -11,7 +8,8 @@ Note: the method is being actively developed, please expect soon new features, s
 * [ Remarks ](#Remarks)
 
 ## Installation
-For the local use, use the `requirements.txt` file or `environment.yml` to create a new conda environment.  \
+For local use, use the `requirements.txt` or `environment.yml` file to create a an environment. \
+
 **pip**
 
 ```
@@ -21,40 +19,13 @@ pip install -r requirements.txt
 ```
 conda env create -f environment.yml
 ```
-Alternatively, the packages listed below can be installed manually: 
-```
-python==3.9
-Bio==1.5.9
-fairscale==0.4.13
-matplotlib==3.7.1
-numba==0.57.1
-pandas==2.0.2
-numpy==1.24.3
-pytest==7.4.0
-scikit_learn==1.2.2
-torch==2.0.1
-tqdm==4.65.0
-transformers==4.30.2
-sentencepiece==0.1.99
-```
 
 ## Usage
 ### Databases
 
-Pre-calculated databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
+Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
-To create a custom database, use `embeddings.py` script:
-
-```
-embeddings.py fasta.fas output_file.pt
-```
-or
-```
-embeddings.py database.csv database -embedder pt -cname column_name --gpu -bs -1 --asdir
-```
-
-`database.csv` is an index file defining sequences and their descriptions. 
-For example, the first lines of the ECOD database index are:
+To create a custom database, use the `embeddings.py` script and an index file that defines sequences and their descriptions. For example, the first lines of the ECOD database index are shown below:
 
 ```
 ,id,description,sequence
@@ -62,17 +33,51 @@ For example, the first lines of the ECOD database index are:
 1,ECOD_000399743_e3nmdE1,"ECOD_000399743_e3nmdE1 | 5027.1.1.3 | 3NMD E:3-53 | A: extended segments, X: NO_X_NAME, H: NO_H_NAME, T: Preprotein translocase SecE subunit, F: DD_cGKI-beta | Protein: cGMP Dependent PRotein Kinase",LRDLQYALQEKIEELRQRDALIDELELELDQKDELIQMLQNELDKYRSVI
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
-Index can be generated from a FASTA file using `scripts/makeindex.py`.
 
-Program will generate directory `database` in which each file is a separate sequence embedding. `bs -1` for adaptive batch size - especially helpful when using `--gpu`.
- 
-Use `-cname` to specify in which column of the `database.csv` file sequences are stored \
-The resulting embeddings will be stored in `database.pt` \
-Usage of `--gpu` is highly recommended (cpu calculations are orders of magnitude slower)
+The index file can be generated from a FASTA file using `scripts/makeindex.py`:
+
+```
+python makeindex.py database.fas database.csv 
+```
+
+Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
+
+```
+embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --asdir
+```
+
+It will create a directory `database` in which each file is a separate sequence embedding. Use `bs -1` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.
+
+The last step is to create an additional file with latent embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+
+```
+python dbtofile.py database 
+```
+
+A new file `emb.64` should appear in the database directory.
 
 ### Searching a database
 
-To search a pre-calculated or custom database, follow `scripts/example.sh` 
+Suppose we want to search the database `database` with a FASTA sequence stored in `query.py`. First, we need to create an index file for the query:
+
+```
+python makeindex.py query.fas query.csv
+```
+
+Then an embedding for the query:
+
+```
+embeddings.py query.fas query.pt
+```
+
+Finally, the `run_plm_blast.py` script can be used to search the database:
+
+```
+python ../pLM-BLAST/scripts/run_plm_blast.py database query output.csv -use_chunks
+```
+
+Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plm_blast.py -h` for more options.
+
 
 ### Use in Python
 ```python

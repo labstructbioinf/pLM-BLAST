@@ -206,7 +206,7 @@ if args.verbose:
 	print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
 		
 query_index = args.query + '.csv'
-query_embs = args.query + '.pt_emb.p'
+query_embs = args.query + '.pt'
 query_df = pd.read_csv(query_index)
 query_embs = torch.load(query_embs)
 

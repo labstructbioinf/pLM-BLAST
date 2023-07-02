@@ -25,10 +25,10 @@ OUTDIR="./output"
 QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 # Replace with a path to the database
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
 
-ALIGNMENT_CUTOFF="0.35"
-COSINE_CUTOFF=95
+ALIGNMENT_CUTOFF="0.3"
+COSINE_CUTOFF=90
 SIGMA=2
 
 NUM_WORKERS=10
