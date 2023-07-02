@@ -48,7 +48,7 @@ embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --
 
 It will create a directory `database` in which each file is a separate sequence embedding. Use `bs -1` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.
 
-The last step is to create an additional file with latent embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
 ```
 python dbtofile.py database 
@@ -58,7 +58,7 @@ A new file `emb.64` should appear in the database directory.
 
 ### Searching a database
 
-Suppose we want to search the database `database` with a FASTA sequence stored in `query.py`. First, we need to create an index file for the query:
+Suppose we want to search the database `database` with a FASTA sequence stored in `query.fas`. First, we need to create an index file for the query:
 
 ```
 python makeindex.py query.fas query.csv
