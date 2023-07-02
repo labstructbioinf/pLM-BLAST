@@ -80,31 +80,94 @@ Note that only the base filename should be specified for the query. The `-use_ch
 
 
 ### Use in Python
-```python
+
+pLM-BLAST can also be used in Python scripts. 
+
+Simple example:
+
+```
 import torch
 from alntools.base import Extractor
 import os
 
-fasta_file = './scripts/input/cupredoxin.fas'
-emb_file = './scripts/output/cupredoxin.pt'
-emb_scr = './embeddings.py'
-
-os.system(f'python {emb_scr} {fasta_file} {emb_file}')
-
 emb_file = './scripts/output/cupredoxin.pt'
 embs = torch.load(emb_file)
 
-# a self-comparison will be performed
+# A self-comparison is performed
 seq1_emb, seq2_emb = embs[0].numpy(), embs[0].numpy()
 
-# all at once - local alignments
+# Create multiple local alignments
 extr = Extractor()
+extr.FILTER_RESULTS = True # Removes redundant paths
 results = extr.full_compare(seq1_emb, seq2_emb)
 
-#all at once - global alignment
+print(results)
+
+# Create a single global alignment
 extr.BFACTOR = 'global'
 # one alignment per protein pair
 results = extr.embedding_to_span(seq1_emb, seq2_emb)
+
+print(results)
+```
+
+Advanced example:
+
+```
+import torch
+import alntools.density as ds
+import alntools as aln
+import pandas as pd
+from Bio import SeqIO
+
+# Get embeddings and sequences
+emb_file = './scripts/output/cupredoxin.pt'
+embs = torch.load(emb_file)
+# A self-comparison is performed
+emb1, emb2 = embs[0], embs[0]
+
+seq = list(SeqIO.parse('./scripts/input/cupredoxin.fas', format='fasta'))
+seq = str(seq[0].seq)
+seq1, seq2 = seq, seq
+
+# Parameters
+bfactor = 1 # local alignment
+sigma_factor = 2 
+window = 10 # scan window length
+min_span = 25 # minimum alignment length
+gap_opening = 0 # Gap opening penalty
+column = 'score' # Another option is "len"
+
+# Run pLM-BLAST
+densitymap = ds.embedding_similarity(emb1, emb2)
+arr = densitymap.cpu().numpy()
+
+paths = aln.alignment.gather_all_paths(densitymap,
+									   gap_opening=gap_opening,
+									   bfactor=bfactor)
+
+spans_locations = aln.prepare.search_paths(arr,
+						paths=paths,
+						window=window,
+						sigma_factor=sigma_factor,
+						mode='local' if bfactor==1 else 'global',
+						min_span=min_span,
+					)
+							
+results = pd.DataFrame(spans_locations.values())
+results['i'] = 0
+results = aln.postprocess.filter_result_dataframe(results, column='score')
+
+# Print best alignment
+row = results.iloc[0]
+
+aln = aln.alignment.draw_alignment(row.indices, 
+							   seq1,
+							   seq2,
+							   output='str'
+							)
+
+print(aln)
 ```
 
 
