@@ -146,13 +146,7 @@ paths = aln.alignment.gather_all_paths(densitymap,
 									   gap_opening=gap_opening,
 									   bfactor=bfactor)
 
-spans_locations = aln.prepare.search_paths(arr,
-						paths=paths,
-						window=window,
-						sigma_factor=sigma_factor,
-						mode='local' if bfactor==1 else 'global',
-						min_span=min_span,
-					)
+spans_locations = aln.prepare.search_paths(arr, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
 							
 results = pd.DataFrame(spans_locations.values())
 results['i'] = 0
@@ -161,11 +155,7 @@ results = aln.postprocess.filter_result_dataframe(results, column='score')
 # Print best alignment
 row = results.iloc[0]
 
-aln = aln.alignment.draw_alignment(row.indices, 
-							   seq1,
-							   seq2,
-							   output='str'
-							)
+aln = aln.alignment.draw_alignment(row.indices, seq1, seq2, output='str')
 
 print(aln)
 ```
