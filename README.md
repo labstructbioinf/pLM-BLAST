@@ -142,9 +142,7 @@ column = 'score' # Another option is "len"
 densitymap = ds.embedding_similarity(emb1, emb2)
 arr = densitymap.cpu().numpy()
 
-paths = aln.alignment.gather_all_paths(densitymap,
-									   gap_opening=gap_opening,
-									   bfactor=bfactor)
+paths = aln.alignment.gather_all_paths(densitymap, gap_opening=gap_opening, bfactor=bfactor)
 
 spans_locations = aln.prepare.search_paths(arr, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
 							
