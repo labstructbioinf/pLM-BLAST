@@ -85,7 +85,7 @@ pLM-BLAST can also be used in Python scripts.
 
 Simple example:
 
-```
+```python
 import torch
 from alntools.base import Extractor
 import os
@@ -113,7 +113,7 @@ print(results)
 
 Advanced example:
 
-```
+```python
 import torch
 import alntools.density as ds
 import alntools as aln
