@@ -22,7 +22,7 @@ ALIGNMENT_CUTOFF="0.3"
 COSINE_CUTOFF=90
 SIGMA=2
 
-NUM_WORKERS=10
+NUM_WORKERS=6
 
 mkdir -p $OUTDIR
 
@@ -30,7 +30,7 @@ mkdir -p $OUTDIR
 python makeindex.py ./input/$case.fas ./output/$case.csv
 
 # Calculate query embedding
-if [ ! -f $OUTDIR/$case.pt_emb.p ]; then
+if [ ! -f $OUTDIR/$case.pt ]; then
 	echo "calculate query embedding"
 	python ../embeddings.py $INDIR/$case.fas $OUTDIR/$case.pt
 fi

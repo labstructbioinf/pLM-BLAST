@@ -55,7 +55,7 @@ def get_parser():
 		)
 
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
-	range0100 = lambda f:range_limited_float_type(f, 0, 100)
+	range0100 = lambda f:range_limited_float_type(f, 0, 101)
 
 	# input and output
 
@@ -227,40 +227,45 @@ query_seq = query_seqs[0]
 def tensor_transform(x):
 	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
 
-query_filedict = dict()
-if args.use_chunks:
-	
-	if args.verbose:
-		print('Loading database for chunk cosine similarity screening...')
 
-	dbfile = os.path.join(args.db, 'emb.64')
-	embedding_list = torch.load(dbfile)
+if args.COS_PER_CUT<100:
+	query_filedict = dict()
+	if args.use_chunks:
 	
-	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])] # db_df is database index
+		if args.verbose:
+			print('Loading database for chunk cosine similarity screening...')
+
+		dbfile = os.path.join(args.db, 'emb.64')
+		embedding_list = torch.load(dbfile)
 	
-	query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
+		filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])] # db_df is database index
 	
-	for i, emb in enumerate(query_emb_chunkcs):
-		filedict = ds.local.chunk_cosine_similarity(
-			query=emb,
-			targets=embedding_list,
-			quantile=args.COS_PER_CUT/100,
-			dataset_files=filelist,
-			stride=10)
-		query_filedict[i] = filedict
+		query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
+	
+		for i, emb in enumerate(query_emb_chunkcs):
+			filedict = ds.local.chunk_cosine_similarity(
+				query=emb,
+				targets=embedding_list,
+				quantile=args.COS_PER_CUT/100,
+				dataset_files=filelist,
+				stride=10)
+			query_filedict[i] = filedict
+	else:
+		if args.verbose:
+			print('Using regular cosine similarity screening...')
+		for i, emb in enumerate(query_embs):
+			filedict = ds.load_and_score_database(emb,
+												dbpath = args.db,
+												quantile = args.COS_PER_CUT/100,
+												num_workers = args.MAX_WORKERS)
+			filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
+			query_filedict[i] = filedict
 else:
-	if args.verbose:
-		print('Using regular cosine similarity screening...')
-	for i, emb in enumerate(query_embs):
-		filedict = ds.load_and_score_database(emb,
-											dbpath = args.db,
-											quantile = args.COS_PER_CUT/100,
-											num_workers = args.MAX_WORKERS)
-		filedict = { k : v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
-		query_filedict[i] = filedict
-
-
+	filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])] # db_df is database index
+	filedict = {k:v for k, v in zip(range(len(filelist)), filelist)}
+	query_filedict = { 0: filedict}
 filelist = list(filedict.values())
+
 
 # check_cohesion(db_df, filedict, embedding_list)
 
