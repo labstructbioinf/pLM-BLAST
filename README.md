@@ -81,7 +81,7 @@ embeddings.py query.fas query.pt
 Finally, the `run_plm_blast.py` script can be used to search the database:
 
 ```
-python ../pLM-BLAST/scripts/run_plm_blast.py database query output.csv -use_chunks
+python ./scripts/run_plm_blast.py database query output.csv -use_chunks
 ```
 
 Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plm_blast.py -h` for more options.
