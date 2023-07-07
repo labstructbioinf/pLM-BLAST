@@ -15,6 +15,7 @@ For local use, use the `requirements.txt` file to create an environment. \
 Create a new conda environment:
 ```
 conda create --name plmblast
+conda activate plmblast
 ```
 
 Install pip in the environment:
