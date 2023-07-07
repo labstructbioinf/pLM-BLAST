@@ -8,7 +8,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 * [ Remarks ](#Remarks)
 
 ## Installation
-For local use, use the `requirements.txt` file to create an environment. \
+For local use, use the `requirements.txt` file to create an environment.
 
 **pip**
 
