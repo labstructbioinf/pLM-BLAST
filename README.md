@@ -8,16 +8,23 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 * [ Remarks ](#Remarks)
 
 ## Installation
-For local use, use the `requirements.txt` or `environment.yml` file to create a an environment. \
+For local use, use the `requirements.txt` file to create an environment. \
 
 **pip**
 
+Create a new conda environment:
+```
+conda create --name plmblast
+```
+
+Install pip in the environment:
+```
+conda install pip
+```
+
+Install pLM-BLAST (note to use pip from the environment, not the globally installed one):
 ```
 pip install -r requirements.txt
-```
-**conda**
-```
-conda env create -f environment.yml
 ```
 
 ## Usage
