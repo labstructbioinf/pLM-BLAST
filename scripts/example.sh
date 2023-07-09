@@ -6,7 +6,7 @@ export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 export OMP_NUM_THREADS=1
 
-case='cupredoxin'
+case='af1503'
 
 # data paths
 INDIR="./input"
