@@ -10,7 +10,9 @@ df.reset_index(inplace=True)
 # Reset the index starting from 1
 df.index = range(1, len(df) + 1)
 
-print(' No Hit						 Score   Query	   Template')
+#print(' No Hit						 Score   Query	   Template')
+
+print(' No Hit                       Score   Query     Template')
 for pos, (idx, row) in enumerate(df.iterrows()):
 	q_str = f'{row.qstart+1}-{row.qend}'
 	t_str = f'{row.tstart+1}-{row.tend}'
