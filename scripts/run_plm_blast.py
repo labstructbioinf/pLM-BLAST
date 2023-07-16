@@ -358,7 +358,7 @@ else:
 		print('Preparing output...')
 		resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)
 		resdf['sid'] = resdf['i'].apply(lambda i:db_df.iloc[i]['id'])
-		resdf['sdesc'] = resdf['i'].apply(lambda i:db_df.iloc[i]['description'])
+		resdf['sdesc'] = resdf['i'].apply(lambda i:db_df.iloc[i]['description'].replace(';', ' '))
 		resdf['tlen'] = resdf['i'].apply(lambda i:len(db_df.iloc[i]['sequence']))
 		resdf['qlen'] = len(query_seq)
 		resdf['qstart'] = resdf['indices'].apply(lambda i:i[0][1])
