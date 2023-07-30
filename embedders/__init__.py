@@ -4,3 +4,4 @@ from .parser import prepare_dataframe
 
 from .esm import main_esm
 from .prottrans import main_prottrans
+from .prost import main_prost

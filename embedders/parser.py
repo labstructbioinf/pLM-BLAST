@@ -33,8 +33,8 @@ def create_parser() -> argparse.Namespace:
 						type=str)
 	parser.add_argument('-embedder', '-e', help=\
 		"""
-		type of embedder available `pt` or for prot_t5_xl_half_uniref50-enc and `esm`
-		for esm2_t33_650M_UR50D different esm embedders by specyfing their full name
+		type of embedder available `pt` for prot_t5_xl_half_uniref50-enc, `esm`
+		for esm2_t33_650M_UR50D or prost for ProtT5-XL-U50
 		""",
 						dest='embedder', type=str, default='pt')
 	parser.add_argument('-cname', '-col', help='custom sequence column name',
@@ -98,6 +98,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 	if (args.embedder == 'pt'):
 		pass
 	elif args.embedder.startswith('esm'):
+		pass
+	elif args.embedder.startswith('prost'):
 		pass
 	else:
 		raise ValueError("invalid embedder option", args.embedder)
