@@ -51,7 +51,7 @@ python makeindex.py database.fas database.csv
 Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
 
 ```
-embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --asdir
+python embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --asdir
 ```
 
 It will create a directory `database` in which each file is a separate sequence embedding. Use `bs -1` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.

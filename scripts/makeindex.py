@@ -21,7 +21,7 @@ def make_index(fasta_file, output_file=None, uniprot=False, max_seq_len=1000, mi
 		if len(seq.seq)<min_seq_len:
 			warnings.warn(f"{seq.id} is to short. The Sequence has not been added", ToShortSeq)
 			continue
-		if set(seq.seq) - set('QWERTYIPASDFGHKLCVNM') != set():
+		if set(seq.seq) - set('QWERTYIPASDFGHKLCVNMX') != set():
 			warnings.warn(f"{seq.id} has characters that do not encode amino acids. The Sequence has not been added", UnexpectedCharSeq)
 			continue
 		if uniprot:
