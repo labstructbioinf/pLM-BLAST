@@ -46,7 +46,7 @@ def create_parser() -> argparse.Namespace:
 	parser.add_argument('--cuda', '--gpu', help='if specified cuda device is used default False',
 						dest='gpu', default=False, action='store_true')
 	parser.add_argument('-batch_size', '-b', '-bs', help=\
-		'''batch size for loader longer sequences may require lower batch size set -1 to adaptive batch mode''',
+		'''batch size for loader longer sequences may require lower batch size set 0 to adaptive batch mode''',
 						dest='batch_size', type=int, default=32)
 	parser.add_argument('--asdir', '-ad', '-dir', help=\
 		"""
@@ -167,6 +167,7 @@ def make_iterator(seqlens: List[int], batch_size: int) -> List[slice]:
 	'''
 	iterator: List[slice]
 	seqnum = len(seqlens)
+	# fixed batch size
 	if batch_size != 0:
 		startbatch = list(range(0, seqnum, batch_size))
 		if startbatch[-1] != seqnum:

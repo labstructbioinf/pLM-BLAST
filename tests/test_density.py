@@ -93,7 +93,7 @@ def test_path_gathering(emb1, emb2, norm):
 	10 + torch.rand((213, 512)) # big values
 	])
 @pytest.mark.parametrize('emb2', [
-	torch.rand((100, 512)),
+	torch.rand((20, 512)),
 	torch.rand((300, 512)),
 	10 + torch.rand((213, 512)) # big values
 	])

@@ -154,7 +154,7 @@ def calc_con(s1, s2):
 	
 def calc_similarity(s1, s2):
 	def aa_to_group(aa):
-		for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-']):
+		for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-', 'X']):
 			g = list(g)
 			if aa in g: return pos
 		assert False

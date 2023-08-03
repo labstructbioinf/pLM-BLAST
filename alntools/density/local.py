@@ -237,6 +237,11 @@ def chunk_cosine_similarity(query : th.Tensor,
 	
 	num_targets = len(targets)
 	scorestack = th.zeros(num_targets)
+	seqlens = [emb.shape[0] for emb in targets]
+	# change kernel size if the shortest sequence in targets is smaller then kernel size
+	min_seqlen = min(seqlens)
+	if kernel_size > min_seqlen:
+		kernel_size = min_seqlen 
 	assert len(targets) == len(dataset_files), f'{len(targets)} != {len(dataset_files)}'
 	scorestack = chunk_score(query, targets, stride = stride, kernel_size=kernel_size)
 	quantile_threshold = th.quantile(scorestack, quantile)
