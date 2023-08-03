@@ -59,7 +59,7 @@ It will create a directory `database` in which each file is a separate sequence 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
 ```
-python dbtofile.py database 
+python scripts/dbtofile.py database 
 ```
 
 A new file `emb.64` should appear in the database directory.
@@ -71,11 +71,11 @@ Suppose we want to search the database `database` with a FASTA sequence stored i
 ```
 python makeindex.py query.fas query.csv
 ```
-
+If your sequence is stored in `.csv` file you can skip above step and run below command on your CSV file
 Then an embedding for the query:
 
 ```
-embeddings.py query.fas query.pt
+python embeddings.py query.fas query.pt
 ```
 
 Finally, the `run_plm_blast.py` script can be used to search the database:
