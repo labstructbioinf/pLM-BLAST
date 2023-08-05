@@ -35,15 +35,22 @@ def main_prost(df: pd.DataFrame, args: argparse.Namespace, iterator: List[slice]
 	batch_files = []
 	if args.asdir and not os.path.isdir(args.output):
 		os.mkdir(args.output)
+
 	seqlist_all = df['seq'].tolist()
 	lenlist_all = df['seqlens'].tolist()
+	
+
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
 			seqlist = seqlist_all[batchslice]
 			lenlist = lenlist_all[batchslice]
 			# add empty character between all residues
 			# his is mandatory for pt5 embedders
+
 			seqlist = [' '.join(list(seq)) for seq in seqlist]
+			seqlist = [ "<AA2fold> " + seq for seq in seqlist]
+
+
 			batch_index = list(range(batchslice.start, batchslice.stop))
 			ids = tokenizer.batch_encode_plus(seqlist, add_special_tokens=True, padding="longest")
 			input_ids = torch.tensor(ids['input_ids']).to(device, non_blocking=True)
