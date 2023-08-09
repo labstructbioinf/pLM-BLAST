@@ -11,7 +11,7 @@ EMBEDDING_DATA = os.path.join(DIR, "test_data/seq.p")
 EMBEDDING_OUTPUT = os.path.join(DIR, "output/seq.emb")
 
 
-@pytest.mark.parametrize("embedder", ["pt", "esm"])
+@pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200", "500"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
 def test_embedding_generation(embedder, truncate, batchsize):
