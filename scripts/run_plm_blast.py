@@ -211,7 +211,7 @@ query_df = pd.read_csv(query_index)
 query_embs = torch.load(query_embs)
 
 if query_df.shape[0] != len(query_embs):
-	raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_emb)}')
+	raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
 
 query_seqs = query_df['sequence'].tolist()
 query_seqs: List[str]= [str(seq) for seq in query_seqs]
