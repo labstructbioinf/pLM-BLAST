@@ -7,6 +7,8 @@ from Bio import SeqIO
 import pandas as pd
 import torch
 
+from checkpoint import checkpoint_from_json
+
 def create_parser() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description =
 		"""
@@ -23,11 +25,15 @@ def create_parser() -> argparse.Namespace:
 		
 		example use:
 			python embeddings.py data.csv data.pt -cname seqfull
+			# for fasta input
+			python embeddings.py data.fasta data.pt
+			# for file per embedding output
+			python embeddings.py data.fasta data --asdir
 		""",
 		formatter_class=argparse.RawDescriptionHelpFormatter
 		)
 	parser.add_argument('input', help='csv/pickle (.csv or .p) with `seq` column',
-						type=str)
+						type=argparse.FileType('r'))
 	parser.add_argument('output', help=\
 		'''resulting list of embeddings file or directory if `asdir` is True''',
 						type=str)
@@ -51,14 +57,20 @@ def create_parser() -> argparse.Namespace:
 	parser.add_argument('--asdir', '-ad', '-dir', help=\
 		"""
 		whether save output as directory where each embedding is a separate file,
-		named as df index which is mandatory for big dataframes
+		named as df index which is mandatory for large number of sequences
 		""",
 		action='store_true', default=False)
 	parser.add_argument('--truncate', '-t', default=1000, help=\
 		"""
-		cut sequences longer then parameter, helps to prevent OOM errors
+		cut sequences longer then parameter, similar to sequence[:truncate], helps to prevent OOM errors
 		""",
 		type=int, dest='truncate')
+	parser.add_argument('--from_checkpoint', type=argparse.FileType('r'), help=\
+		"""
+		continue calculations from checkpoint, checkpoint is automatically created and stored as
+		emb_checkpoint.json in output directory
+		""")
+	parser.add_argument('--last_batch', help=argparse.SUPPRESS, type=int)
 	args = parser.parse_args()
 	return args
 
@@ -67,6 +79,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 	'''
 	handle argparse arguments
 	'''
+	if args.from_checkpoint is not None:
+		args = checkpoint_from_json(args.from_checkpoint)
 	# gather input file
 	if args.input.endswith('csv'):
 		df = pd.read_csv(args.input)

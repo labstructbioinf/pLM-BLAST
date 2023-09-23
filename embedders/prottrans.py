@@ -64,6 +64,7 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[sl
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
+				args.last_batch = batch_index
 			else:
 				batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
 				torch.save(embeddings_filt, batch_id_filename)

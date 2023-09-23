@@ -43,3 +43,6 @@ def test_embedding_generation(embedder, truncate, batchsize):
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
 	# remove output
 	os.remove(EMBEDDING_OUTPUT)
+
+
+def test_checkpointing()
