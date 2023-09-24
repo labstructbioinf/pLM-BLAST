@@ -272,11 +272,12 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> I
 	endbatch_index = list()
 	batchstart: int = 0
 	batchend: int = 0
-	while True:
-		batchend += min(batchend + step, num_seq_total)
+	while batchend < num_seq_total:
+		batchend = min(batchend + step, num_seq_total)
 		num_res = sum(seqlen_list[batchstart:batchend])
 		num_seq = batchend - batchstart
-		if num_res >= resperbatch:
+		#print(batchend, num_res, num_seq)
+		if num_res > resperbatch:
 			# case when batch_size = step exeeds resperbatch
 			if num_seq == step:
 				batchend -= 2
@@ -290,12 +291,9 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> I
 				batchend -= step
 				endbatch_index.append(batchend)
 				batchstart = batchend
-		if batchend <= num_seq_total:
-			break
-
 	# add last index and 0
 	startbatch_index =  [0] + endbatch_index
-	endbatch_index = endbatch_index + [len(seqlen_list)]
+	endbatch_index = endbatch_index + [num_seq_total]
 	batch_iterator = [slice(start, stop) for start, stop in \
 					   zip(startbatch_index, endbatch_index)]
 	return batch_iterator
