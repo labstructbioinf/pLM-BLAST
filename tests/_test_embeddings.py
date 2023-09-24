@@ -1,33 +1,54 @@
 import os
+import json
 import subprocess
+import shutil
 import pytest
 
 import pandas as pd
 import torch as th
 
+from embedders.base import calculate_adaptive_batchsize_div4
+
 DIR = os.path.dirname(__file__)
-EMBEDDING_SCRIPT = "embeddings.py"
-EMBEDDING_DATA = os.path.join(DIR, "test_data/seq.p")
-EMBEDDING_OUTPUT = os.path.join(DIR, "output/seq.emb")
+EMBEDDING_SCRIPT: str = "embeddings.py"
+EMBEDDING_DATA: os.PathLike = os.path.join(DIR, "test_data/seq.p")
+EMBEDDING_OUTPUT: os.PathLike = os.path.join(DIR, "test_data/output/seq.emb")
+EMBEDDING_OUTPUT_DIR: os.PathLike = os.path.join(DIR, 'output')
+NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
+
+def test_required_files():
+	assert os.path.isfile(EMBEDDING_DATA)
+	assert os.path.isfile(EMBEDDING_SCRIPT)
+
+@pytest.mark.parametrize('seqlen_list',
+						  [th.randint(50, 1000, size=(500, )).tolist() for _ in range(5)])
+@pytest.mark.parametrize('res_per_batch', 
+						 th.randint(1500, 5000, size=(5,)).tolist())
+def test_adaptive_batching(seqlen_list, res_per_batch):
+	batch_list = calculate_adaptive_batchsize_div4(seqlen_list, res_per_batch)
+	assert isinstance(batch_list, list)
+	assert len(batch_list) > 0
+	print(batch_list)
+	for batch in batch_list:
+		seqlen_batch = seqlen_list[batch]
+		assert len(seqlen_batch) > 0, batch
+		assert sum(seqlen_batch) <= res_per_batch, batch
+		assert len(seqlen_list) % 4 == 0, batch
 
 
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200", "500"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
 def test_embedding_generation(embedder, truncate, batchsize):
-	if not os.path.isdir("tests/output"):
-		os.mkdir("tests/output")
 	if not os.path.isfile(EMBEDDING_SCRIPT):
 		raise FileNotFoundError(f'no embedder script in: {EMBEDDING_SCRIPT}')
 	embdata = pd.read_pickle(EMBEDDING_DATA)
 	seqlist = embdata['seq'].tolist()
-	proc = subprocess.run(["python", "embeddings.py",
-	EMBEDDING_DATA, EMBEDDING_OUTPUT,
-	"-embedder", embedder,
-	"--truncate", truncate,
-	"-bs", batchsize],
-	stderr=subprocess.PIPE,
-	stdout=subprocess.PIPE)
+	# cmd
+	proc = subprocess.run(["python", "embeddings.py", "start",
+	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", embedder,
+	"--truncate", truncate, "-bs", batchsize],
+	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# chech process error code
 	assert proc.returncode == 0, proc.stderr
 	assert proc.stderr, proc.stderr
@@ -44,5 +65,39 @@ def test_embedding_generation(embedder, truncate, batchsize):
 	# remove output
 	os.remove(EMBEDDING_OUTPUT)
 
-
-def test_checkpointing()
+@pytest.mark.parametrize('checkpoint_file',[
+	'test_data/emb_checkpoint.json',
+	'test_data/emb_checkpoint_middle.json',
+	'test_data/emb_checkpoint_end.json'])
+def test_checkpointing(checkpoint_file):
+	checkpoint_file = os.path.join(DIR, checkpoint_file)
+	# move to newdir
+	fname = os.path.basename(checkpoint_file)
+	new_location = os.path.join(EMBEDDING_OUTPUT_DIR, fname)
+	if not os.path.isdir(EMBEDDING_OUTPUT_DIR):
+		os.mkdir(EMBEDDING_OUTPUT_DIR)
+	else:
+		shutil.rmtree(EMBEDDING_OUTPUT_DIR)
+		os.mkdir(EMBEDDING_OUTPUT_DIR)
+	shutil.copy(checkpoint_file, new_location)
+	checkpoint_file = new_location
+	assert os.path.isfile(checkpoint_file), 'no checkpoint file for tests'
+	# read the checkpoint file
+	with open(checkpoint_file, 'rt') as fp:
+		checkpoint_data = json.load(fp)
+	# cmd
+	proc = subprocess.run(["python", "embeddings.py", 'resume',
+						checkpoint_file], stderr=subprocess.PIPE,
+						stdout=subprocess.PIPE)
+	# chech process error code
+	assert proc.returncode == 0, proc.stderr
+	assert proc.stderr, proc.stderr
+	# clean
+	files = os.listdir(checkpoint_data['output'])
+	files = [os.path.join(checkpoint_data['output'], file) for file in files]
+	# input file have fixed number if sequenes = 100
+	expected_files = NUM_EMBEDDING_FILES - checkpoint_data['last_batch']*checkpoint_data['batch_size']
+	found_files = sum([1  for file in files if file.endswith('.emb')])
+	assert expected_files == found_files, proc.stdout
+	# clean
+	shutil.rmtree(EMBEDDING_OUTPUT_DIR)

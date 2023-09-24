@@ -1,0 +1,1 @@
+{"input": "tests/test_data/seq.p", "output": "tests/test_data/output", "embedder": "pt", "cname": "", "head": 0, "tail": 0, "gpu": false, "batch_size": 16, "asdir": true, "truncate": 1000, "from_checkpoint": null, "last_batch": 2, "exception_message": "testing"}

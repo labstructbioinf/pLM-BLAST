@@ -49,10 +49,10 @@ python makeindex.py database.fas database.csv
 Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
 
 ```
-python embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --asdir
+python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
 ```
 
-It will create a directory `database` in which each file is a separate sequence embedding. Use `bs -1` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.
+It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
