@@ -1,22 +1,24 @@
 '''generate embeddings from sequence'''
-import re
-import os
-import tempfile
-import warnings
+import sys
+import traceback
 
 from embedders import create_parser, prepare_dataframe, validate_args
-from embedders import main_esm, main_prottrans, main_prost
+from embedders import main_esm, main_prottrans
+from embedders.checkpoint import capture_checkpoint
 
 
 if __name__ == "__main__":
 	args = create_parser()
 	df = validate_args(args, verbose=True)
-	df, num_batches = prepare_dataframe(df, args.batch_size, args.truncate)
-	if args.embedder == 'pt':
-		main_prottrans(df, args, num_batches)
-	elif args.embedder.startswith('esm'):
-		main_esm(df, args, num_batches)
-	elif args.embedder.startswith('prost'):
-		main_prost(df, args, num_batches)
-	else:
-		raise ValueError('invalid embedder: ', args.embedder)
+	df, batch_iter = prepare_dataframe(df, args)
+	try:
+		if not args.embedder.startswith('esm'):
+			main_prottrans(df, args, batch_iter)
+		else:
+			main_esm(df, args, batch_iter)
+	except Exception as e:
+		# checkpoint calculations
+		capture_checkpoint(args, exception_msg = e)
+		traceback.print_exc()
+	except KeyboardInterrupt:
+		capture_checkpoint(args, exception_msg = 'keyboard interrput')

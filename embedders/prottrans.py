@@ -4,31 +4,50 @@ import argparse
 import warnings
 import tempfile
 import gc
-from typing import Union, List
 
 import pandas as pd
 from tqdm import tqdm
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
 
-from .parser import save_as_separate_files
-from .parser import calculate_adaptive_batchsize
+from .base import save_as_separate_files
+from .schema import BatchIterator
 regex_aa = re.compile(r"[UZOB]")
 # default embedder
-EMBEDDER = 'Rostlab/prot_t5_xl_half_uniref50-enc'
+DEFAULT_EMBEDDER_PT5: str = 'Rostlab/prot_t5_xl_half_uniref50-enc'
+DEFAULT_EMBEDDER_PROST: str = 'Rostlab/ProstT5'
+DEFAULT_DTYPE = torch.float32
 
-
-def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[slice]):
-	print('loading model')
-	tokenizer = T5Tokenizer.from_pretrained(EMBEDDER, do_lower_case=False)
-	model = T5EncoderModel.from_pretrained(EMBEDDER, torch_dtype=torch.float32)
-	# set device
+def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIterator):
+	'''
+	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
+	'''
+	# select device
 	if args.gpu:
 		device = torch.device('cuda')
-		model.to(device)
 	else:
 		device = torch.device('cpu')
-	model.eval()
+	# select appropriate embedding model
+	if args.embedder == 'pt':
+		embedder_name = DEFAULT_EMBEDDER_PT5
+	elif args.embedder == 'prost':
+		embedder_name = DEFAULT_EMBEDDER_PROST
+	tokenizer = T5Tokenizer.from_pretrained(embedder_name, do_lower_case=False)
+	if args.use_fastt5:
+		# implementation based on https://github.com/Ki6an/fastT5/issues/70
+		from fastT5 import export_and_get_onnx_model
+		from fastT5 import generate_onnx_representation
+		from fastT5 import get_onnx_runtime_sessions
+		from fastT5 import quantize, OnnxT5
+		model_path = generate_onnx_representation(embedder_name)
+		model_path_quant = quantize(model_path)
+		model_sessions = get_onnx_runtime_sessions(model_path_quant, default=False)
+		model = OnnxT5(model_path_quant, model_sessions)
+	else:
+		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=DEFAULT_DTYPE)
+		model.to(device)
+		model.eval()
+	print('model loaded')
 	gc.collect()
 	if df.seqlens.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
@@ -38,7 +57,8 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: List[sl
 	seqlist_all = df['seq'].tolist()
 	lenlist_all = df['seqlens'].tolist()
 	with tempfile.TemporaryDirectory() as tmpdirname:
-		for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
+		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):
+			args.last_batch = batch_id_filename
 			seqlist = seqlist_all[batchslice]
 			lenlist = lenlist_all[batchslice]
 			# add empty character between all residues

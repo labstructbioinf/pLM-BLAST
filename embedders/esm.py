@@ -10,7 +10,8 @@ from tqdm import tqdm
 import pandas as pd
 import torch
 
-from .parser import save_as_separate_files
+from .base import save_as_separate_files
+from .schema import BatchIterator
 
 regex_aa = re.compile(r"[UZOB]")
 EMBEDDER = 'esm2_t33_650M_UR50D'
@@ -46,7 +47,7 @@ def fsdb_wrappered_setup(embedder_name) -> torch.nn.Module:
 	return model, batch_converter
 
 
-def main_esm(df: pd.DataFrame, args, iterator: List[slice]):
+def main_esm(df: pd.DataFrame, args, iterator: BatchIterator):
 	
 	embedder_name = args.embedder if args.embedder != "esm" else EMBEDDER
 	print('loading model: ', embedder_name)
@@ -62,8 +63,8 @@ def main_esm(df: pd.DataFrame, args, iterator: List[slice]):
 	seqlist_all = df['seq'].tolist()
 	lenlist_all = df['seqlens'].tolist()
 	with tempfile.TemporaryDirectory() as tmpdirname:
-
-		for batch_id_filename, batchslice in tqdm(enumerate(iterator), total=len(iterator)):
+		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):
+			args.last_batch = batch_id_filename
 			seqlist = seqlist_all[batchslice]
 			lenlist = lenlist_all[batchslice]
 			batch_index = list(range(batchslice.start, batchslice.stop))

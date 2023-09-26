@@ -5,24 +5,31 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 ## Table of contents
 * [ Installation ](#Installation)
 * [ Usage ](#Usage)
+    + [Databases](#databases)
+    + [Searching a database](#searching-a-database)
+    + [Use in Python](#use-in-python)
 * [ Remarks ](#Remarks)
+    + [How to cite](#how-to-cite)
+    + [Funding](#funding)
+    + [Contact](#contact)
+    + [Changelog](#changelog)
 
 ## Installation
 For local use, use the `requirements.txt` file to create an environment.
 
 Create a new conda environment:
-```
+```bash
 conda create --name plmblast python=3.9
 conda activate plmblast
 ```
 
 Install pip in the environment:
-```
+```bash
 conda install pip
 ```
 
 Install pLM-BLAST (note to use pip from the environment, not the globally installed one):
-```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -48,41 +55,45 @@ python makeindex.py database.fas database.csv
 
 Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
 
-```
-python embeddings.py database.csv database -embedder pt -cname sequence --gpu -bs -1 --asdir
+```bash
+python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
 ```
 
-It will create a directory `database` in which each file is a separate sequence embedding. Use `bs -1` for adaptive batch size when using `--gpu`. The use of `--gpu` is highly recommended.
+It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. You can also resume interrupted calculations 
+```bash
+python embeddings.py resume database
+```
+where `database` is output directory for interrupted computations.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
-```
+```bash
 python scripts/dbtofile.py database 
 ```
 
-A new file `emb.64` should appear in the database directory.
+A new file `emb.64` will appear in the database directory.
 
 ### Searching a database
 
 Suppose we want to search the database `database` with a FASTA sequence stored in `query.fas`. First, we need to create an index file for the query:
 
-```
+```bash
 python makeindex.py query.fas query.csv
 ```
 If your sequence is stored in `.csv` file you can skip above step and run below command on your CSV file
 Then an embedding for the query:
 
-```
+```bash
 python embeddings.py query.fas query.pt
 ```
 
-Finally, the `run_plm_blast.py` script can be used to search the database:
+Finally, the `run_plmblast.py` script can be used to search the database:
 
-```
-python ./scripts/run_plm_blast.py database query output.csv -use_chunks
+```bash
+python ./scripts/run_plmblast.py database query output.csv -use_chunks
 ```
 
-Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plm_blast.py -h` for more options.
+Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options.
 
 
 ### Use in Python
@@ -180,4 +191,7 @@ If you have any questions, problems, or suggestions, please contact [us](https:/
 ### Funding
 This work was supported by the First TEAM program of the Foundation for Polish Science co-financed by the European Union under the European Regional Development Fund.
 
+## Changelog
 
+* 26/09/2023 enhanced embedding extraction script, calculations can now be resumed when broken see Databases section for more info
+* 26/09/2023 enhanced adaptive batching strategy for `-bs 0` option, batches size is now divisable by 4 for better performcence and `-res_per_batch` options was added
