@@ -184,7 +184,7 @@ def prepare_dataframe(df: pd.DataFrame, args: argparse.Namespace) -> Tuple[pd.Da
 		df['seq'] = df.apply(lambda row: \
 					   row['seq'][:args.truncate] if row['seqlens'] > args.truncate else row['seq'], axis=1)
 		df['seqlens'] = df['seq'].apply(len)
-		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size)
+		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		print('total num seq: ', num_records)
 		print('num batches %d/%d' % (batch_iterator.current_batch, batch_iterator.total_batches))
@@ -206,7 +206,7 @@ def make_iterator(seqlens: List[int], batch_size: int, res_per_batch: int) -> Li
 			startbatch += [seqnum]
 		iterator = [slice(start, stop) for start, stop in zip(startbatch[:-1], startbatch[1:])]
 	else:
-		iterator = calculate_adaptive_batchsize(seqlen_list=seqlens, resperbatch=res_per_batch)
+		iterator = calculate_adaptive_batchsize_div4(seqlen_list=seqlens, resperbatch=res_per_batch)
 	if len(iterator) == 0:
 		raise ValueError('sequence batch iterator is empty')
 	return iterator
@@ -255,7 +255,7 @@ def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterab
 	return batch_iterator
 
 
-def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> Iterable:
+def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> List[slice]:
 	'''
 	create slice iterator over sequence list with conditions
 	* each batch have >= resperbatch residues
@@ -266,6 +266,8 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> I
 	assert isinstance(seqlen_list, list)
 	assert isinstance(resperbatch, int)
 	assert len(seqlen_list) > 1
+	assert all([n_res <= resperbatch for n_res in seqlen_list]), \
+		'requested resperbatch is lower then number of residues in single sequence'
 	num_seq_total = len(seqlen_list)
 	step: int = 4
 	# add zero at the begining
@@ -273,7 +275,7 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> I
 	batchstart: int = 0
 	batchend: int = 0
 	while batchend < num_seq_total:
-		batchend = min(batchend + step, num_seq_total)
+		batchend = batchend + step
 		num_res = sum(seqlen_list[batchstart:batchend])
 		num_seq = batchend - batchstart
 		#print(batchend, num_res, num_seq)
