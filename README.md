@@ -58,12 +58,15 @@ Now you can use the `embeddings.py` script to create a database. Use `-cname` to
 ```bash
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
 ```
+This will create a `database' directory containing sequence embeddings stored in separate files.
 
-It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. You can also resume interrupted calculations 
+The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 6000 residues (this value can be changed with `--res_per_batch`). The larger the batch size, the faster the embeddings will be generated, adjust `-res_per_batch` to suit your hardware. The use of `--gpu` is highly recommended.
+
+Interrupted computations can be resumed with
 ```bash
 python embeddings.py resume database
 ```
-where `database` is output directory for interrupted computations.
+where `database` is the output directory for interrupted computations.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
