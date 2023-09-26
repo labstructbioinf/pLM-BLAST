@@ -16,9 +16,10 @@ if __name__ == "__main__":
 			main_prottrans(df, args, batch_iter)
 		else:
 			main_esm(df, args, batch_iter)
+	# checkpointing
 	except Exception as e:
-		# checkpoint calculations
 		capture_checkpoint(args, exception_msg = e)
 		traceback.print_exc()
 	except KeyboardInterrupt:
 		capture_checkpoint(args, exception_msg = 'keyboard interrput')
+		traceback.print_exc()

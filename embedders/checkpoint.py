@@ -29,11 +29,11 @@ def capture_checkpoint(args: argparse.Namespace, exception_msg: str):
     '''
     save arguments with current batch index
     '''
-    if not args.asdir:
-        return None
     print('capturing checkpoint')
-    outdir = args.output
-    outfile = os.path.join(outdir, BASE_CHECKPOINT_NAME)
+    if args.asdir:
+        outfile = os.path.join(args.output, BASE_CHECKPOINT_NAME)
+    elif args.h5py:
+        outfile = args.output + '_' + BASE_CHECKPOINT_NAME
     args_json = vars(args)
     if exception_msg is not None:
         args_json['exception_message'] = str(exception_msg)

@@ -68,10 +68,16 @@ def create_parser() -> argparse.Namespace:
 	start_group.add_argument('-batch_size', '-b', '-bs', help=\
 		'''batch size for loader longer sequences may require lower batch size set 0 to adaptive batch mode''',
 						dest='batch_size', type=int, default=32)
-	start_group.add_argument('--asdir', '-ad', '-dir', help=\
+	store_group = start_group.add_mutually_exclusive_group()
+	store_group.add_argument('--asdir', help=\
 		"""
 		whether save output as directory where each embedding is a separate file,
 		named as df index which is mandatory for large number of sequences
+		""",
+		action='store_true', default=False)
+	store_group.add_argument('--h5py', help=\
+		"""
+		output embeddings will be stored as hdf5 file with .h5
 		""",
 		action='store_true', default=False)
 	start_group.add_argument('-truncate', '-t', default=1000, help=\
@@ -92,7 +98,6 @@ def create_parser() -> argparse.Namespace:
 	args = parser.parse_args()
 	if args.subparser_name == 'resume':
 		args = checkpoint_from_json(args.checkpoint)
-	print(args)
 	return args
 
 

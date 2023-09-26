@@ -4,11 +4,13 @@ import subprocess
 import shutil
 import pytest
 
-import SeqIO
+import h5py
+from Bio import SeqIO
 import pandas as pd
 import torch as th
 
 from embedders.base import calculate_adaptive_batchsize_div4
+from embedders.dataset import HDF5Handle
 
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
@@ -17,19 +19,20 @@ EMBEDDING_FASTA: os.PathLike = os.path.join(DIR, "test_data/seq.fasta")
 EMBEDDING_OUTPUT: os.PathLike = os.path.join(DIR, "test_data/output/seq.emb")
 EMBEDDING_OUTPUT_DIR: os.PathLike = os.path.join(DIR, 'output')
 NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
+DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
 
-@pytest.mark.dependency(name='test_files')
-def test_required_files():
+@pytest.mark.dependency()
+def test_files():
 	assert os.path.isfile(EMBEDDING_DATA)
 	assert os.path.isfile(EMBEDDING_SCRIPT)
 	assert os.path.isfile(EMBEDDING_FASTA)
 
-@pytest.mark.dependency(name='test_batching')
+@pytest.mark.dependency()
 @pytest.mark.parametrize('seqlen_list',
 						  [th.randint(50, 1000, size=(10000, )).tolist() for _ in range(5)])
 @pytest.mark.parametrize('res_per_batch', 
 						 th.randint(1500, 5000, size=(5,)).tolist())
-def test_adaptive_batching(seqlen_list, res_per_batch):
+def test_batching(seqlen_list, res_per_batch):
 	num_seq = len(seqlen_list)
 	batch_list = calculate_adaptive_batchsize_div4(seqlen_list, res_per_batch)
 	assert isinstance(batch_list, list)
@@ -68,6 +71,32 @@ def test_embedding_generation(embedder, truncate, batchsize):
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
 	# remove output
 	os.remove(EMBEDDING_OUTPUT)
+
+def test_h5py_dataset():
+	num_embs = 128
+	dataset = [th.rand(120, 512) for _ in range(num_embs)]
+	# write
+	HDF5Handle(EMBEDDING_OUTPUT).write_batch(dataset, 0)
+	# read
+	d = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, num_embs)
+	assert len(d) == 128
+
+def test_h5py_saving():
+	os.remove(EMBEDDING_OUTPUT)
+	proc = subprocess.run(["python", "embeddings.py", "start",
+	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", "pt", "-bs", "16", "--h5py"],
+	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	assert proc.returncode == 0, proc.stderr
+	assert proc.stderr, proc.stderr
+	assert os.path.isfile(EMBEDDING_OUTPUT), proc.stderr
+	embdata = pd.read_pickle(EMBEDDING_DATA)
+	seqlist = embdata['seq'].tolist()
+	with h5py.File(EMBEDDING_OUTPUT, 'r') as hf:
+		assert 'embeddings' in hf.keys()
+		emb_group = hf['embeddings']
+		assert len(emb_group.keys()) == NUM_EMBEDDING_FILES
+		for i,k in enumerate(emb_group.keys()):
+			assert emb_group[k].data.shape[0] == len(seqlist[i])
 
 
 @pytest.mark.dependency(depends=['test_files', 'test_batching'])

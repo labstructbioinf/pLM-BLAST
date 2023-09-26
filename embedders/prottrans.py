@@ -10,6 +10,7 @@ from tqdm import tqdm
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
 
+from .dataset import HDF5Handle
 from .base import save_as_separate_files
 from .schema import BatchIterator
 regex_aa = re.compile(r"[UZOB]")
@@ -84,6 +85,8 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
+			elif args.h5py:
+				HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
 			else:
 				batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
 				torch.save(embeddings_filt, batch_id_filename)
@@ -92,7 +95,7 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 			del embeddings_filt
 			gc.collect()
 		# merge batch_data if `asdir` is false
-		if not args.asdir:
+		if not args.asdir and not args.h5py:
 			stack = []
 			for fname in batch_files:
 				stack.extend(torch.load(fname))
