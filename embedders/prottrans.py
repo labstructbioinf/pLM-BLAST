@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import argparse
 import warnings
 import tempfile
@@ -18,14 +19,21 @@ regex_aa = re.compile(r"[UZOB]")
 DEFAULT_EMBEDDER_PT5: str = 'Rostlab/prot_t5_xl_half_uniref50-enc'
 DEFAULT_EMBEDDER_PROST: str = 'Rostlab/ProstT5'
 DEFAULT_DTYPE = torch.float32
+DEFAULT_WAIT_TIME: float = 0.05
 
-def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIterator):
+def main_prottrans(df: pd.DataFrame,
+				    args: argparse.Namespace,
+					  iterator: BatchIterator,
+					  rank_id: int = 1):
 	'''
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
 	# select device
 	if args.gpu:
-		device = torch.device('cuda')
+		if args.nproc > 1:
+			device = torch.device(f'cuda:{rank_id}')
+		else:
+			device = torch.device('cuda')
 	else:
 		device = torch.device('cpu')
 	# select appropriate embedding model
@@ -36,7 +44,6 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 	tokenizer = T5Tokenizer.from_pretrained(embedder_name, do_lower_case=False)
 	if args.use_fastt5:
 		# implementation based on https://github.com/Ki6an/fastT5/issues/70
-		from fastT5 import export_and_get_onnx_model
 		from fastT5 import generate_onnx_representation
 		from fastT5 import get_onnx_runtime_sessions
 		from fastT5 import quantize, OnnxT5
@@ -45,7 +52,9 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 		model_sessions = get_onnx_runtime_sessions(model_path_quant, default=False)
 		model = OnnxT5(model_path_quant, model_sessions)
 	else:
-		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=DEFAULT_DTYPE)
+		if args.gpu:
+			torch_dtype = torch.float16
+		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
 		model.to(device)
 		model.eval()
 	print('model loaded')
@@ -71,11 +80,11 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 			attention_mask = torch.tensor(ids['attention_mask']).to(device, non_blocking=True)
 			with torch.no_grad():
 				embeddings = model(input_ids=input_ids, attention_mask=attention_mask)
-				embeddings = embeddings.last_hidden_state.float().cpu()
+				embeddings = embeddings.last_hidden_state.cpu()
 			# remove sequence padding
 			num_batch_embeddings = len(embeddings)
 			assert num_batch_embeddings == len(seqlist)
-			embeddings_filt = []
+			embeddings_filt = list()
 			for i in range(num_batch_embeddings):
 				seq_len = lenlist[i]
 				emb = embeddings[i]
@@ -86,7 +95,14 @@ def main_prottrans(df: pd.DataFrame, args: argparse.Namespace, iterator: BatchIt
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
 			elif args.h5py:
-				HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
+				saved = False
+				while not saved:
+					try:
+						HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
+						saved = True
+					except Exception as e:
+						print(e)
+						time.sleep(DEFAULT_WAIT_TIME)
 			else:
 				batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
 				torch.save(embeddings_filt, batch_id_filename)

@@ -94,7 +94,8 @@ def create_parser() -> argparse.Namespace:
 		set the maximal number of residues in each batch, only used when batch_size is set to 0
 		""")
 	start_group.add_argument('--last_batch', help=argparse.SUPPRESS, type=int, default=0)
-
+	start_group.add_argument('-nproc', '-np', help='number of process to spawn', default=1,
+						  type=int)
 	args = parser.parse_args()
 	if args.subparser_name == 'resume':
 		args = checkpoint_from_json(args.checkpoint)
@@ -150,7 +151,14 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 			df.rename(columns={args.cname: 'seq'}, inplace=True)
 	if args.gpu:
 		if not torch.cuda.is_available():
-			raise ValueError('gpu is not available, but device is set to gpu and what now?')
+			raise ValueError('''
+					gpu is not visible by pytorch, but device is set to gpu make sure 
+					that you torch package is built with gpu support''')
+		if args.nproc > 1:
+			if torch.cuda.device_count() < args.nproc:
+				raise argparse.ArgumentError('''
+								 not enough cuda visible devices requested %d available %d
+								 ''' % (args.nproc, torch.cuda.device_count()))
 	if args.truncate < 1:
 		raise ValueError('truncate must be greater then zero')
 	if args.head > 0:
@@ -166,7 +174,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 	
 	df.reset_index(inplace=True)
 	print('embedder: ', args.embedder)
-	print('input frame: ', args.input)
+	print('input file: ', args.input)
 	print('sequence column: ', args.cname)
 	print('device: ', 'gpu' if args.gpu else 'cpu')
 	print('sequence cut threshold: ', args.truncate)
@@ -175,7 +183,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> pd.DataFra
 	return df
 
 	
-def prepare_dataframe(df: pd.DataFrame, args: argparse.Namespace) -> Tuple[pd.DataFrame, BatchIterator]:
+def prepare_dataframe(df: pd.DataFrame, args: argparse.Namespace, rank_id: int = 1) -> Tuple[pd.DataFrame, BatchIterator]:
 		'''
 		preprocess frame, if last_batch argument is supplied then iterator will start
 			from [last_batch:]
@@ -191,6 +199,8 @@ def prepare_dataframe(df: pd.DataFrame, args: argparse.Namespace) -> Tuple[pd.Da
 		df['seqlens'] = df['seq'].apply(len)
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
+		if args.nproc > 1:
+			batch_iterator.set_local_rank(rank=rank_id, num_rank=args.nproc)
 		print('total num seq: ', num_records)
 		print('num batches %d/%d' % (batch_iterator.current_batch, batch_iterator.total_batches))
 		print('num batches skipped:', args.last_batch)

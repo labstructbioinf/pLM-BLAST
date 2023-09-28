@@ -26,3 +26,25 @@ class BatchIterator:
             return iteration
         else:
             raise StopIteration
+        
+    def set_local_rank(self, rank: int, num_rank: int):
+        '''
+        rank start from 0
+        num_ranks refer to `world_size`
+        '''
+        assert isinstance(rank, int)
+        assert isinstance(num_rank, int)
+        assert rank >= 0
+        assert num_rank > rank
+
+        # split data into chunk
+        rank_size = int(self.num_batches/num_rank)
+        start_position = rank_size*rank
+        stop_position = rank_size*(1 + rank)
+        # add residue
+        if (rank - 1) == num_rank:
+            stop_position = self.num_batches
+        rank_batch_list = self.batch_list[start_position:stop_position]
+        rank_num_batches = rank_size
+        self.num_batches = rank_num_batches
+        self.current_batch = start_position

@@ -21,6 +21,13 @@ EMBEDDING_OUTPUT_DIR: os.PathLike = os.path.join(DIR, 'output')
 NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
 DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
 
+@pytest.fixture(autouse=True)
+def remove_outputs():
+	if os.path.isfile(EMBEDDING_OUTPUT):
+		os.remove(EMBEDDING_OUTPUT)
+	if os.path.isdir(EMBEDDING_OUTPUT_DIR):
+		shutil.rmtree(EMBEDDING_OUTPUT_DIR)
+
 @pytest.mark.dependency()
 def test_files():
 	assert os.path.isfile(EMBEDDING_DATA)
@@ -73,16 +80,22 @@ def test_embedding_generation(embedder, truncate, batchsize):
 	os.remove(EMBEDDING_OUTPUT)
 
 def test_h5py_dataset():
-	num_embs = 128
-	dataset = [th.rand(120, 512) for _ in range(num_embs)]
-	# write
+	# write first batch
+	num_embs1 = 128
+	dataset = [th.rand(120, 512) for _ in range(num_embs1)]
 	HDF5Handle(EMBEDDING_OUTPUT).write_batch(dataset, 0)
+	# write second batch
+	num_embs2 = 256
+	dataset = [th.rand(150, 512) for _ in range(num_embs2)]
+	HDF5Handle(EMBEDDING_OUTPUT).write_batch(dataset, num_embs1)
 	# read
-	d = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, num_embs)
-	assert len(d) == 128
+	with h5py.File(EMBEDDING_OUTPUT, 'r') as hf:
+		embgroup = hf['embeddings']
+		assert len(embgroup.keys()) == num_embs1 + num_embs2
+	d = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, num_embs1 + num_embs2)
+	assert len(d) == num_embs1 + num_embs2
 
-def test_h5py_saving():
-	os.remove(EMBEDDING_OUTPUT)
+def test_h5py_feature():
 	proc = subprocess.run(["python", "embeddings.py", "start",
 	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", "pt", "-bs", "16", "--h5py"],
 	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -91,12 +104,9 @@ def test_h5py_saving():
 	assert os.path.isfile(EMBEDDING_OUTPUT), proc.stderr
 	embdata = pd.read_pickle(EMBEDDING_DATA)
 	seqlist = embdata['seq'].tolist()
-	with h5py.File(EMBEDDING_OUTPUT, 'r') as hf:
-		assert 'embeddings' in hf.keys()
-		emb_group = hf['embeddings']
-		assert len(emb_group.keys()) == NUM_EMBEDDING_FILES
-		for i,k in enumerate(emb_group.keys()):
-			assert emb_group[k].data.shape[0] == len(seqlist[i])
+	embs = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0)
+	for i, emb in enumerate(embs):
+		assert emb.shape[0] == len(seqlist[i])
 
 
 @pytest.mark.dependency(depends=['test_files', 'test_batching'])
@@ -125,8 +135,6 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 		emblen = embout[i].shape
 		seqlen = min(len(seq_list[i]), int(truncate))
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
-	# remove output
-	os.remove(EMBEDDING_OUTPUT)
 
 
 @pytest.mark.dependency(depends=['test_files', 'test_batching'])
@@ -162,5 +170,3 @@ def test_checkpointing(checkpoint_file):
 	expected_files = NUM_EMBEDDING_FILES - checkpoint_data['last_batch']*checkpoint_data['batch_size']
 	found_files = sum([1  for file in files if file.endswith('.emb')])
 	assert expected_files == found_files, proc.stdout
-	# clean
-	shutil.rmtree(EMBEDDING_OUTPUT_DIR)
