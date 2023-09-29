@@ -10,6 +10,7 @@ import datetime
 from typing import List
 
 import pandas as pd
+pd.set_option('display.max_columns', None)
 import torch
 from torch.nn.functional import avg_pool1d
 from tqdm import tqdm
@@ -222,8 +223,7 @@ def filtering_db(args):
         filedict = {k: v for k, v in zip(range(len(filelist)), filelist)}
         query_filedict = {0: filedict}
     
-    filelist = list(filedict.values())
-    return query_filedict, filedict, filelist
+    return query_filedict
 
 
 def prepare_output(args, resdf, query_id, query_seq):
@@ -327,6 +327,12 @@ if __name__ == "__main__":
 	query_embs = args.query + '.pt'
 	query_df = pd.read_csv(query_index)
 	query_embs = torch.load(query_embs)
+	query_embs_pool = [
+		tensor_transform(
+			avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
+			).squeeze() for emb in query_embs
+		]
+	query_embs_pool = [emb.numpy() for emb in query_embs_pool]
 
 	if query_df.shape[0] != len(query_embs):
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
@@ -339,25 +345,19 @@ if __name__ == "__main__":
 	##########################################################################
 	# 						filtering										 #
 	##########################################################################
-	query_filedict, filedict, filelist = filtering_db(args)
+	query_filedict = filtering_db(args)
 
-	if len(filedict) == 0:
-		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
-		sys.exit(0)
-		
+	# To fix it
+	# if len(filedict) == 0:
+	# 	print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
+	# 	sys.exit(0)
 
 	##########################################################################
 	# 						plm-blast										 #
 	##########################################################################
-	for query_filedict_index, (query_id, query_seq) in enumerate(zip(query_ids, query_seqs)):
-			
-		# Multi-CPU search
-		query_embs_pool = [
-			tensor_transform(
-				avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
-				).squeeze() for emb in query_embs
-			]
-		query_embs_pool = [emb.numpy() for emb in query_embs_pool]
+	
+	# To do tqdm
+	for query_index, (query_id, query_seq) in enumerate(zip(query_ids, query_seqs)):
 
 		iter_id = 0
 		records_stack = []
@@ -367,13 +367,15 @@ if __name__ == "__main__":
 		num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
 		num_batches = sum(num_batches_per_query)
 			
-		if args.mqmf or args.mqsf and args.COS_PER_CUT<100:
-			filedict = list(query_filedict.values())[query_filedict_index]
+		if args.COS_PER_CUT<100:
+			filedict = list(query_filedict.values())[query_index]
+			filelist = list(filedict.values())
 		else:
 			filedict = list(query_filedict.values())[0]
+			filelist = list(filedict.values())
 
-		query_emb = query_embs_pool[0]
-		batches = num_batches_per_query[0]
+		query_emb = query_embs_pool[query_index]
+		batches = num_batches_per_query[query_index]
 
 		embedding_list = embedding_list = ds.load_full_embeddings(filelist=filelist)
 		num_indices = len(embedding_list)
@@ -406,7 +408,11 @@ if __name__ == "__main__":
 						raise AssertionError('job not done', e)	
 			gc.collect()
 
-		resdf = pd.concat(records_stack)
+		if records_stack: 
+			resdf = pd.concat(records_stack)
+		else:
+			print(f'for {query_id} is 0 hits')
+			continue
 
 		if resdf.score.max() > 1:
 			print(records_stack[0].score.max())
@@ -422,7 +428,7 @@ if __name__ == "__main__":
 			else:
 				multi_query_db = prepare_output(args, resdf, query_id, query_seq)
 
-	if args.mqsf:
+	if args.mqsf and "multi_query_db" in locals():
 		multi_query_db.to_csv(args.output, sep=';')
 
 	time_end = datetime.datetime.now()
