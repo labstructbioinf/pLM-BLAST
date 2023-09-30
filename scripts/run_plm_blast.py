@@ -77,8 +77,8 @@ def get_parser():
 	parser.add_argument('--mqmf', help='Multi query multi file', 
 			 			action='store_true', default=False)
 
-	# parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
-	# 		 			action='store_true', default=False)
+	parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
+			 			action='store_true', default=False)
 	
 	
 	# cosine similarity scan
@@ -380,20 +380,22 @@ if __name__ == "__main__":
 		batch_size = 20*args.MAX_WORKERS
 		batch_size = min(300, batch_size)
 		num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
-		num_batches = sum(num_batches_per_query)
 			
+		query_emb = query_embs_pool[query_index]
+		batches = num_batches_per_query[0]
+
 		if args.COS_PER_CUT<100:
 			filedict = list(query_filedict.values())[query_index]
 			filelist = list(filedict.values())
+			embedding_list = ds.load_full_embeddings(filelist=filelist)
+			num_indices = len(embedding_list)
 		else:
-			filedict = list(query_filedict.values())[0]
-			filelist = list(filedict.values())
+			if not "embedding_list" in locals():
+				filedict = list(query_filedict.values())[0]
+				filelist = list(filedict.values())
+				embedding_list = ds.load_full_embeddings(filelist=filelist)
+				num_indices = len(embedding_list)
 
-		query_emb = query_embs_pool[query_index]
-		batches = num_batches_per_query[query_index]
-
-		embedding_list = ds.load_full_embeddings(filelist=filelist)
-		num_indices = len(embedding_list)
 
 		for batch_start in tqdm(range(0, batches), desc='Comparison of embeddings', leave=False):
 			bstart = batch_start*batch_size
