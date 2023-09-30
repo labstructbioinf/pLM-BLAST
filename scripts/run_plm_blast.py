@@ -77,8 +77,8 @@ def get_parser():
 	parser.add_argument('--mqmf', help='Multi query multi file', 
 			 			action='store_true', default=False)
 
-	parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
-			 			action='store_true', default=False)
+	# parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
+	# 		 			action='store_true', default=False)
 	
 	
 	# cosine similarity scan
@@ -135,15 +135,27 @@ def get_parser():
 	
 	if not args.mqsf and not args.mqmf: args.mqsf = True
 
+	if args.mqsf:
+		if os.path.isdir(args.output):
+			raise ValueError("The provided output path points to a directory, a file was expected")
+		elif not '.' in args.output:
+			raise ValueError("The file name was not provided or it has no extension")
+		elif os.path.exists(args.output) and os.path.isfile(args.output):
+			raise ValueError("A file with this name already exists")
+
+	elif args.mqmf:
+		if not os.path.isdir(args.output):
+			raise ValueError("The provided output directory does not exist")
+		
 	return args
 
 
 
-def check_cohesion(frame, filedict, embeddings, truncate=600):
+def check_cohesion(frame, filedict, embeddings, truncate=1000):
 	sequences = frame.sequence.tolist()
 	for (idx,file), emb in zip(filedict.items(), embeddings):
 		seqlen = len(sequences[idx])
-		if seqlen < 600:
+		if seqlen < truncate:
 			assert seqlen == emb.shape[0], f'''
 			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
 		else:
@@ -325,7 +337,12 @@ if __name__ == "__main__":
 			
 	query_index = args.query + '.csv'
 	query_embs = args.query + '.pt'
+
 	query_df = pd.read_csv(query_index)
+	query_ids = query_df['id'].tolist()
+	query_seqs = query_df['sequence'].tolist()
+	query_seqs: List[str]= [str(seq) for seq in query_seqs]
+	
 	query_embs = torch.load(query_embs)
 	query_embs_pool = [
 		tensor_transform(
@@ -336,11 +353,9 @@ if __name__ == "__main__":
 
 	if query_df.shape[0] != len(query_embs):
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
-
-	query_ids = query_df['id'].tolist()
-
-	query_seqs = query_df['sequence'].tolist()
-	query_seqs: List[str]= [str(seq) for seq in query_seqs]
+	for q_number, (qs, qe) in enumerate(zip(query_seqs, query_embs)):
+		if len(qs) != len(qe):
+			raise ValueError(f'The length of the embedding and the query sequence are different: query index {q_number}')
 
 	##########################################################################
 	# 						filtering										 #
@@ -377,7 +392,7 @@ if __name__ == "__main__":
 		query_emb = query_embs_pool[query_index]
 		batches = num_batches_per_query[query_index]
 
-		embedding_list = embedding_list = ds.load_full_embeddings(filelist=filelist)
+		embedding_list = ds.load_full_embeddings(filelist=filelist)
 		num_indices = len(embedding_list)
 
 		for batch_start in tqdm(range(0, batches), desc='Comparison of embeddings', leave=False):
