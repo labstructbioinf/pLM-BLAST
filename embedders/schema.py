@@ -12,6 +12,7 @@ class BatchIterator:
         self.current_batch = start_batch
         batch_list_to_iterate = self.batch_list[self.current_batch:]
         self.num_batches = len(batch_list_to_iterate)
+        self.iter = 0
 
     def __iter__(self):
         return self
@@ -20,9 +21,9 @@ class BatchIterator:
         return self.num_batches
     
     def __next__(self) -> Tuple[int, List[slice]]:
-        if self.current_batch < self.total_batches:
-            iteration = (self.current_batch, self.batch_list[self.current_batch])
-            self.current_batch += 1
+        if self.iter < self.num_batches:
+            iteration = (self.current_batch + self.iter, self.batch_list[self.current_batch + self.iter])
+            self.iter += 1
             return iteration
         else:
             raise StopIteration
@@ -40,11 +41,11 @@ class BatchIterator:
         # split data into chunk
         rank_size = int(self.num_batches/num_rank)
         start_position = rank_size*rank
-        stop_position = rank_size*(1 + rank)
         # add residue
-        if (rank - 1) == num_rank:
+        if (rank + 1) == num_rank:
             stop_position = self.num_batches
-        rank_batch_list = self.batch_list[start_position:stop_position]
-        rank_num_batches = rank_size
+        else:
+            stop_position = start_position + rank_size
+        rank_num_batches = stop_position - start_position
         self.num_batches = rank_num_batches
         self.current_batch = start_position

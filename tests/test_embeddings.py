@@ -5,12 +5,15 @@ import shutil
 import pytest
 
 import h5py
+import numpy as np
 from Bio import SeqIO
 import pandas as pd
 import torch as th
 
 from embedders.base import calculate_adaptive_batchsize_div4
 from embedders.dataset import HDF5Handle
+from embedders.schema import BatchIterator
+from embedders.base import calculate_adaptive_batchsize_div4
 
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
@@ -79,6 +82,7 @@ def test_embedding_generation(embedder, truncate, batchsize):
 	# remove output
 	os.remove(EMBEDDING_OUTPUT)
 
+
 def test_h5py_dataset():
 	# write first batch
 	num_embs1 = 128
@@ -94,6 +98,37 @@ def test_h5py_dataset():
 		assert len(embgroup.keys()) == num_embs1 + num_embs2
 	d = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, num_embs1 + num_embs2)
 	assert len(d) == num_embs1 + num_embs2
+
+
+def test_batch_spliting():
+	
+	num_seq = 30000
+	seqlen_list = np.random.randint(10, 1000, size=(num_seq, )).tolist()
+	batch_list = calculate_adaptive_batchsize_div4(seqlen_list, 3000)
+	total_batches = len(batch_list)
+	iterator_1 = BatchIterator(batch_list, 0)
+	iterator_2 = BatchIterator(batch_list, 0)
+	iterator_1.set_local_rank(0, 2)
+	iterator_2.set_local_rank(1, 2)
+
+	assert total_batches == (len(iterator_1) + len(iterator_2))
+	assert len(iterator_1) > 0
+	assert len(iterator_2) > 0
+	assert iterator_1.current_batch == 0
+	assert iterator_1.current_batch + len(iterator_1) == iterator_2.current_batch
+	assert len(iterator_1) == iterator_2.current_batch
+
+	# reconstruct
+	re_seq_len = list()
+	for i, sl in iterator_1:
+		re_seq_len += seqlen_list[sl]
+	for i, sl in iterator_2:
+		re_seq_len += seqlen_list[sl]
+	assert len(seqlen_list) == len(re_seq_len)
+	for i in range(num_seq):
+		assert seqlen_list[i] == re_seq_len[i], i
+	
+
 
 def test_h5py_feature():
 	proc = subprocess.run(["python", "embeddings.py", "start",

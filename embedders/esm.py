@@ -11,13 +11,15 @@ import pandas as pd
 import torch
 
 from .base import save_as_separate_files
+from .base import select_device
 from .schema import BatchIterator
+from .dataset import HDF5Handle
 
 regex_aa = re.compile(r"[UZOB]")
 EMBEDDER = 'esm2_t33_650M_UR50D'
 
 
-def fsdb_wrappered_setup(embedder_name) -> torch.nn.Module:
+def fsdb_wrappered_setup(embedder_name: str) -> torch.nn.Module:
 	# based on https://github.com/guruace/esm2-esm-1v/blob/main/examples/esm2_infer_fairscale_fsdp_cpu_offloading.py
 	# initialize the model with FSDP wrapper
 
@@ -34,8 +36,6 @@ def fsdb_wrappered_setup(embedder_name) -> torch.nn.Module:
 		model, alphabet = torch.hub.load("facebookresearch/esm:main", embedder_name)
 		batch_converter = alphabet.get_batch_converter()
 		model.eval()
-
-
 		# Wrap each layer in FSDP separately
 		for name, child in model.named_children():
 			if name == "layers":
@@ -47,8 +47,9 @@ def fsdb_wrappered_setup(embedder_name) -> torch.nn.Module:
 	return model, batch_converter
 
 
-def main_esm(df: pd.DataFrame, args, iterator: BatchIterator):
+def main_esm(df: pd.DataFrame, args, iterator: BatchIterator, rank_id: int = 0):
 	
+	device = select_device(args)
 	embedder_name = args.embedder if args.embedder != "esm" else EMBEDDER
 	print('loading model: ', embedder_name)
 	if embedder_name == 'esm2_t48_15B_UR50D':
@@ -57,8 +58,7 @@ def main_esm(df: pd.DataFrame, args, iterator: BatchIterator):
 		model, alphabet = torch.hub.load("facebookresearch/esm:main", embedder_name)
 		batch_converter = alphabet.get_batch_converter()
 		model.eval()  # disables dropout for deterministic resultsS
-	if args.gpu:
-		model = model.cuda()
+		model = model.to(device)
 	batch_files = []
 	seqlist_all = df['seq'].tolist()
 	lenlist_all = df['seqlens'].tolist()
@@ -73,8 +73,7 @@ def main_esm(df: pd.DataFrame, args, iterator: BatchIterator):
 			for i, seq in enumerate(seqlist)]
 			# encode as batch
 			batch_labels, batch_strs, batch_tokens = batch_converter(data)
-			if args.gpu:
-				batch_tokens = batch_tokens.to(device='cuda', non_blocking=True)
+			batch_tokens = batch_tokens.to(device=device, non_blocking=True)
 			with torch.no_grad():
 				repr_layers = 11
 				results = model(batch_tokens, repr_layers=[repr_layers], return_contacts=False)
@@ -96,9 +95,13 @@ def main_esm(df: pd.DataFrame, args, iterator: BatchIterator):
 				# batch shape [args.batch_size, max_seqlen, 1280]
 				emb = token_representations[i, 1 : seq_len + 1, :]
 				embeddings_filt.append(emb.clone())
-
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=tmpdirname)
+			elif args.h5py:
+				if args.nproc == 1:
+					HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
+				else:
+					HDF5Handle(args.output).write_batch_mp(embeddings_filt, batch_index)		
 			else:
 				batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
 				torch.save(embeddings_filt, batch_id_filename)

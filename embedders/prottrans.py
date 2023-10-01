@@ -12,7 +12,7 @@ import torch
 from transformers import T5Tokenizer, T5EncoderModel
 
 from .dataset import HDF5Handle
-from .base import save_as_separate_files
+from .base import save_as_separate_files, select_device
 from .schema import BatchIterator
 regex_aa = re.compile(r"[UZOB]")
 # default embedder
@@ -28,14 +28,7 @@ def main_prottrans(df: pd.DataFrame,
 	'''
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
-	# select device
-	if args.gpu:
-		if args.nproc > 1:
-			device = torch.device(f'cuda:{rank_id}')
-		else:
-			device = torch.device('cuda')
-	else:
-		device = torch.device('cpu')
+	device = select_device(args)
 	# select appropriate embedding model
 	if args.embedder == 'pt':
 		embedder_name = DEFAULT_EMBEDDER_PT5
@@ -52,8 +45,7 @@ def main_prottrans(df: pd.DataFrame,
 		model_sessions = get_onnx_runtime_sessions(model_path_quant, default=False)
 		model = OnnxT5(model_path_quant, model_sessions)
 	else:
-		if args.gpu:
-			torch_dtype = torch.float16
+		torch_dtype = torch.float16 if args.gpu else DEFAULT_DTYPE
 		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
 		model.to(device)
 		model.eval()
@@ -95,14 +87,10 @@ def main_prottrans(df: pd.DataFrame,
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
 			elif args.h5py:
-				saved = False
-				while not saved:
-					try:
-						HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
-						saved = True
-					except Exception as e:
-						print(e)
-						time.sleep(DEFAULT_WAIT_TIME)
+				if args.nproc == 1:
+					HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)
+				else:
+					HDF5Handle(args.output).write_batch_mp(embeddings_filt, batch_index)
 			else:
 				batch_id_filename = os.path.join(tmpdirname, f"emb_{batch_id_filename}")
 				torch.save(embeddings_filt, batch_id_filename)
