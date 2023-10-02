@@ -150,7 +150,6 @@ def get_parser():
 	return args
 
 
-
 def check_cohesion(frame, filedict, embeddings, truncate=1000):
 	sequences = frame.sequence.tolist()
 	for (idx,file), emb in zip(filedict.items(), embeddings):
@@ -361,36 +360,34 @@ if __name__ == "__main__":
 	# 						filtering										 #
 	##########################################################################
 	query_filedict = filtering_db(args)
+	
+	num_indices_per_query = [len(vals) for vals in query_filedict.values()]
+	batch_size = 20*args.MAX_WORKERS
+	batch_size = min(300, batch_size)
+	num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
 
-	# To fix it
-	# if len(filedict) == 0:
-	# 	print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
-	# 	sys.exit(0)
+	if len(query_filedict) == 0:
+		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
+		sys.exit(0)
 
 	##########################################################################
 	# 						plm-blast										 #
 	##########################################################################
-	
-	# To do tqdm
 	for query_index, (query_id, query_seq) in enumerate(zip(query_ids, query_seqs)):
 
 		iter_id = 0
 		records_stack = []
-		num_indices_per_query = [len(vals) for vals in query_filedict.values()]
-		batch_size = 20*args.MAX_WORKERS
-		batch_size = min(300, batch_size)
-		num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
-			
 		query_emb = query_embs_pool[query_index]
-		batches = num_batches_per_query[0]
 
 		if args.COS_PER_CUT<100:
+			batches = num_batches_per_query[0]
 			filedict = list(query_filedict.values())[query_index]
 			filelist = list(filedict.values())
 			embedding_list = ds.load_full_embeddings(filelist=filelist)
 			num_indices = len(embedding_list)
 		else:
 			if not "embedding_list" in locals():
+				batches = num_batches_per_query[0]
 				filedict = list(query_filedict.values())[0]
 				filelist = list(filedict.values())
 				embedding_list = ds.load_full_embeddings(filelist=filelist)
