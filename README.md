@@ -186,11 +186,11 @@ print(aln)
 ## Remarks
 
 ### How to cite?
-If you find the `pLM-BLAST` useful, please cite the preprint:
+If you find the `pLM-BLAST` useful, please cite:
 
 "*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Kamil Pawlicki, Vikram Alva, and Stanislaw Dunin-Horkawicz \
-bioRxiv https://www.biorxiv.org/content/10.1101/2022.11.24.517862v3
+bioinformatics https://doi.org/10.1093/bioinformatics/btad579
 
 ### Contact
 If you have any questions, problems, or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
