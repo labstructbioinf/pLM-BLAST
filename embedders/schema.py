@@ -4,6 +4,8 @@ class BatchIterator:
     '''
     iterator with slices
     '''
+    rank: int = 0
+    world_size: int = 1
     def __init__(self, batch_list: List[slice], start_batch: int = 0) -> Iterable:
         assert isinstance(batch_list, list)
         assert isinstance(start_batch, int)
@@ -37,7 +39,8 @@ class BatchIterator:
         assert isinstance(num_rank, int)
         assert rank >= 0
         assert num_rank > rank
-
+        self.rank = rank
+        self.world_size = num_rank
         # split data into chunk
         rank_size = int(self.num_batches/num_rank)
         start_position = rank_size*rank
@@ -55,7 +58,8 @@ class BatchIterator:
         change iterator start location and len
         '''
         assert isinstance(last_batch, int)
-        assert last_batch >= self.current_batch, 'wrong function call'
+        if last_batch < self.current_batch:
+            raise ValueError(f'wrong function call {last_batch} < {self.current_batch} for {self.rank} and {self.world_size}')
         current_batch_prev = self.current_batch
         self.current_batch = last_batch
         self.num_batches = self.num_batches - (self.current_batch - current_batch_prev)

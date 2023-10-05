@@ -1,1 +1,0 @@
-{"input": "tests/test_data/seq.p", "output": "tests/test_data/output", "embedder": "pt", "cname": "", "head": 0, "tail": 0, "gpu": false, "batch_size": 32, "asdir": true, "res_per_batch": 3000, "truncate": 1000, "from_checkpoint": null, "last_batch": 1, "exception_message": "'Namespace' object has no attribute 'use_fastt5'"}

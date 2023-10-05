@@ -195,9 +195,9 @@ def make_iterator(seqlens: List[int], batch_size: int, res_per_batch: int) -> Li
 	# fixed batch size
 	if batch_size != 0:
 		startbatch = list(range(0, seqnum, batch_size))
-		if startbatch[-1] != seqnum:
-			startbatch += [seqnum]
+		startbatch.append(seqnum)
 		iterator = [slice(start, stop) for start, stop in zip(startbatch[:-1], startbatch[1:])]
+	# floating batch size
 	else:
 		iterator = calculate_adaptive_batchsize_div4(seqlen_list=seqlens, resperbatch=res_per_batch)
 	if len(iterator) == 0:
@@ -247,7 +247,7 @@ def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterab
 	return batch_iterator
 
 
-def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 4000) -> List[slice]:
+def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 6000) -> List[slice]:
 	'''
 	create slice iterator over sequence list with conditions
 	* each batch have >= resperbatch residues
@@ -325,18 +325,22 @@ def read_input_file(file: str, cname: str) -> pd.DataFrame:
 	elif file.endswith('.p') or file.endswith('.pkl'):
 		df = pd.read_pickle(file)
 	elif file.endswith('.fas') or file.endswith('.fasta'):
-		# convert fasta file to df
+		# convert fasta file to dataframe
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
-		data = [[record.description, record.seq] for record in data]
+		data = [[record.description, str(record.seq)] for record in data]
 		df = pd.DataFrame(data, columns=['desc', 'seq'])
 		df.set_index('desc', inplace=True)
+	elif file == "":
+		raise FileNotFoundError("empty string passed as input file")
 	else:
-		raise FileNotFoundError(f'invalid input infile extension {file}')
+		raise FileNotFoundError(f'''
+						  invalid input infile extension {file} expecting .csv, .p, .pkl, .fas or .fasta'''
+						  )
 	
-	if cname != '':
+	if cname != '' and not (file.endswith('.fas') or file.endswith('.fasta')):
 		if cname not in df.columns:
-			raise KeyError(f'no column: {cname} available in file: {input}, columns: {df.columns}')
+			raise KeyError(f'no column: {cname} available in file: {file}, columns: {df.columns}')
 		else:
 			print(f'using column: {cname}')
 			if 'seq' in df.columns and cname != 'seq':

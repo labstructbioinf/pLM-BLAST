@@ -36,7 +36,7 @@ if __name__ == "__main__":
 	args = create_parser()
 	if args.subparser_name == 'resume':
 		args_t = find_and_load_checkpoint_file(args.output)
-		nproc = args_t.nproc
+		nproc = getattr(args_t, 'nproc', 1) # legacy support
 	else:
 		nproc = args.nproc
 	if nproc == 1:

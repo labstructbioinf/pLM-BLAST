@@ -1,8 +1,6 @@
-from modulefinder import Module
 import os
 import re
 from typing import List
-import warnings
 import tempfile
 import shutil
 
@@ -52,6 +50,7 @@ def main_esm(df: pd.DataFrame, args, iterator: BatchIterator, rank_id: int = 0):
 	device = select_device(args)
 	embedder_name = args.embedder if args.embedder != "esm" else EMBEDDER
 	print('loading model: ', embedder_name)
+	# giant model case
 	if embedder_name == 'esm2_t48_15B_UR50D':
 		model, batch_converter = fsdb_wrappered_setup(embedder_name)
 	else:

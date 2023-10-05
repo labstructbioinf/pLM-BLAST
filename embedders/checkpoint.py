@@ -12,7 +12,7 @@ def get_checkpoint_name_for_process() -> str:
     '''
     handle correct checkpoint name including multiprocessing case
     '''
-    if os.environ.get('WORLD_SIZE', None) is not None:
+    if os.environ.get('WORLD_SIZE') is not None:
         if 'LOCAL_RANK' not in os.environ:
             raise KeyError('LOCAL_RANK env variable is not set')
         fname_checkpoint = BASE_CHECKPOINT_NAME_MP.format(rank=os.environ.get('LOCAL_RANK'))
@@ -22,11 +22,21 @@ def get_checkpoint_name_for_process() -> str:
     return fname_checkpoint
 
 
-def find_and_load_checkpoint_file(output: str) -> dict:
+def find_and_load_checkpoint_file(output: str) -> argparse.Namespace:
+    '''
+    look for checkpoint file, in single and multiprocess case handle:
+    * `output` is checkpoint file
+    * `output` is directory with checkpoint file
+    * `output` is an embedder output and checkpoint file is substring of `output`
+    Returns:
+        args: (arparse.Namespace)
+    '''
+    assert isinstance(output, str)
 
     checkpoint_correct: str = ""
     checkpoint_mp = BASE_CHECKPOINT_NAME_MP.format(rank='0')
-    if os.path.isfile(output):
+    # output embedding file is given
+    if os.path.isfile(output) and not output.endswith('.json'):
         output_dir = os.path.dirname(output)
         filelist = [os.path.join(output_dir, file) for file in os.listdir(output_dir)]
         checkpoint_mp_file = CHECKPOINT_FILE.format(basename=output, checkpoint=checkpoint_mp)
@@ -43,7 +53,7 @@ def find_and_load_checkpoint_file(output: str) -> dict:
             checkpoint_correct = checkpoint_file
         else:
             raise FileNotFoundError(f"no checkpoint file for given file: {output}")
-        
+    # directory case
     elif os.path.isdir(output):
         filelist = os.listdir(output)
         checkpoint_mp_file = CHECKPOINT_DIR.format(basename=output, checkpoint=checkpoint_mp)
@@ -60,6 +70,9 @@ def find_and_load_checkpoint_file(output: str) -> dict:
             checkpoint_correct = checkpoint_file
         else:
             raise FileNotFoundError(f"no checkpoint file for given file: {output}")
+    # checkpoint file given directly
+    elif os.path.isfile(output) and output.endswith('.json'):
+        checkpoint_correct = output
     else:
         raise FileNotFoundError(f"no checkpoint file for given file: {output}")
     args = dict_to_namespace(checkpoint_correct)
@@ -84,17 +97,18 @@ def checkpoint_from_json(checkpoint_file: os.PathLike) -> argparse.Namespace:
     read checkpoint file and convert it to namespace
     '''
     fname = get_checkpoint_name_for_process()
-    print('fname', fname)
     # if directory is given search for checkpoint_file
     if os.path.isdir(checkpoint_file):
         # search for checkpoint of single process
         checkpoint_file = CHECKPOINT_DIR.format(basename=checkpoint_file, checkpoint=fname)
     # h5py case
-    if os.path.isfile(checkpoint_file):
+    if os.path.isfile(checkpoint_file) and not checkpoint_file.endswith('.json'):
         # add suffix
         checkpoint_file = CHECKPOINT_FILE.format(basename=checkpoint_file, checkpoint=fname)
         if not os.path.isfile(checkpoint_file):
-            raise FileNotFoundError(f'no checkpoint file in path: {checkpoint_file}')    
+            raise FileNotFoundError(f'no checkpoint file in path: {checkpoint_file}')
+    if os.path.isfile(checkpoint_file) and checkpoint_file.endswith('.json'):
+        checkpoint_file = os.path.join(os.path.dirname(checkpoint_file), fname)
     temp_args = dict_to_namespace(checkpoint_file)
     return temp_args
 
