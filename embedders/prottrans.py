@@ -49,7 +49,7 @@ def main_prottrans(df: pd.DataFrame,
 		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
 		model.to(device)
 		model.eval()
-	print('model loaded')
+	print(f'model: {embedder_name} loaded on {device}')
 	gc.collect()
 	if df.seqlens.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')

@@ -42,7 +42,7 @@ class HDF5Handle:
         '''
         is_saved = False
         attemps = 0
-        while is_saved:
+        while not is_saved:
             try:
                 self.write_batch(emb_list, start_index)
                 is_saved = True
@@ -52,6 +52,9 @@ class HDF5Handle:
 
 
     def read_batch(self, start, size = None) -> List[np.ndarray]:
+        '''
+        if size is none read all record from start to the end
+        '''
         emb_list = list()
         with h5py.File(self.filename, 'r') as hf:
             if not 'embeddings' in hf.keys():
@@ -60,6 +63,8 @@ class HDF5Handle:
                 emb_group = hf['embeddings']
             if size is None:
                 size = len(emb_group.keys())
+            if start > size:
+                raise ValueError(f'start >= then dataset size {start} >= {size}')
             for index in range(start, start+size):
                 dataset_name = f'{self.preffix}{index}'
                 emb_list.append(emb_group[dataset_name][:])

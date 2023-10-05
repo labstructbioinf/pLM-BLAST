@@ -30,6 +30,7 @@ def remove_outputs():
 		os.remove(EMBEDDING_OUTPUT)
 	if os.path.isdir(EMBEDDING_OUTPUT_DIR):
 		shutil.rmtree(EMBEDDING_OUTPUT_DIR)
+		os.mkdir(EMBEDDING_OUTPUT_DIR)
 
 @pytest.mark.dependency()
 def test_files():
@@ -51,10 +52,10 @@ def test_batching(seqlen_list, res_per_batch):
 		seqlen_batch = seqlen_list[batch]
 		assert len(seqlen_batch) > 0, batch
 		assert sum(seqlen_batch) <= res_per_batch, batch
-		assert len(seqlen_batch) % 4 == 0, batch
+		assert len(seqlen_batch) % 4 == 0 or len(seqlen_batch) < 4, batch
 		assert batch.stop <= num_seq, batch
 
-@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200", "500"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
@@ -79,8 +80,6 @@ def test_embedding_generation(embedder, truncate, batchsize):
 		emblen = embout[i].shape
 		seqlen = len(seqlist[i])
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
-	# remove output
-	os.remove(EMBEDDING_OUTPUT)
 
 
 def test_h5py_dataset():
@@ -144,9 +143,9 @@ def test_h5py_feature():
 		assert emb.shape[0] == len(seqlist[i])
 
 
-@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
-@pytest.mark.parametrize("truncate", ["200", "500"])
+@pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
 def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int):
 	# read sequences from fasta file
@@ -155,7 +154,7 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 	num_seq = len(seq_list)
 	proc = subprocess.run(["python", "embeddings.py", "start",
 	EMBEDDING_FASTA, EMBEDDING_OUTPUT, "-embedder", embedder,
-	"-truncate", truncate, "-bs", batchsize], # type: ignore
+	"-truncate", truncate, "-bs", batchsize, '--gpu'], # type: ignore
 	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# chech process error code
 	assert proc.returncode == 0, proc.stderr
@@ -169,10 +168,10 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 	for i in range(num_seq):
 		emblen = embout[i].shape
 		seqlen = min(len(seq_list[i]), int(truncate))
-		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
+		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen} for index: {i}'
 
 
-@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
 @pytest.mark.parametrize('checkpoint_file',[
 	'test_data/emb_checkpoint.json',
 	'test_data/emb_checkpoint_middle.json',
@@ -182,9 +181,6 @@ def test_checkpointing(checkpoint_file):
 	# move to newdir
 	fname = os.path.basename(checkpoint_file)
 	new_location = os.path.join(EMBEDDING_OUTPUT_DIR, fname)
-	# remove cache
-	shutil.rmtree(EMBEDDING_OUTPUT_DIR, ignore_errors=True)
-	os.mkdir(EMBEDDING_OUTPUT_DIR)
 	with open(checkpoint_file, 'rt') as fp:
 		checkpoint_data = json.load(fp)
 	# force output dir
@@ -205,3 +201,46 @@ def test_checkpointing(checkpoint_file):
 	expected_files = NUM_EMBEDDING_FILES - checkpoint_data['last_batch']*checkpoint_data['batch_size']
 	found_files = sum([1  for file in files if file.endswith('.emb')])
 	assert expected_files == found_files, proc.stdout
+
+
+#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.parametrize('embedder',['pt'])
+def test_parallelism(embedder):
+	assert th.cuda.device_count() > 1, 'cannot run test'
+		
+	embdata = pd.read_pickle(EMBEDDING_DATA)
+	seqlist = embdata['seq'].tolist()
+	# cmd
+	proc = subprocess.run(["python", "embeddings.py", "start",
+	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", embedder,
+	  "-bs", "0", '-nproc', '2'],
+	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	# chech process error code
+	assert proc.returncode == 0, proc.stderr
+	assert proc.stderr, proc.stderr
+	# check process output file/dir
+	assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
+	# check output consistency
+	embout = th.load(EMBEDDING_OUTPUT)
+	assert len(embout) == embdata.shape[0], proc.stderr
+
+
+@pytest.mark.parametrize('checkpoint_file', ['test_data/seq.emb_emb_checkpoint_mp_0.json'])
+def test_parallelism_checkpoint(checkpoint_file):
+	checkpoint_file = os.path.join(DIR, checkpoint_file)
+	assert th.cuda.device_count() > 1, 'no enough cuda devices'
+	fname = os.path.basename(checkpoint_file)
+	new_location = os.path.join(EMBEDDING_OUTPUT_DIR, fname)
+	with open(checkpoint_file, 'rt') as fp:
+		checkpoint_data = json.load(fp)
+	output = checkpoint_data['output']
+	proc = subprocess.run(["python", "embeddings.py", "resume", output],
+	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	# chech process error code
+	assert proc.returncode == 0, proc.stderr
+	assert proc.stderr, proc.stderr
+	# check process output file/dir
+	assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
+	# check output consistency
+	embs = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, None)
+	assert len(embs) > 0

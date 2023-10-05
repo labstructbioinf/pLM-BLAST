@@ -4,7 +4,7 @@ class BatchIterator:
     '''
     iterator with slices
     '''
-    def __init__(self, batch_list: List[slice], start_batch: int) -> Iterable:
+    def __init__(self, batch_list: List[slice], start_batch: int = 0) -> Iterable:
         assert isinstance(batch_list, list)
         assert isinstance(start_batch, int)
         self.batch_list = batch_list
@@ -49,3 +49,13 @@ class BatchIterator:
         rank_num_batches = stop_position - start_position
         self.num_batches = rank_num_batches
         self.current_batch = start_position
+
+    def update_mp(self, last_batch: int):
+        '''
+        change iterator start location and len
+        '''
+        assert isinstance(last_batch, int)
+        assert last_batch >= self.current_batch, 'wrong function call'
+        current_batch_prev = self.current_batch
+        self.current_batch = last_batch
+        self.num_batches = self.num_batches - (self.current_batch - current_batch_prev)
