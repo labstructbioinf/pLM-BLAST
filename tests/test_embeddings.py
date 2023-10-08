@@ -233,7 +233,7 @@ def test_parallelism(embedder):
 	assert len(embout) == embdata.shape[0], proc.stderr
 
 
-@pytest.mark.parametrize('checkpoint_file', ['test_data/seq.emb_emb_checkpoint_mp_0.json'])
+@pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])
 def test_parallelism_checkpoint(checkpoint_file):
 	checkpoint_file = os.path.join(DIR, checkpoint_file)
 	assert th.cuda.device_count() > 1, 'no enough cuda devices'
@@ -244,6 +244,7 @@ def test_parallelism_checkpoint(checkpoint_file):
 	checkpoint_data['output'] = EMBEDDING_OUTPUT_DIR
 	checkpoint_data['input'] = EMBEDDING_FASTA
 	checkpoint_data['gpu'] = True
+	checkpoint_data['asdir'] = True
 	checkpoint_data['nproc'] = 2
 	checkpoint_data['last_batch'] = 1
 	with open(new_location, 'wt') as fp:
