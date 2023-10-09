@@ -76,7 +76,6 @@ python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --as
 
 In this approach you can also use checkpointing feature
 
-=======
 where `database` is the output directory for interrupted computations.
 
 
@@ -189,9 +188,7 @@ aln = aln.alignment.draw_alignment(row.indices, seq1, seq2, output='str')
 print(aln)
 ```
 
-
 # Remarks
-
 
 ## How to cite?
 If you find the `pLM-BLAST` useful, please cite:
