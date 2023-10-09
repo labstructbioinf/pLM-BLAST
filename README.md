@@ -57,6 +57,14 @@ python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --as
 
 It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. 
 
+The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+
+```bash
+python scripts/dbtofile.py database 
+```
+
+A new file `emb.64` will appear in the database directory.
+
 ### checkpointing feature
 
 When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
@@ -74,18 +82,7 @@ To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` wher
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir -nproc 2
 ```
 
-In this approach you can also use checkpointing feature
-
-where `database` is the output directory for interrupted computations.
-
-
-The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
-
-```bash
-python scripts/dbtofile.py database 
-```
-
-A new file `emb.64` will appear in the database directory.
+In this approach you can also use checkpointing feature.
 
 ## Searching a database
 
@@ -207,3 +204,5 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 
 * 26/09/2023 enhanced embedding extraction script, calculations can now be resumed when broken see Databases section for more info
 * 26/09/2023 enhanced adaptive batching strategy for `-bs 0` option, batches size is now divisable by 4 for better performcence and `-res_per_batch` options was added
+* 9/10/2023 add support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
+* 9/10/2023 add multiprocess featrue to embeddings generation `-nproc X` options will now spawn `X` independent processes.
