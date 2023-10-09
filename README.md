@@ -47,23 +47,33 @@ To create a custom database, use the `embeddings.py` script and an index file th
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
-The index file can be generated from a FASTA file using `scripts/makeindex.py`:
-
-```
-python makeindex.py database.fas database.csv 
-```
-
 Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
 
 ```bash
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
+# for fasta files
+python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
 ```
 
-It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. You can also resume interrupted calculations 
+It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. 
+
+#### checkpointing feature
+
+When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
 ```bash
-python embeddings.py resume database
+python embeddings.py resume output
+``` 
+where `output` is output directory or file for interrupted or broken computations.
+
+#### multi gpu support
+
+To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
+
+```bash
+python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir -nproc 2
 ```
-where `database` is output directory for interrupted computations.
+In this approach you can also use checkpointing feature
+
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 

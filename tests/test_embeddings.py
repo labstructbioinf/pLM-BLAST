@@ -234,19 +234,22 @@ def test_parallelism(embedder):
 
 
 @pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])
-def test_parallelism_checkpoint(checkpoint_file):
+@pytest.mark.parametrize('save_mode', ['asdir', 'h5py'])
+def test_parallelism_checkpoint(checkpoint_file: str, save_mode: str):
 	checkpoint_file = os.path.join(DIR, checkpoint_file)
 	assert th.cuda.device_count() > 1, 'no enough cuda devices'
 	fname = os.path.basename(checkpoint_file)
 	new_location = os.path.join(EMBEDDING_OUTPUT_DIR, fname)
+	output = EMBEDDING_OUTPUT_DIR if save_mode == 'asdir' else EMBEDDING_OUTPUT
 	with open(checkpoint_file, 'rt') as fp:
 		checkpoint_data = json.load(fp)
-	checkpoint_data['output'] = EMBEDDING_OUTPUT_DIR
 	checkpoint_data['input'] = EMBEDDING_FASTA
 	checkpoint_data['gpu'] = True
-	checkpoint_data['asdir'] = True
 	checkpoint_data['nproc'] = 2
 	checkpoint_data['last_batch'] = 1
+	# save method dependent variables
+	checkpoint_data[save_mode] = True
+	checkpoint_data['output'] = output
 	with open(new_location, 'wt') as fp:
 		json.dump(checkpoint_data, fp)
 	checkpoint_data['last_batch'] = 6
@@ -259,7 +262,9 @@ def test_parallelism_checkpoint(checkpoint_file):
 		raise BaseException(proc.stderr)
 	assert proc.stderr, proc.stderr
 	# check process output file/dir
-	assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
-	# check output consistency
-	embs = HDF5Handle(EMBEDDING_OUTPUT).read_batch(0, None)
-	assert len(embs) > 0
+	if save_mode == 'asdir':
+		assert os.path.isdir(output), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
+	elif save_mode == 'h5py':
+		assert os.path.isfile(output)
+		data = HDF5Handle(output).read_batch(0, None)
+		assert len(data) > 0
