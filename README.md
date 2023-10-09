@@ -15,9 +15,9 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
     + [Changelog](#changelog)
 
 # Installation
-For local use, use the `requirements.txt` file to create an environment.
+For local use, use the `requirements.txt` file to create an environment
 
-Create a new conda environment:
+Create a conda environment:
 ```bash
 conda create --name plmblast python=3.9
 conda activate plmblast
@@ -28,7 +28,7 @@ Install pip in the environment:
 conda install pip
 ```
 
-Install pLM-BLAST (note to use pip from the environment, not the globally installed one):
+Install pLM-BLAST using `requirements.txt`:
 ```bash
 pip install -r requirements.txt
 ```
@@ -38,7 +38,7 @@ pip install -r requirements.txt
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
-To create a custom database, use the `embeddings.py` script and an index file that defines sequences and their descriptions. For example, the first lines of the ECOD database index are shown below:
+The `embeddings.py` script can be used to create a custom database from an index `csv` file. For example, the first lines of the index file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -60,6 +60,7 @@ It will create a directory `database` in which each file is a separate sequence 
 ### checkpointing feature
 
 When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
+
 ```bash
 python embeddings.py resume output
 ``` 
@@ -72,7 +73,11 @@ To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` wher
 ```bash
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir -nproc 2
 ```
+
 In this approach you can also use checkpointing feature
+
+=======
+where `database` is the output directory for interrupted computations.
 
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
@@ -85,12 +90,12 @@ A new file `emb.64` will appear in the database directory.
 
 ## Searching a database
 
-Suppose we want to search the database `database` with a FASTA sequence stored in `query.fas`. First, we need to create an index file for the query:
+To search the database `database` with a FASTA sequence stored in `query.fas`, a query index file must first be created:
 
 ```bash
 python makeindex.py query.fas query.csv
 ```
-If your sequence is stored in `.csv` file you can skip above step and run below command on your CSV file
+
 Then an embedding for the query:
 
 ```bash
@@ -103,8 +108,7 @@ Finally, the `run_plmblast.py` script can be used to search the database:
 python ./scripts/run_plmblast.py database query output.csv -use_chunks
 ```
 
-Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options.
-
+Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `-use_chunks` option enables the use of cosine similarity pre-screening, which greatly improves search speed. Follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options. Currently there is no multi-query search option available, but it will be implemented soon.
 
 ## Use in Python
 
@@ -188,12 +192,13 @@ print(aln)
 
 # Remarks
 
+
 ## How to cite?
-If you find the `pLM-BLAST` useful, please cite the preprint:
+If you find the `pLM-BLAST` useful, please cite:
 
 "*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Kamil Pawlicki, Vikram Alva, and Stanislaw Dunin-Horkawicz \
-bioRxiv https://www.biorxiv.org/content/10.1101/2022.11.24.517862v3
+bioinformatics https://doi.org/10.1093/bioinformatics/btad579
 
 ## Contact
 If you have any questions, problems, or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
