@@ -14,7 +14,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
     + [Contact](#contact)
     + [Changelog](#changelog)
 
-## Installation
+# Installation
 For local use, use the `requirements.txt` file to create an environment.
 
 Create a new conda environment:
@@ -33,8 +33,8 @@ Install pLM-BLAST (note to use pip from the environment, not the globally instal
 pip install -r requirements.txt
 ```
 
-## Usage
-### Databases
+# Usage
+## Databases
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
@@ -57,7 +57,7 @@ python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --as
 
 It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. 
 
-#### checkpointing feature
+### checkpointing feature
 
 When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
 ```bash
@@ -65,7 +65,7 @@ python embeddings.py resume output
 ``` 
 where `output` is output directory or file for interrupted or broken computations.
 
-#### multi gpu support
+### multi gpu support
 
 To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
 
@@ -83,7 +83,7 @@ python scripts/dbtofile.py database
 
 A new file `emb.64` will appear in the database directory.
 
-### Searching a database
+## Searching a database
 
 Suppose we want to search the database `database` with a FASTA sequence stored in `query.fas`. First, we need to create an index file for the query:
 
@@ -106,7 +106,7 @@ python ./scripts/run_plmblast.py database query output.csv -use_chunks
 Note that only the base filename should be specified for the query. The `-use_chunks` option enables the use of chunk cosine similarity pre-screening. Please follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options.
 
 
-### Use in Python
+## Use in Python
 
 pLM-BLAST can also be used in Python scripts. 
 
@@ -186,22 +186,22 @@ print(aln)
 ```
 
 
-## Remarks
+# Remarks
 
-### How to cite?
+## How to cite?
 If you find the `pLM-BLAST` useful, please cite the preprint:
 
 "*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Kamil Pawlicki, Vikram Alva, and Stanislaw Dunin-Horkawicz \
 bioRxiv https://www.biorxiv.org/content/10.1101/2022.11.24.517862v3
 
-### Contact
+## Contact
 If you have any questions, problems, or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
 
-### Funding
+## Funding
 This work was supported by the First TEAM program of the Foundation for Polish Science co-financed by the European Union under the European Regional Development Fund.
 
-## Changelog
+# Changelog
 
 * 26/09/2023 enhanced embedding extraction script, calculations can now be resumed when broken see Databases section for more info
 * 26/09/2023 enhanced adaptive batching strategy for `-bs 0` option, batches size is now divisable by 4 for better performcence and `-res_per_batch` options was added
