@@ -16,7 +16,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 
 # Installation
 
-Create a conda new environment:
+Create a conda environment:
 ```bash
 conda create --name plmblast python=3.9
 conda activate plmblast
