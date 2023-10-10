@@ -15,9 +15,8 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
     + [Changelog](#changelog)
 
 # Installation
-For local use, use the `requirements.txt` file to create an environment
 
-Create a conda environment:
+Create a conda new environment:
 ```bash
 conda create --name plmblast python=3.9
 conda activate plmblast
@@ -47,6 +46,12 @@ The `embeddings.py` script can be used to create a custom database from an index
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
+An index file can be created from a FASTA file using `scripts/makeindex.py`:
+```
+python makeindex.py database.fas database.csv 
+```
+
+For a given `csv` index file a database can be created with:
 Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
 
 ```bash
@@ -55,7 +60,14 @@ python embeddings.py start database.csv database -embedder pt -cname sequence --
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
 ```
 
-It will create a directory `database` in which each file is a separate sequence embedding. Use `bs 0` for adaptive batch size, each will poses `--res_per_batch` residues default to 6000 and will be divisable by 4 (for better parallelism). The bigger batches will be the quicker embeddings will generate, modify `res_per_batch` to fit your hardware. The use of `--gpu` is highly recommended for bigger datasets. 
+`database` defines the database directory containing the sequence embeddings stored in separate files.
+
+`-cname` defines the column in the `database.csv` index file where the sequences are stored.
+
+The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 6000 residues (this value can be changed with `--res_per_batch`). The larger the batch size, the faster the embeddings will be generated, adjust `-res_per_batch` to suit your hardware.
+
+The use of `--gpu` is highly recommended for bigger datasets. 
+To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
@@ -73,16 +85,6 @@ When dealing with big databases, it may be helpful to resume previously stopped 
 python embeddings.py resume output
 ``` 
 where `output` is output directory or file for interrupted or broken computations.
-
-### multi gpu support
-
-To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
-
-```bash
-python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir -nproc 2
-```
-
-In this approach you can also use checkpointing feature.
 
 ## Searching a database
 
@@ -103,7 +105,6 @@ Finally, the `run_plmblast.py` script can be used to search the database:
 ```bash
 python ./scripts/run_plmblast.py database query output.csv -use_chunks
 ```
-
 Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `-use_chunks` option enables the use of cosine similarity pre-screening, which greatly improves search speed. Follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options. Currently there is no multi-query search option available, but it will be implemented soon.
 
 ## Use in Python
