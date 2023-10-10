@@ -40,3 +40,8 @@ profile*.txt
 results.*
 
 temp
+scripts/output/multi_query.hits.csv
+scripts/input/multi_query.fas
+scripts/output/multi_query.csv
+scripts/output/cupredoxin.csv
+scripts/output/cupredoxin.hits.csv

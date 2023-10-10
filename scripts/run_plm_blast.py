@@ -111,7 +111,7 @@ def get_parser():
 
 	# misc
 
-	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=True)
+	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
 						type=int, default=10, dest='MAX_WORKERS')	
@@ -443,7 +443,8 @@ if __name__ == "__main__":
 				multi_query_db = prepare_output(args, resdf, query_id, query_seq)
 
 	if args.mqsf and "multi_query_db" in locals():
-		multi_query_db.to_csv(args.output, sep=';')
+		if not multi_query_db.empty:
+			multi_query_db.to_csv(args.output, sep=';')
 
 	time_end = datetime.datetime.now()
 
