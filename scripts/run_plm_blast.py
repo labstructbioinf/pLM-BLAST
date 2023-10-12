@@ -18,6 +18,7 @@ from Bio.Align import substitution_matrices
 blosum62 = substitution_matrices.load("BLOSUM62")
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import embedders.base import read_file
 import alntools.density as ds
 import alntools as aln
 
@@ -193,24 +194,20 @@ def calc_ident(s1, s2):
 	return sum(res)/len(res)
 	
 
-def tensor_transform(x):
+def tensor_transform(x: torch.Tensor):
 	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
 
 
-def filtering_db(args):
+def filtering_db(args: argparse.Namespace):
     if args.COS_PER_CUT < 100:
         query_filedict = dict()
         if args.use_chunks:
             if args.verbose:
                 print('Loading database for chunk cosine similarity screening...')
-            
             dbfile = os.path.join(args.db, 'emb.64')
             embedding_list = torch.load(dbfile)
-            
             filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])]  # db_df is a database index
-            
             query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
-            
             for i, emb in enumerate(query_emb_chunkcs):
                 filedict = ds.local.chunk_cosine_similarity(
                     query=emb,
@@ -305,11 +302,11 @@ if __name__ == "__main__":
 	module = aln.base.Extractor()
 	module.FILTER_RESULTS = True
 	module.WINDOW_SIZE = args.WINDOW_SIZE
-	module.GAP_EXT = args.GAP_EXT	
-
+	module.GAP_EXT = args.GAP_EXT
+	module.SIGMA_FACTOR = args.SIGMA_FACTOR	
 	EMB_POOL = 1
 
-	if args.global_aln=='True':
+	if args.global_aln == 'True':
 		module.BFACTOR = 'global'
 		if args.verbose:
 			print('Global alignment will be used')
@@ -317,8 +314,6 @@ if __name__ == "__main__":
 		module.BFACTOR = 1
 		if args.verbose:
 			print('Local alignment will be used')
-
-	module.SIGMA_FACTOR = args.SIGMA_FACTOR
 
 	# Load database 
 	db_index = args.db + '.csv'
@@ -329,18 +324,16 @@ if __name__ == "__main__":
 
 	db_df = pd.read_csv(db_index)
 	db_df.set_index(db_df.columns[0], inplace=True)
-
 	# Read query 
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
-			
 	query_index = args.query + '.csv'
 	query_embs = args.query + '.pt'
 
 	query_df = pd.read_csv(query_index)
 	query_ids = query_df['id'].tolist()
 	query_seqs = query_df['sequence'].tolist()
-	query_seqs: List[str]= [str(seq) for seq in query_seqs]
+	query_seqs: List[str] = [str(seq) for seq in query_seqs]
 	
 	query_embs = torch.load(query_embs)
 	query_embs_pool = [
@@ -354,7 +347,9 @@ if __name__ == "__main__":
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
 	for q_number, (qs, qe) in enumerate(zip(query_seqs, query_embs)):
 		if len(qs) != len(qe):
-			raise ValueError(f'The length of the embedding and the query sequence are different: query index {q_number}')
+			raise ValueError(f'''
+					The length of the embedding and the query sequence are different:
+					 query index {q_number} {len(qs)} != {len(qe)}''')
 
 	##########################################################################
 	# 						filtering										 #
