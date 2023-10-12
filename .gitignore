@@ -18,12 +18,12 @@ __pycache__/
 **.logs
 **.log
 
-# exceptions
+# exceptions for tests
 !tests/test_data/*.pt
 !tests/test_data/*.fas
 !tests/test_data/*.fasta
 !tests/test_data/embeddings/*.emb
-
+tests/output
 
 /*.csv
 /*.p
