@@ -1,5 +1,5 @@
 '''functions for local density extracting'''
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 import concurrent
 
 from tqdm import tqdm
@@ -230,7 +230,7 @@ def get_multires_density(X: th.Tensor,
 def chunk_cosine_similarity(query : th.Tensor,
 							targets : List[th.Tensor],
 							quantile, dataset_files : List[str],
-							stride = 3, kernel_size = 30) -> List[dict]:
+							stride = 3, kernel_size = 30) -> Dict[int, str]:
 	
 	assert isinstance(targets, list)
 	assert query.ndim == 2

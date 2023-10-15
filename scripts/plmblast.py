@@ -7,7 +7,7 @@ import argparse
 import concurrent
 import itertools
 import datetime
-from typing import List
+from typing import List, Dict
 
 
 import pandas as pd
@@ -90,9 +90,11 @@ def tensor_transform(x: torch.Tensor):
 	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
 
 
-def filtering_db(args: argparse.Namespace) -> dict:
+def filtering_db(args: argparse.Namespace) -> Dict[int, List[str]]:
 	'''
 	apply pre-screening
+	Returns:
+	 filedict: (dict) each key is query_id, and values are embeddings above threshold
 	'''
 	if args.COS_PER_CUT < 100:
 		query_filedict = dict()
@@ -106,6 +108,7 @@ def filtering_db(args: argparse.Namespace) -> dict:
 			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])]  # db_df is a database index
 			# TODO make avg_pool1d parallel
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
+			# loop over all query embeddings
 			for i, emb in enumerate(query_emb_chunkcs):
 				filedict = ds.local.chunk_cosine_similarity(
 					query=emb,
@@ -132,6 +135,9 @@ def filtering_db(args: argparse.Namespace) -> dict:
 
 
 def prepare_output(args: argparse.Namespace, resdf: pd.DataFrame, query_id: str, query_seq: str) -> pd.DataFrame:
+	COLUMNS = ['qid', 'score', 'ident', 'similarity', 'sid', 'sdesc', 'qstart',
+				 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
+				   'match_len']
 	if args.raw:
 		resdf.to_pickle(args.output)
 	elif len(resdf) == 0:
@@ -176,9 +182,7 @@ def prepare_output(args: argparse.Namespace, resdf: pd.DataFrame, query_id: str,
 
 			resdf.drop(columns=['index', 'indices', 'i'], inplace=True)
 			resdf.index.name = 'index'
-			resdf = resdf[['qid', 'score', 'ident', 'similarity', 'sid', 'sdesc', 'qstart', 'qend', 'qseq', 'con',
-							'tseq', 'tstart', 'tend', 'tlen', 'qlen', 'match_len']]
-			resdf = resdf.head(args.MAX_TARGETS)
+			resdf = resdf[COLUMNS]
 			if args.mqmf and not args.mqsf:
 				resdf.to_csv(f"{args.output}/{query_id}.hits.csv", sep=';')
 			elif args.mqsf:
@@ -211,7 +215,6 @@ if __name__ == "__main__":
 
 	# Load database 
 	db_index = aln.filehandle.find_file_extention(args.db)
-	
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
 
@@ -246,12 +249,14 @@ if __name__ == "__main__":
 	##########################################################################
 	# 								filtering								 #
 	##########################################################################
-	query_filedict = filtering_db(args)
-	num_indices_per_query = [len(vals) for vals in query_filedict.values()]
 	batch_size = 20*args.MAX_WORKERS
 	batch_size = min(300, batch_size)
-	num_batches_per_query = [max(math.floor(nind/batch_size), 1) for nind in num_indices_per_query]
-
+	query_filedict = filtering_db(args)
+	batch_loader = aln.filehandle.BatchLoader(query_ids=query_ids,
+										    query_seqs=query_seqs,
+											filedict=query_filedict,
+											batch_size=batch_size,
+											mode="emb")
 	if len(query_filedict) == 0:
 		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
 		sys.exit(0)
@@ -259,56 +264,36 @@ if __name__ == "__main__":
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
-	for query_index, (query_id, query_seq) in enumerate(zip(query_ids, query_seqs)):
-
+	for query_index, embedding_index, embedding_list in tqdm(batch_loader):
 		iter_id = 0
 		records_stack = list()
 		query_emb = query_embs_pool[query_index]
+		job_stack = {}
+		with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
+			for (idx, emb) in zip(embedding_index, embedding_list):
+				job = executor.submit(module.full_compare, query_emb, emb, idx)
+				job_stack[job] = iter_id
+				iter_id += 1
+			time.sleep(0.1)
+			for job in concurrent.futures.as_completed(job_stack):
+				try:
+					res = job.result()
+					if len(res) > 0:
+						records_stack.append(res)
+				except Exception as e:
+					raise AssertionError('job not done', e)	
+		gc.collect()
 
-		batches = num_batches_per_query[0]
-		filedict = list(query_filedict.values())[query_index]
-		filelist = list(filedict.values())
-		embedding_list = ds.load_full_embeddings(filelist=filelist)
-		num_indices = len(embedding_list)
-
-		for batch_start in tqdm(range(0, batches), desc='Comparison of embeddings', leave=False):
-			bstart = batch_start*batch_size
-			bend = bstart + batch_size
-			# batch indices should not exeed num_indices
-			bend = min(bend, num_indices)
-			batchslice = slice(bstart, bend, 1)
-			filedictslice = itertools.islice(filedict.items(), bstart, bend)
-			# submit a batch of jobs
-			# concurrent poolexecutor may spawn to many processes which will lead 
-			# to OS error batching should fix this issue
-			job_stack = {}
-			with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
-
-				for (idx, file), emb in zip(filedictslice, embedding_list[batchslice]):
-					job = executor.submit(module.full_compare, query_emb, emb, idx, file)
-					job_stack[job] = iter_id
-					iter_id += 1
-				
-				time.sleep(0.1)
-				for job in concurrent.futures.as_completed(job_stack):
-					try:
-						res = job.result()
-						if len(res) > 0:
-							records_stack.append(res)
-					except Exception as e:
-						raise AssertionError('job not done', e)	
-			gc.collect()
-
-		if records_stack: 
-			resdf = pd.concat(records_stack)
-		else:
-			print(f'for {query_id} is 0 hits')
-			continue
-
-		if resdf.score.max() > 1:
-			print(records_stack[0].score.max())
-			print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', resdf.score.min(), resdf.score.max())
-			sys.exit(0)
+	if records_stack: 
+		resdf = pd.concat(records_stack)
+	else:
+		print(f'for {query_id} is 0 hits')
+		continue
+	# encounter invalid plmblast score
+	if resdf.score.max() > 1.01:
+		print(records_stack[0].score.max())
+		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', resdf.score.min(), resdf.score.max())
+		sys.exit(0)
 
 		if not args.mqsf:
 			prepare_output(args, resdf, query_id, query_seq)

@@ -63,10 +63,7 @@ def get_parser() -> argparse.Namespace:
 						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
-						type=int, default=25, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')			
-
-	parser.add_argument('-max_targets', help='Maximum number of targets to include in output (default: %(default)s)',
-						type=int, default=1500, dest='MAX_TARGETS')	
+						type=int, default=25, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')
 
 	parser.add_argument('--global_aln', help='use global pLM-BLAST alignment. Use only if you expect the query to be a single-domain sequence (default: %(default)s)',
                     	default='False', choices=['True', 'False'])
@@ -93,7 +90,6 @@ def get_parser() -> argparse.Namespace:
 	args = parser.parse_args()
 	
 	# validate provided parameters
-	assert args.MAX_TARGETS > 0
 	assert args.MAX_WORKERS > 0
 	
 	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'

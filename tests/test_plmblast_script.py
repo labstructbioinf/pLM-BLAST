@@ -4,6 +4,10 @@ import pytest
 import pandas as pd
 import subprocess
 
+import torch
+
+from alntools.filehandle import BatchLoader
+
 DIR = os.path.dirname(__file__)
 
 MAKE_INDEX_SCRIPT = os.path.join("scripts/makeindex.py")
@@ -40,7 +44,8 @@ def remove_outputs():
 		'tests/test_data/1BSV_1.hits.csv', 'tests/test_data/1FVK_1.hits.csv',
 		'tests/test_data/1MXR_1.hits.csv', 'tests/test_data/7QZP_1.hits.csv']
 	clear_files(files)
-	shutil.rmtree(PLMBLAST_DB)
+	if os.path.isdir(PLMBLAST_DB):
+		shutil.rmtree(PLMBLAST_DB)
 	
 
 @pytest.mark.dependency()
@@ -79,6 +84,34 @@ def test_make_single_emb():
 		stdout=subprocess.PIPE)
 	assert proc.returncode == 0, proc.stderr
 
+@pytest.mark.parametrize('batch_size', [100, 200, 300])
+def test_batch_loader_for_plmblast_loop(batch_size):
+	query_seqs = {i : 'A'*100 for i in range(10)}
+	filedict = dict()
+	for qid in query_seqs:
+		qid_files = [f'dump_{i}.txt'  for i in range(1000)]
+		filedict[qid] = qid_files
+	batchloader = BatchLoader(query_ids=list(query_seqs.keys()),
+						   query_seqs=list(query_seqs.values()),
+						   filedict=filedict,
+						   batch_size=batch_size,
+						   mode='file')
+	
+	query_files = {qid: list() for qid in query_seqs}
+
+	assert len(batchloader) > 0
+	assert len(batchloader) >= len(query_seqs)
+
+	for qid, qseq, files in batchloader:
+		assert len(files) != 0
+		assert len(files) <= batch_size
+		# files should not repeat within qid
+		assert len(set(query_files[qid]) & set(files)) == 0
+		query_files[qid].extend(files)
+
+	# check if all files exists
+	for qid, files in query_files.items():
+		assert len(files) == len(filedict[qid])
 
 @pytest.mark.dependency()
 @pytest.mark.parametrize('win', ["10", "20"])
