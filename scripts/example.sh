@@ -6,8 +6,8 @@ set -e
 #export NUMEXPR_NUM_THREADS=1
 #export OMP_NUM_THREADS=1
 
-#case='cupredoxin'
-case='rossmanns'
+case='cupredoxin'
+#case='rossmanns'
 # data paths
 INDIR="./input"
 OUTDIR="./output"
@@ -19,10 +19,10 @@ OUTFILE="$OUTDIR/${case}.hits.csv"
 DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
 
 ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=90
+COSINE_CUTOFF=92
 SIGMA=2
 
-NUM_WORKERS=8
+NUM_WORKERS=6
 
 mkdir -p $OUTDIR
 

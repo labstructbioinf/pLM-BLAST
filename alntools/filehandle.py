@@ -116,8 +116,7 @@ class BatchLoader:
             batch_start = batch_end
         return batch_index, batch_list 
     
-    def _load_batch(self, file_slice) -> List[torch.FloatTensor]:
+    def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
-         embedding_files = list(self.filedict[query_id])[file_slice]
-         embeddings = load_full_embeddings(embedding_files)
+         embeddings = load_full_embeddings(filelist)
          return embeddings

@@ -159,15 +159,16 @@ def prepare_dataframe(df: pd.DataFrame,
 		preprocess frame, if last_batch argument is supplied then iterator will start
 			from [last_batch:]
 		'''
+		assert 'sequence' in df.columns
 		# prepare dataframe
 		df.reset_index(inplace=True)
 		num_records = df.shape[0]
 		# cut sequences
-		df['seqlens'] = df['seq'].apply(len)
-		df['seq'] = df.apply(lambda row: \
-					   row['seq'][:args.truncate] if row['seqlens'] > args.truncate else row['seq'], axis=1)
+		df['seqlens'] = df['sequence'].apply(len)
+		df['sequence'] = df.apply(lambda row: \
+					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
 		# update size
-		df['seqlens'] = df['seq'].apply(len)
+		df['seqlens'] = df['sequence'].apply(len)
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
@@ -347,5 +348,5 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			print(f'using column: {cname}')
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
-			df.rename(columns={cname: 'seq'}, inplace=True)
+			df.rename(columns={cname: 'sequence'}, inplace=True)
 	return df

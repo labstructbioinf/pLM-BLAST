@@ -1,11 +1,9 @@
 import sys
 import os
 import gc
-import math
 import time
 import argparse
 import concurrent
-import itertools
 import datetime
 from typing import List, Dict
 
@@ -105,7 +103,8 @@ def filtering_db(args: argparse.Namespace) -> Dict[int, List[str]]:
 			if not os.path.isfile(dbfile):
 				raise FileNotFoundError('missing pooled embedding file')
 			embedding_list = torch.load(dbfile)
-			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, db_df.shape[0])]  # db_df is a database index
+			dbsize = db_df.shape[0]
+			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]  # db_df is a database index
 			# TODO make avg_pool1d parallel
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
 			# loop over all query embeddings
@@ -134,13 +133,16 @@ def filtering_db(args: argparse.Namespace) -> Dict[int, List[str]]:
 	return query_filedict
 
 
-def prepare_output(args: argparse.Namespace, resdf: pd.DataFrame, query_id: str, query_seq: str) -> pd.DataFrame:
+def prepare_output(args: argparse.Namespace,
+				    resdf: pd.DataFrame,
+					  query_id: str,
+					    query_seq: str) -> pd.DataFrame:
+	# columns to save
 	COLUMNS = ['qid', 'score', 'ident', 'similarity', 'sid', 'sdesc', 'qstart',
 				 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
 				   'match_len']
-	if args.raw:
-		resdf.to_pickle(args.output)
-	elif len(resdf) == 0:
+
+	if len(resdf) == 0:
 		print('No hits found!')
 	else:
 		resdf = resdf[resdf.score >= args.ALN_CUT]
@@ -166,7 +168,7 @@ def prepare_output(args: argparse.Namespace, resdf: pd.DataFrame, query_id: str,
 
 			resdf.sort_values(by='score', ascending=False, inplace=True)
 			resdf.reset_index(inplace=True)
-			resdf.index = range(1, len(resdf) + 1)
+			# resdf.index = range(1, len(resdf) + 1)
 
 			for idx, row in resdf.iterrows():
 				tmp_aln = aln.alignment.draw_alignment(row.indices,
@@ -183,13 +185,7 @@ def prepare_output(args: argparse.Namespace, resdf: pd.DataFrame, query_id: str,
 			resdf.drop(columns=['index', 'indices', 'i'], inplace=True)
 			resdf.index.name = 'index'
 			resdf = resdf[COLUMNS]
-			if args.mqmf and not args.mqsf:
-				resdf.to_csv(f"{args.output}/{query_id}.hits.csv", sep=';')
-			elif args.mqsf:
-				return resdf
-			else:
-				resdf.to_csv(args.output, sep=';')
-				return False
+	return resdf
 
 
 if __name__ == "__main__":
@@ -264,9 +260,9 @@ if __name__ == "__main__":
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
+	result_stack = list()
 	for query_index, embedding_index, embedding_list in tqdm(batch_loader):
 		iter_id = 0
-		records_stack = list()
 		query_emb = query_embs_pool[query_index]
 		job_stack = {}
 		with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
@@ -279,35 +275,40 @@ if __name__ == "__main__":
 				try:
 					res = job.result()
 					if len(res) > 0:
-						records_stack.append(res)
+						# add identifiers
+						res['query_index'] = query_index
+						res['sequence'] = query_seqs[query_index]
+						result_stack.append(res)
 				except Exception as e:
 					raise AssertionError('job not done', e)	
 		gc.collect()
 
-	if records_stack: 
-		resdf = pd.concat(records_stack)
+	if len(result_stack) > 0: 
+		result_df = pd.concat(result_stack)
 	else:
-		print(f'for {query_id} is 0 hits')
-		continue
+		print(f'for valid hits given pLM-BLAST parameters')
+		sys.exit(0)
+
 	# encounter invalid plmblast score
-	if resdf.score.max() > 1.01:
-		print(records_stack[0].score.max())
+	if result_df.score.max() > 1.01:
 		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', resdf.score.min(), resdf.score.max())
 		sys.exit(0)
 
-		if not args.mqsf:
-			prepare_output(args, resdf, query_id, query_seq)
-		elif args.mqsf:
-			if "multi_query_db" in locals():
-				resdf = prepare_output(args, resdf, query_id, query_seq)
-				multi_query_db = pd.concat([multi_query_db, resdf], axis=0, ignore_index=True)
-			else:
-				multi_query_db = prepare_output(args, resdf, query_id, query_seq)
+	# run postprocessing
+	results = list()
+	for qid, rows in result_df.groupby('query_index'):
+		query_result = prepare_output(args, rows, qid, query_seqs[qid])
+		query_result['query_index'] = qid
+		results.append(query_result)
+	results = pd.concat(results)
 
-	if args.mqsf and "multi_query_db" in locals():
-		if not multi_query_db.empty:
-			multi_query_db.to_csv(args.output, sep=';')
+	# save results in desired mode
+	if args.separate:
+		for qid, row in results.groupby('query_index'):
+			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';')
+	else:
+		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
+		results.to_csv(output_name, sep=';')
 
 	time_end = datetime.datetime.now()
-
 	print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')

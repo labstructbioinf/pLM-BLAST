@@ -36,21 +36,14 @@ def get_parser() -> argparse.Namespace:
 					 else type output file and --mqsf''',
 						type=str)	
 
-	parser.add_argument('--mqsf', help='Multi query single file', 
-			 			action='store_true', default=False)
-	
-	parser.add_argument('--mqmf', help='Multi query multi file', 
-			 			action='store_true', default=False)
-
+	parser.add_argument('--separate', help='if given each query sequence will be written as separate file',
+					 action='store_true', default=False)
 	parser.add_argument('--raw', help='skip postprocessing steps and return pickled pandas dataframe with all alignments', 
 			 			action='store_true', default=False)
 	
-	
 	# cosine similarity scan
-
 	parser.add_argument('-cosine_percentile_cutoff', help='percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=95, dest='COS_PER_CUT')	
-
 	parser.add_argument('-use_chunks', help='use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=True)
 
@@ -93,19 +86,11 @@ def get_parser() -> argparse.Namespace:
 	assert args.MAX_WORKERS > 0
 	
 	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
-	
-	if not args.mqsf and not args.mqmf: args.mqsf = True
 
-	if args.mqsf:
+
+	if args.separate:
 		if os.path.isdir(args.output):
 			raise ValueError("The provided output path points to a directory, a file was expected")
 		elif not '.' in args.output:
 			raise ValueError("The file name was not provided or it has no extension")
-		elif os.path.exists(args.output) and os.path.isfile(args.output):
-			raise ValueError("A file with this name already exists")
-
-	elif args.mqmf:
-		if not os.path.isdir(args.output):
-			raise ValueError("The provided output directory does not exist")
-		
 	return args
