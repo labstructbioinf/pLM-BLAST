@@ -5,9 +5,9 @@ set -e
 #export MKL_NUM_THREADS=1
 #export NUMEXPR_NUM_THREADS=1
 #export OMP_NUM_THREADS=1
-
-case='cupredoxin'
-#case='rossmanns'
+export MKL_DYNAMIC=FALSE
+#case='cupredoxin'
+case='rossmanns'
 # data paths
 INDIR="./input"
 OUTDIR="./output"

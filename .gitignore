@@ -25,8 +25,8 @@ __pycache__/
 !tests/test_data/embeddings/*.emb
 tests/output
 
-/*.csv
-/*.p
+*.csv
+*.p
 **.txt
 *.png
 # tests

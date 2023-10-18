@@ -143,7 +143,7 @@ def load_and_score_database(query_emb : torch.Tensor,
 	return filedict
 
 
-@torch.jit.script
+
 def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int) -> torch.Tensor:
 	'''
 	calculate cosine similarity for a batch of embeddings
@@ -161,7 +161,7 @@ def batch_chunk_cosine_similarity(x: torch.Tensor, B: torch.Tensor, poolfactor: 
 	if poolfactor > 1:
 		B = avg_pool1d(B.T, poolfactor).T
 	score = torch.nn.functional.cosine_similarity(x, B, dim=0)
-	scores = []
+	scores: List[torch.FloatTensor] = list()
 	for bi in B:
 		score = chunk_cosine_similarity(x, bi)
 		scores.append(score)

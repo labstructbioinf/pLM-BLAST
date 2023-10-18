@@ -227,17 +227,23 @@ def get_multires_density(X: th.Tensor,
 	return result
 
 
-def chunk_cosine_similarity(query : th.Tensor,
-							targets : List[th.Tensor],
-							quantile, dataset_files : List[str],
-							stride = 3, kernel_size = 30) -> Dict[int, str]:
-	
+def chunk_cosine_similarity(query : th.FloatTensor,
+							targets : List[th.FloatTensor],
+							quantile: float, dataset_files : List[str],
+							stride: int = 3, kernel_size: int = 30) -> Dict[int, str]:
+	# soft type check
 	assert isinstance(targets, list)
 	assert query.ndim == 2
+	assert isinstance(quantile, float)
+	assert 0 < quantile < 1
+	assert isinstance(dataset_files, list)
+	assert isinstance(kernel_size, int)
 	
+	# type checks
+	kernel_size = int(kernel_size)
 	num_targets = len(targets)
 	scorestack = th.zeros(num_targets)
-	seqlens = [emb.shape[0] for emb in targets]
+	seqlens: List[int] = [emb.shape[0] for emb in targets]
 	# change kernel size if the shortest sequence in targets is smaller then kernel size
 	min_seqlen = min(seqlens)
 	if kernel_size > min_seqlen:
@@ -247,39 +253,10 @@ def chunk_cosine_similarity(query : th.Tensor,
 	quantile_threshold = th.quantile(scorestack, quantile)
 	scoremask = (scorestack >= quantile_threshold)
 	# convert mask to indices
-	filedict = {
+	filedict: Dict[int, str] = {
 		i : file for i, (file, condition) in enumerate(zip(dataset_files, scoremask)) if condition
 		}
 	return filedict
-
-
-def chunk_score(query, targets, stride: int , kernel_size: int) -> th.FloatTensor:
-	'''
-	perform chunk cosine similarity screening
-	Args:
-		query: (torch.FloatTensor)
-		targets: (list of torch.FloatTensor)
-		stride: (int)
-		kernel_size: (int)
-	Returns:
-		scorestack: (torch.FloatTensor)
-	'''
-	num_targets = len(targets)
-	scorestack = th.zeros(num_targets)
-	embdim = query.shape[1]
-	query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
-										norm=True, with_padding=False)
-	with tqdm(total=num_targets, desc='Scoring embeddings') as pbar:
-		for i, target in enumerate(targets, 0):
-			density = single_process(query_kernels, target, stride=stride)
-			scorestack[i] = density.max()
-			if i % 10 == 0:
-				pbar.update(10)
-	if scorestack.shape[0] != num_targets:
-		raise ValueError(f'''cosine sim screening result different
-		  number of embeddings than db {scorestack.shape[0]} - {num_targets}'''
-						 )
-	return scorestack
 
 
 def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: int=6) -> th.FloatTensor:
@@ -311,19 +288,57 @@ def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: 
 						 )
 	return scorestack
 
+@th.jit.script
+def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
+	# hard type params
+	unfold_kernel: List[int] = [kernel_size, embdim]
+	stride_kernel: List[int] = [stride, 1]
 
-def single_process(query_kernels, target, stride: int) -> th.FloatTensor:
-	embdim : int = target.shape[-1]
-	kernel_size: int = query_kernels.shape[-2]
+	target = target.unsqueeze(0).unsqueeze(0)
+	target_norm = th.nn.functional.unfold(target, kernel_size=unfold_kernel, stride=stride_kernel)
+	target_norm = target_norm.squeeze()
+	target_norm = target_norm.pow(2).sum(0).sqrt()
+	return target_norm
+
+@th.jit.script
+def single_process(query_kernels, target, stride: int):
+
+	embdim : int = int(target.shape[-1])
+	kernel_size: int = int(query_kernels.shape[-2])
 	density = calc_density(target, query_kernels, stride=stride, with_padding=False)
 	target_norm = norm_chunk(target=target, kernel_size=kernel_size, embdim=embdim, stride=stride)
 	density_chunk = density/target_norm
 	return density_chunk
 
 
-def norm_chunk(target, kernel_size, embdim, stride) -> th.FloatTensor:
-	target = target.unsqueeze(0).unsqueeze(0)
-	target_norm = th.nn.functional.unfold(target, (kernel_size, embdim), stride=(stride, 1))
-	target_norm = target_norm.squeeze()
-	target_norm = target_norm.pow(2).sum(0).sqrt()
-	return target_norm
+@th.jit.script
+def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
+	'''
+	perform chunk cosine similarity screening
+	Args:
+		query: (torch.FloatTensor)
+		targets: (list of torch.FloatTensor) embeddings to compare
+		stride: (int)
+		kernel_size: (int)
+	Returns:
+		scorestack: (torch.FloatTensor)
+	'''
+	num_targets: int = len(targets)
+	scorestack: List[float] = list()
+	query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
+										norm=True, with_padding=False)
+	
+	#for i, target in enumerate(targets, 0):
+	#		density = single_process(query_kernels, target, stride=stride)
+	#	scorestack[i] = density.max()
+	scorestack = [single_process(query_kernels, t, stride=stride).max().item() for t in targets]
+	scorestack_t = th.zeros(num_targets, dtype=th.float32)
+	for i in th.arange(num_targets):
+		scorestack_t[i] = scorestack[i]
+	if scorestack_t.shape[0] != num_targets:
+		raise ValueError(f'''cosine sim screening result different
+		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}'''
+						 )
+	return scorestack_t
+
+

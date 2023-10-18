@@ -13,7 +13,7 @@ DIR = os.path.dirname(__file__)
 MAKE_INDEX_SCRIPT = os.path.join("scripts/makeindex.py")
 EMB_SCRIPT = os.path.join("embeddings.py")
 EMB64_SCRIPT = os.path.join("scripts/dbtofile.py")
-PLMBLAST_SCRIPT = os.path.join("scripts/run_plm_blast.py")
+PLMBLAST_SCRIPT = os.path.join("scripts/plmblast.py")
 
 PLMBLAST_DB = os.path.join(DIR, 'test_data/database')
 PLMBLAST_DB_CSV = os.path.join(DIR, 'test_data/database.csv')
@@ -50,7 +50,7 @@ def remove_outputs():
 
 @pytest.mark.dependency()
 def test_make_db_emb():
-	proc = subprocess.run(["python", EMB_SCRIPT, PLMBLAST_DB_CSV, PLMBLAST_DB,
+	proc = subprocess.run(["python", EMB_SCRIPT, 'start', PLMBLAST_DB_CSV, PLMBLAST_DB,
 						'-embedder', 'pt', '-cname', 'sequence', '--gpu', '-bs', '0', '--asdir'],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
@@ -77,7 +77,7 @@ def test_make_single_index():
 @pytest.mark.dependency(depends=['test_make_single_index'])
 def test_make_single_emb():
 	# Generate emb for single query
-	proc = subprocess.run(["python", EMB_SCRIPT, 
+	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
 						INPUT_CSV_SINGLE, INPUT_EMB_SINGLE,
 						"-embedder", "pt", "-cname", "sequence", "--gpu"],
 		stderr=subprocess.PIPE,
