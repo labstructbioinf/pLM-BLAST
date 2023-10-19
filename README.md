@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
-The `embeddings.py` script can be used to create a custom database from an index `csv` file. For example, the first lines of the index file for the ECOD database are:
+The `embeddings.py` script can be used to create a custom database. For example, the first lines of the index file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -46,15 +46,11 @@ The `embeddings.py` script can be used to create a custom database from an index
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
-An index file can be created from a FASTA file using `scripts/makeindex.py`:
-```
-python makeindex.py database.fas database.csv 
-```
 
-For a given `csv` index file a database can be created with:
-Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
+Use `-cname` to specify in which column of the `database.csv` file the sequences are stored. It is recommended to sort input sequence file with sequence lenght.
 
 ```bash
+# for csv/pickle files
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
 # for fasta files
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
@@ -62,12 +58,11 @@ python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --as
 
 `database` defines the database directory containing the sequence embeddings stored in separate files.
 
-`-cname` defines the column in the `database.csv` index file where the sequences are stored.
 
-The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 6000 residues (this value can be changed with `--res_per_batch`). The larger the batch size, the faster the embeddings will be generated, adjust `-res_per_batch` to suit your hardware.
+The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
 The use of `--gpu` is highly recommended for bigger datasets. 
-To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
+To run `.embeddings.py` on multiple gpus specify `-proc X` where `X` is number of gpu devices you want to utilize.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
