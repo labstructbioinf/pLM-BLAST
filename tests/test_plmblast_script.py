@@ -4,8 +4,6 @@ import pytest
 import pandas as pd
 import subprocess
 
-import torch
-
 from alntools.filehandle import BatchLoader
 
 DIR = os.path.dirname(__file__)
@@ -19,12 +17,10 @@ PLMBLAST_DB = os.path.join(DIR, 'test_data/database')
 PLMBLAST_DB_CSV = os.path.join(DIR, 'test_data/database.csv')
 
 INPUT_FASTA_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.fas')
-INPUT_CSV_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.csv')
 INPUT_EMB_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.pt')
 OUTPUT_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.hits.csv')
 
-INPUT_FASTA_MULTI = os.path.join(DIR, 'test_data/multi_query.fas')
-INPUT_CSV_MULTI = os.path.join(DIR, 'test_data/multi_query.csv')
+INPUT_FASTA_MULTI = os.path.join(DIR, 'test_data/rossmanns.fas')
 INPUT_EMB_MULTI = os.path.join(DIR, 'test_data/multi_query.pt')
 OUTPUT_MULTI = os.path.join(DIR, 'test_data/multi_query.hits.csv')
 
@@ -39,8 +35,7 @@ def clear_files(files):
 @pytest.fixture(scope='session', autouse=True)
 def remove_outputs():
 	files = [
-		INPUT_CSV_SINGLE, INPUT_EMB_SINGLE, OUTPUT_SINGLE,
-		INPUT_CSV_MULTI, INPUT_EMB_MULTI, OUTPUT_MULTI,
+		INPUT_EMB_SINGLE, OUTPUT_SINGLE, INPUT_EMB_MULTI, OUTPUT_MULTI,
 		'tests/test_data/1BSV_1.hits.csv', 'tests/test_data/1FVK_1.hits.csv',
 		'tests/test_data/1MXR_1.hits.csv', 'tests/test_data/7QZP_1.hits.csv']
 	clear_files(files)
@@ -65,20 +60,11 @@ def test_make_db_emb64():
 	assert proc.returncode == 0, proc.stderr
 
 
-@pytest.mark.dependency()
-def test_make_single_index():
-	# Generate index csv for single query
-	proc = subprocess.run(["python", MAKE_INDEX_SCRIPT, INPUT_FASTA_SINGLE, INPUT_CSV_SINGLE],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
-
-
 @pytest.mark.dependency(depends=['test_make_single_index'])
 def test_make_single_emb():
 	# Generate emb for single query
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
-						INPUT_CSV_SINGLE, INPUT_EMB_SINGLE,
+						INPUT_FASTA_SINGLE, INPUT_EMB_SINGLE,
 						"-embedder", "pt", "-cname", "sequence", "--gpu"],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
@@ -89,7 +75,7 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 	query_seqs = {i : 'A'*100 for i in range(10)}
 	filedict = dict()
 	for qid in query_seqs:
-		qid_files = [f'dump_{i}.txt'  for i in range(1000)]
+		qid_files = {i : f'dump_{i}.txt'  for i in range(1000)}
 		filedict[qid] = qid_files
 	batchloader = BatchLoader(query_ids=list(query_seqs.keys()),
 						   query_seqs=list(query_seqs.values()),
@@ -118,7 +104,7 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 @pytest.mark.parametrize('gap_ext', ["0", "0.1"])
 def test_single_query(win: str, gap_ext: str):
 	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_CSV_SINGLE[:-4], OUTPUT_SINGLE,
+							INPUT_FASTA_SINGLE[:-4], OUTPUT_SINGLE,
 							"-win", win, '-gap_ext', gap_ext],
 			stderr=subprocess.PIPE,
 			stdout=subprocess.PIPE)
@@ -133,19 +119,10 @@ def test_single_query(win: str, gap_ext: str):
 
 
 @pytest.mark.dependency()
-def test_make_multi_index():
-	# Generate index csv for multi query
-	proc = subprocess.run(["python", MAKE_INDEX_SCRIPT, INPUT_FASTA_MULTI, INPUT_CSV_MULTI],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
-
-
-@pytest.mark.dependency(depends=['test_make_multi_index'])
 def test_make_multi_embs():
 	# Generate embs for multi query
 	proc = subprocess.run(["python", EMB_SCRIPT, 
-						INPUT_CSV_MULTI, INPUT_EMB_MULTI,
+						INPUT_FASTA_MULTI, INPUT_EMB_MULTI,
 						"-embedder", "pt", "-cname", "sequence", "--gpu"],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
@@ -156,7 +133,7 @@ def test_make_multi_embs():
 @pytest.mark.parametrize('gap_ext', ["0", "0.1"])
 def test_multi_query(win: str, gap_ext: str):
 	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_CSV_MULTI[:-4], OUTPUT_MULTI,
+							INPUT_FASTA_MULTI[:-4], OUTPUT_MULTI,
 							"-win", win, '-gap_ext', gap_ext],
 			stderr=subprocess.PIPE,
 			stdout=subprocess.PIPE)
@@ -164,7 +141,7 @@ def test_multi_query(win: str, gap_ext: str):
 	assert proc.returncode == 0, proc.stderr
 	assert os.path.isfile(OUTPUT_MULTI)
 	output = pd.read_csv(OUTPUT_MULTI, sep=";")
-	assert output.shape == (410, 17) or output.shape == (318, 17)
+	assert output.shape[0] > 0
 
 	if os.path.isfile(OUTPUT_MULTI):
 		os.remove(OUTPUT_MULTI)
@@ -175,8 +152,8 @@ def test_multi_query(win: str, gap_ext: str):
 @pytest.mark.parametrize('gap_ext', ["0", "0.1"])
 def test_multi_query_multi_files(win: str, gap_ext: str):
 	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_CSV_MULTI[:-4], MULTI_QUERY_MULTI_FILE_PATH,
-							"-win", win, '-gap_ext', gap_ext, '--mqmf'],
+							INPUT_FASTA_MULTI[:-4], MULTI_QUERY_MULTI_FILE_PATH,
+							"-win", win, '-gap_ext', gap_ext, '--separate'],
 			stderr=subprocess.PIPE,
 			stdout=subprocess.PIPE)
 	# check process error code

@@ -36,12 +36,13 @@ profile*.txt
 # line profiler
 **.lprof
 
+# script results
+scripts/output
+
 # results cache
 results.*
 
+# others
 temp
-scripts/output/multi_query.hits.csv
-scripts/input/multi_query.fas
-scripts/output/multi_query.csv
-scripts/output/cupredoxin.csv
-scripts/output/cupredoxin.hits.csv
+tmp
+models

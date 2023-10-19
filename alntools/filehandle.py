@@ -95,9 +95,9 @@ class BatchLoader:
         calculate file slices for each batch for given query_id
         '''
         files_per_qid: Dict[int, str] = self.filedict[query_id]
+        assert isinstance(files_per_qid, dict)
         file_list = list(files_per_qid.values())
         index_list = list(files_per_qid.keys())
-        assert isinstance(files_per_qid, dict)
         num_files_per_qid = len(files_per_qid)
         num_batch = math.ceil(num_files_per_qid/self.batch_size)
         batch_start = 0

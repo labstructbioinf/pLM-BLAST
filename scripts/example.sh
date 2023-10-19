@@ -1,13 +1,10 @@
 #!/bin/bash
 
 set -e
-# limit threads for numba/numpy/torch
-#export MKL_NUM_THREADS=1
-#export NUMEXPR_NUM_THREADS=1
-#export OMP_NUM_THREADS=1
+
 export MKL_DYNAMIC=FALSE
-#case='cupredoxin'
-case='rossmanns'
+case='cupredoxin'
+#case='rossmanns'
 # data paths
 INDIR="./input"
 OUTDIR="./output"
@@ -16,10 +13,10 @@ QUERY_INDEX="$OUTDIR/${case}.csv"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
 
 ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=92
+COSINE_CUTOFF=90
 SIGMA=2
 
 NUM_WORKERS=6
@@ -46,7 +43,7 @@ if [ ! -f $OUTFILE ]; then
 		-use_chunks
 fi
 
-# plot hits
-python plot.py $OUTFILE $QUERY_INDEX $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
-python plot.py $OUTFILE $QUERY_INDEX $OUTDIR/$case.hits_qend_ecod.png -mode qend -ecod
+# plot hits only works for single query
+#python plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
+#python plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_qend_ecod.png -mode qend -ecod
 

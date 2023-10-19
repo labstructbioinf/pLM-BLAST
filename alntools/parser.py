@@ -1,6 +1,7 @@
 import os
 import argparse
 
+
 def range_limited_float_type(arg, MIN, MAX):
 	""" Type function for argparse - a float within some predefined bounds """
 	try:
@@ -29,8 +30,7 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('query', help='query embedding and index',
 						type=str)	
 	parser.add_argument('output', help='''if you want the results to be in separate files,
-					  enter the directory path and --mqmf 
-					 else type output file and --mqsf''',
+					  use --separate flag''',
 						type=str)	
 	parser.add_argument('--separate', help='if given each query sequence will be written as separate file',
 					 action='store_true', default=False)
@@ -38,10 +38,15 @@ def get_parser() -> argparse.Namespace:
 			 			action='store_true', default=False)
 	
 	# cosine similarity scan
-	parser.add_argument('-cosine_percentile_cutoff', help='percentile cutoff for cosine similarity (default: %(default)s). The lower the value, the more sequences will be returned by the pre-screening procedure and aligned with the more accurate but slower pLM-BLAST',
+	parser.add_argument('-cosine_percentile_cutoff', help=\
+					 '''percentile cutoff for cosine similarity (default: %(default)s).
+					    The lower the value, the more sequences will be returned by the
+						pre-screening procedure and aligned with the more accurate but slower pLM-BLAST''',
 						type=range0100, default=95, dest='COS_PER_CUT')	
-	parser.add_argument('-use_chunks', help='use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
-			 action='store_true', default=True)
+	parser.add_argument('--use_chunks', help=\
+					 '''use fast chunk cosine similarity screening instead of regular
+					    cosine similarity screening. (default: %(default)s)''',
+			 action='store_true', default=False)
 	# TODO add more explanation to params
 	# plmblast
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
@@ -54,7 +59,6 @@ def get_parser() -> argparse.Namespace:
                     	default=False, action='store_true')
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
-
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
@@ -72,9 +76,5 @@ def get_parser() -> argparse.Namespace:
 	# validate provided parameters
 	assert args.MAX_WORKERS > 0
 	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
-	if args.separate:
-		if os.path.isdir(args.output):
-			raise ValueError("The provided output path points to a directory, a file was expected")
-		elif not '.' in args.output:
-			raise ValueError("The file name was not provided or it has no extension")
+	
 	return args

@@ -62,8 +62,10 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 	Returns:
 	 filedict: (dict) each key is query_id, and values are embeddings above threshold
 	'''
+	assert len(query_embs) > 0
 	# set torch num CPU limit
 	torch.set_num_threads(args.MAX_WORKERS)
+	num_queries = len(query_embs)
 	if args.COS_PER_CUT < 100:
 		query_filedict = dict()
 		if args.use_chunks:
@@ -78,7 +80,7 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 			# TODO make avg_pool1d parallel
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze().float() for emb in query_embs]
 			# loop over all query embeddings
-			for i, emb in tqdm(enumerate(query_emb_chunkcs)):
+			for i, emb in tqdm(enumerate(query_emb_chunkcs), total=num_queries):
 				filedict = ds.local.chunk_cosine_similarity(
 					query=emb,
 					targets=embedding_list,
@@ -132,6 +134,11 @@ if __name__ == "__main__":
 	query_embs = args.query + '.pt'
 
 	query_df = read_input_file(query_index)
+	if 'id' not in query_df.columns:
+		query_df['id'] = list(range(0, query_df.shape[0]))
+	else:
+		if not query_df['id'].is_unique:
+			raise KeyError('input query `id` column is not unique, please remove this column or set its unique')
 	query_ids = query_df['id'].tolist()
 	query_seqs = query_df['sequence'].tolist()
 	

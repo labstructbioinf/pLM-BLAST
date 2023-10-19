@@ -73,6 +73,8 @@ def prepare_output(args: argparse.Namespace,
             resdf['sid'] = resdf['i'].apply(lambda i: db_df.iloc[i]['id'])
             if 'description' in db_df.columns:
                 resdf['sdesc'] = resdf['i'].apply(lambda i: db_df.iloc[i]['description'].replace(';', ' '))
+            else:
+                resdf['sdecs'] = resdf['sid']
             resdf['tlen'] = resdf['i'].apply(lambda i: len(db_df.iloc[i]['sequence']))
             resdf['qlen'] = len(query_seq)
             resdf['qstart'] = resdf['indices'].apply(lambda i: i[0][1])
