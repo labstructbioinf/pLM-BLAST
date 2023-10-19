@@ -131,14 +131,13 @@ Advanced example:
 
 ```python
 import torch
-import alntools.density as ds
 import alntools as aln
 import pandas as pd
 from Bio import SeqIO
 
 # Get embeddings and sequences
 emb_file = './scripts/output/cupredoxin.pt'
-embs = torch.load(emb_file)
+embs = torch.load(emb_file).float().numpy()
 # A self-comparison is performed
 emb1, emb2 = embs[0], embs[0]
 
@@ -152,18 +151,19 @@ sigma_factor = 2
 window = 10 # scan window length
 min_span = 25 # minimum alignment length
 gap_opening = 0 # Gap opening penalty
-column = 'score' # Another option is "len"
+column = 'score' # Another option is "len" column used to sort results
 
 # Run pLM-BLAST
-densitymap = ds.embedding_similarity(emb1, emb2)
-arr = densitymap.cpu().numpy()
-
-paths = aln.alignment.gather_all_paths(densitymap, gap_opening=gap_opening, bfactor=bfactor)
-
-spans_locations = aln.prepare.search_paths(arr, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
+# calculate per residue substitution matrix
+sub_matrix = aln.base.embedding_local_similarity(emb1, emb2)
+# gather paths from scoring matrix
+paths = aln.alignment.gather_all_paths(sub_matrix, gap_opening=gap_opening, bfactor=bfactor)
+# seach paths for possible alignment
+spans_locations = aln.prepare.search_paths(sub_matrix, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
 							
 results = pd.DataFrame(spans_locations.values())
 results['i'] = 0
+# remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results, column='score')
 
 # Print best alignment
