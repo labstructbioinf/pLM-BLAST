@@ -52,10 +52,6 @@ def check_cohesion(sequences: List[str], filedict: dict, embeddings: list[torch.
 			pass
 
 
-def tensor_transform(x: torch.Tensor):
-	return x.permute(*torch.arange(x.ndim - 1, -1, -1))
-
-
 def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Dict[int, List[str]]:
 	'''
 	apply pre-screening
@@ -73,10 +69,10 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 				print('Loading database for chunk cosine similarity screening...')
 			dbfile = os.path.join(args.db, 'emb.64')
 			if not os.path.isfile(dbfile):
-				raise FileNotFoundError('missing pooled embedding file')
+				raise FileNotFoundError('missing pooled embedding file emb.64')
 			embedding_list: List[torch.Tensor] = torch.load(dbfile)
 			dbsize = db_df.shape[0]
-			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]  # db_df is a database index
+			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]
 			# TODO make avg_pool1d parallel
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze().float() for emb in query_embs]
 			# loop over all query embeddings
@@ -114,8 +110,7 @@ if __name__ == "__main__":
 	module.FILTER_RESULTS = True
 	module.WINDOW_SIZE = args.WINDOW_SIZE
 	module.GAP_EXT = args.GAP_EXT
-	module.SIGMA_FACTOR = args.SIGMA_FACTOR	
-	EMB_POOL = 1
+	module.SIGMA_FACTOR = args.SIGMA_FACTOR
 	module.BFACTOR = 'global' if args.global_aln else 1
 	if args.verbose:
 		print('%s alignment mode' % 'global' if args.global_aln else 'local')
@@ -124,16 +119,16 @@ if __name__ == "__main__":
 	db_index = aln.filehandle.find_file_extention(args.db)
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
-
 	db_df = read_input_file(db_index)
 	db_df.set_index(db_df.columns[0], inplace=True)
-	# Read query 
+
+	# Load query
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
 	query_index = aln.filehandle.find_file_extention(args.query)
 	query_embs = args.query + '.pt'
-
 	query_df = read_input_file(query_index)
+	# add id column
 	if 'id' not in query_df.columns:
 		query_df['id'] = list(range(0, query_df.shape[0]))
 	else:
@@ -141,14 +136,17 @@ if __name__ == "__main__":
 			raise KeyError('input query `id` column is not unique, please remove this column or set its unique')
 	query_ids = query_df['id'].tolist()
 	query_seqs = query_df['sequence'].tolist()
-	
+	# read embeddings
 	query_embs: List[torch.Tensor] = torch.load(query_embs)
+	query_embs = [emb.float() for emb in query_embs]
+	'''
 	query_embs_pool = [
 		tensor_transform(
 			avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
 			).squeeze() for emb in query_embs
 		]
-	query_embs_pool = [emb.numpy() for emb in query_embs_pool]
+	'''
+	query_embs_pool = [emb.numpy() for emb in query_embs]
 
 	if query_df.shape[0] != len(query_embs):
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
