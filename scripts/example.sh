@@ -39,7 +39,7 @@ if [ ! -f $OUTFILE ]; then
 		-alignment_cutoff $ALIGNMENT_CUTOFF \
 		-workers $NUM_WORKERS \
         -sigma_factor $SIGMA \
-		-use_chunks
+		--use_chunks
 fi
 
 # Plotting works for single queries only

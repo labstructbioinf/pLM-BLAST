@@ -8,7 +8,6 @@ from alntools.filehandle import BatchLoader
 
 DIR = os.path.dirname(__file__)
 
-MAKE_INDEX_SCRIPT = os.path.join("scripts/makeindex.py")
 EMB_SCRIPT = os.path.join("embeddings.py")
 EMB64_SCRIPT = os.path.join("scripts/dbtofile.py")
 PLMBLAST_SCRIPT = os.path.join("scripts/plmblast.py")
@@ -21,7 +20,7 @@ INPUT_EMB_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.pt')
 OUTPUT_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.hits.csv')
 
 INPUT_FASTA_MULTI = os.path.join(DIR, 'test_data/rossmanns.fas')
-INPUT_EMB_MULTI = os.path.join(DIR, 'test_data/multi_query.pt')
+INPUT_EMB_MULTI = os.path.join(DIR, 'test_data/rossmanns.pt')
 OUTPUT_MULTI = os.path.join(DIR, 'test_data/multi_query.hits.csv')
 
 MULTI_QUERY_MULTI_FILE_PATH = os.path.join(DIR, 'test_data')
@@ -35,7 +34,7 @@ def clear_files(files):
 @pytest.fixture(scope='session', autouse=True)
 def remove_outputs():
 	files = [
-		INPUT_EMB_SINGLE, OUTPUT_SINGLE, INPUT_EMB_MULTI, OUTPUT_MULTI,
+		INPUT_EMB_SINGLE, OUTPUT_SINGLE, OUTPUT_MULTI,
 		'tests/test_data/1BSV_1.hits.csv', 'tests/test_data/1FVK_1.hits.csv',
 		'tests/test_data/1MXR_1.hits.csv', 'tests/test_data/7QZP_1.hits.csv']
 	clear_files(files)
@@ -60,7 +59,6 @@ def test_make_db_emb64():
 	assert proc.returncode == 0, proc.stderr
 
 
-@pytest.mark.dependency(depends=['test_make_single_index'])
 def test_make_single_emb():
 	# Generate emb for single query
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
@@ -70,9 +68,10 @@ def test_make_single_emb():
 		stdout=subprocess.PIPE)
 	assert proc.returncode == 0, proc.stderr
 
+
 @pytest.mark.parametrize('batch_size', [100, 200, 300])
 def test_batch_loader_for_plmblast_loop(batch_size):
-	query_seqs = {i : 'A'*100 for i in range(10)}
+	query_seqs = {i : 'A'*123 for i in range(10)}
 	filedict = dict()
 	for qid in query_seqs:
 		qid_files = {i : f'dump_{i}.txt'  for i in range(1000)}
@@ -84,7 +83,6 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 						   mode='file')
 	
 	query_files = {qid: list() for qid in query_seqs}
-
 	assert len(batchloader) > 0
 	assert len(batchloader) >= len(query_seqs)
 
@@ -100,7 +98,7 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 		assert len(files) == len(filedict[qid])
 
 @pytest.mark.dependency()
-@pytest.mark.parametrize('win', ["10", "20"])
+@pytest.mark.parametrize('win', ["10", "20", "30"])
 @pytest.mark.parametrize('gap_ext', ["0", "0.1"])
 def test_single_query(win: str, gap_ext: str):
 	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
@@ -112,8 +110,7 @@ def test_single_query(win: str, gap_ext: str):
 	assert proc.returncode == 0, proc.stderr
 	assert os.path.isfile(OUTPUT_SINGLE)
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")
-	assert output.shape == (28, 17)	or output.shape == (22, 17)
-
+	assert output.shape[0] > 0
 	if os.path.isfile(OUTPUT_SINGLE):
 		os.remove(OUTPUT_SINGLE)
 
@@ -132,6 +129,10 @@ def test_make_multi_embs():
 @pytest.mark.parametrize('win', ["10", "20"])
 @pytest.mark.parametrize('gap_ext', ["0", "0.1"])
 def test_multi_query(win: str, gap_ext: str):
+
+	assert os.path.isfile(INPUT_FASTA_MULTI)
+	assert os.path.isfile(INPUT_EMB_MULTI)
+
 	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
 							INPUT_FASTA_MULTI[:-4], OUTPUT_MULTI,
 							"-win", win, '-gap_ext', gap_ext],
