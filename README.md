@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
-The `embeddings.py` script can be used to create a custom database. For example, the first lines of the index file for the ECOD database are:
+The `embeddings.py` script can be used to create a custom database from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -46,23 +46,22 @@ The `embeddings.py` script can be used to create a custom database. For example,
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
+If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
-Use `-cname` to specify in which column of the `database.csv` file the sequences are stored. It is recommended to sort input sequence file with sequence lenght.
+It is recommended to sort the input sequences by length.
 
 ```bash
-# for csv/pickle files
+# CSV input
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
-# for fasta files
+# FASTA input
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
 ```
 
-`database` defines the database directory containing the sequence embeddings stored in separate files.
+In the examples above, `database` defines a directory where sequence embeddings are stored.
 
+The batch size (number of sequences per batch) is set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
-The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
-
-The use of `--gpu` is highly recommended for bigger datasets. 
-To run `.embeddings.py` on multiple gpus specify `-proc X` where `X` is number of gpu devices you want to utilize.
+The use of `--gpu` is highly recommended for large datasets. To run `.embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
@@ -70,16 +69,16 @@ The last step is to create an additional file with flattened embeddings for the 
 python scripts/dbtofile.py database 
 ```
 
-A new file `emb.64` will appear in the database directory.
+A new file `emb.64` will appear in the database directory. The database is now ready for use.
 
-### checkpointing feature
+### Checkpointing feature
 
-When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
+When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
 
 ```bash
-python embeddings.py resume output
+python embeddings.py resume database
 ``` 
-where `output` is output directory or file for interrupted or broken computations.
+where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
