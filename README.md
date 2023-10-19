@@ -82,24 +82,18 @@ where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
-To search the database `database` with a FASTA sequence stored in `query.fas`, a query index file must first be created:
-
-```bash
-python makeindex.py query.fas query.csv
-```
-
-Then an embedding for the query:
+To search the database `database` with a FASTA sequence stored in `query.fas`, a query embedding must be computed:
 
 ```bash
 python embeddings.py query.fas query.pt
 ```
 
-Finally, the `run_plmblast.py` script can be used to search the database:
+Then the `plmblast.py` script can be used to search the database:
 
 ```bash
-python ./scripts/run_plmblast.py database query output.csv -use_chunks
+python ./scripts/plmblast.py database query output.csv --use_chunks
 ```
-Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `-use_chunks` option enables the use of cosine similarity pre-screening, which greatly improves search speed. Follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options. Currently there is no multi-query search option available, but it will be implemented soon.
+Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
 
@@ -197,7 +191,7 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 
 # Changelog
 
-* 26/09/2023 enhanced embedding extraction script, calculations can now be resumed when broken see Databases section for more info
-* 26/09/2023 enhanced adaptive batching strategy for `-bs 0` option, batches size is now divisable by 4 for better performcence and `-res_per_batch` options was added
-* 9/10/2023 add support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
-* 9/10/2023 add multiprocess featrue to embeddings generation `-nproc X` options will now spawn `X` independent processes.
+* 26/09/2023 improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.
+* 26/09/2023 improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance and `-res_per_batch` options have been added.
+* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
+* 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.
