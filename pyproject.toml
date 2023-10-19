@@ -22,7 +22,7 @@ classifiers = [
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = [
-    "--maxfail=1",
+    "--maxfail=10",
 ]
 python_files = "test_*"
 pythonpath = ["."

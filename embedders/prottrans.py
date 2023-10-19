@@ -56,7 +56,7 @@ def main_prottrans(df: pd.DataFrame,
 	batch_files = []
 	if args.asdir and not os.path.isdir(args.output):
 		os.mkdir(args.output)
-	seqlist_all = df['seq'].tolist()
+	seqlist_all = df['sequence'].tolist()
 	lenlist_all = df['seqlens'].tolist()
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):

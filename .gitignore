@@ -25,8 +25,8 @@ __pycache__/
 !tests/test_data/embeddings/*.emb
 tests/output
 
-/*.csv
-/*.p
+*.csv
+*.p
 **.txt
 *.png
 # tests
@@ -36,7 +36,13 @@ profile*.txt
 # line profiler
 **.lprof
 
+# script results
+scripts/output
+
 # results cache
 results.*
 
+# others
 temp
+tmp
+models

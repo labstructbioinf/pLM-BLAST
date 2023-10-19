@@ -59,7 +59,7 @@ def main_esm(df: pd.DataFrame, args, iterator: BatchIterator, rank_id: int = 0):
 		model.eval()  # disables dropout for deterministic resultsS
 		model = model.to(device)
 	batch_files = []
-	seqlist_all = df['seq'].tolist()
+	seqlist_all = df['sequence'].tolist()
 	lenlist_all = df['seqlens'].tolist()
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):

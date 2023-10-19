@@ -159,15 +159,16 @@ def prepare_dataframe(df: pd.DataFrame,
 		preprocess frame, if last_batch argument is supplied then iterator will start
 			from [last_batch:]
 		'''
+		assert 'sequence' in df.columns
 		# prepare dataframe
 		df.reset_index(inplace=True)
 		num_records = df.shape[0]
 		# cut sequences
-		df['seqlens'] = df['seq'].apply(len)
-		df['seq'] = df.apply(lambda row: \
-					   row['seq'][:args.truncate] if row['seqlens'] > args.truncate else row['seq'], axis=1)
+		df['seqlens'] = df['sequence'].apply(len)
+		df['sequence'] = df.apply(lambda row: \
+					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
 		# update size
-		df['seqlens'] = df['seq'].apply(len)
+		df['seqlens'] = df['sequence'].apply(len)
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
@@ -317,8 +318,10 @@ def select_device(args: argparse.Namespace) -> torch.device:
 		device = torch.device('cpu')
 	return device
 
-def read_input_file(file: str, cname: str) -> pd.DataFrame:
-
+def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
+	'''
+	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
+	'''
 	# gather input file
 	if file.endswith('csv'):
 		df = pd.read_csv(file)
@@ -328,15 +331,13 @@ def read_input_file(file: str, cname: str) -> pd.DataFrame:
 		# convert fasta file to dataframe
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
-		data = [[record.description, str(record.seq)] for record in data]
-		df = pd.DataFrame(data, columns=['desc', 'seq'])
-		df.set_index('desc', inplace=True)
+		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
+		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
+		df.set_index('description', inplace=True)
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
-		raise FileNotFoundError(f'''
-						  invalid input infile extension {file} expecting .csv, .p, .pkl, .fas or .fasta'''
-						  )
+		raise FileNotFoundError(f'''could not find input file for `{file}` expecting one of the extensions .csv, .p, .pkl, .fas or .fasta''')
 	
 	if cname != '' and not (file.endswith('.fas') or file.endswith('.fasta')):
 		if cname not in df.columns:
@@ -345,5 +346,5 @@ def read_input_file(file: str, cname: str) -> pd.DataFrame:
 			print(f'using column: {cname}')
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
-			df.rename(columns={cname: 'seq'}, inplace=True)
+			df.rename(columns={cname: 'sequence'}, inplace=True)
 	return df

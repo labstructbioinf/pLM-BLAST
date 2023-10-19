@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
 
-The `embeddings.py` script can be used to create a custom database from an index `csv` file. For example, the first lines of the index file for the ECOD database are:
+The `embeddings.py` script can be used to create a custom database from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -46,28 +46,22 @@ The `embeddings.py` script can be used to create a custom database from an index
 2,ECOD_002164660_e6atuF1,"ECOD_002164660_e6atuF1 | 927.1.1.1 | 6ATU F:8-57 | A: few secondary structure elements, X: NO_X_NAME, H: NO_H_NAME, T: Elafin-like, F: WAP | Protein: Elafin",PVSTKPGSCPIILIRCAMLNPPNRCLKDTDCPGIKKCCEGSCGMACFVPQ
 ```
 
-An index file can be created from a FASTA file using `scripts/makeindex.py`:
-```
-python makeindex.py database.fas database.csv 
-```
+If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
-For a given `csv` index file a database can be created with:
-Now you can use the `embeddings.py` script to create a database. Use `-cname` to specify in which column of the `database.csv` file the sequences are stored.
+It is recommended to sort the input sequences by length.
 
 ```bash
+# CSV input
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
-# for fasta files
+# FASTA input
 python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
 ```
 
-`database` defines the database directory containing the sequence embeddings stored in separate files.
+In the examples above, `database` defines a directory where sequence embeddings are stored.
 
-`-cname` defines the column in the `database.csv` index file where the sequences are stored.
+The batch size (number of sequences per batch) is set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
-The batch size (number of sequences per batch) can be set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 6000 residues (this value can be changed with `--res_per_batch`). The larger the batch size, the faster the embeddings will be generated, adjust `-res_per_batch` to suit your hardware.
-
-The use of `--gpu` is highly recommended for bigger datasets. 
-To run `.embeddings.py` with `torch.multiprocess` support specify `-proc X` where `X` is number of gpu devices you want to utilize.
+The use of `--gpu` is highly recommended for large datasets. To run `.embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
@@ -75,37 +69,31 @@ The last step is to create an additional file with flattened embeddings for the 
 python scripts/dbtofile.py database 
 ```
 
-A new file `emb.64` will appear in the database directory.
+A new file `emb.64` will appear in the database directory. The database is now ready for use.
 
-### checkpointing feature
+### Checkpointing feature
 
-When dealing with big databases, it may be helpful to resume previously stopped or borken calculations. When `embeddings.py` encounter exception or keyboard interrupt the main process caputre actual computations steps in checkpoint file. If you want to resume type:
+When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
 
 ```bash
-python embeddings.py resume output
+python embeddings.py resume database
 ``` 
-where `output` is output directory or file for interrupted or broken computations.
+where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
-To search the database `database` with a FASTA sequence stored in `query.fas`, a query index file must first be created:
-
-```bash
-python makeindex.py query.fas query.csv
-```
-
-Then an embedding for the query:
+To search the database `database` with a FASTA sequence stored in `query.fas`, a query embedding must be computed:
 
 ```bash
 python embeddings.py query.fas query.pt
 ```
 
-Finally, the `run_plmblast.py` script can be used to search the database:
+Then the `plmblast.py` script can be used to search the database:
 
 ```bash
-python ./scripts/run_plmblast.py database query output.csv -use_chunks
+python ./scripts/plmblast.py database query output.csv --use_chunks
 ```
-Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `-use_chunks` option enables the use of cosine similarity pre-screening, which greatly improves search speed. Follow `scripts/example.sh` for more examples and run `run_plmblast.py -h` for more options. Currently there is no multi-query search option available, but it will be implemented soon.
+Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
 
@@ -143,14 +131,13 @@ Advanced example:
 
 ```python
 import torch
-import alntools.density as ds
 import alntools as aln
 import pandas as pd
 from Bio import SeqIO
 
 # Get embeddings and sequences
 emb_file = './scripts/output/cupredoxin.pt'
-embs = torch.load(emb_file)
+embs = torch.load(emb_file).float().numpy()
 # A self-comparison is performed
 emb1, emb2 = embs[0], embs[0]
 
@@ -164,18 +151,19 @@ sigma_factor = 2
 window = 10 # scan window length
 min_span = 25 # minimum alignment length
 gap_opening = 0 # Gap opening penalty
-column = 'score' # Another option is "len"
+column = 'score' # Another option is "len" column used to sort results
 
 # Run pLM-BLAST
-densitymap = ds.embedding_similarity(emb1, emb2)
-arr = densitymap.cpu().numpy()
-
-paths = aln.alignment.gather_all_paths(densitymap, gap_opening=gap_opening, bfactor=bfactor)
-
-spans_locations = aln.prepare.search_paths(arr, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
+# calculate per residue substitution matrix
+sub_matrix = aln.base.embedding_local_similarity(emb1, emb2)
+# gather paths from scoring matrix
+paths = aln.alignment.gather_all_paths(sub_matrix, gap_opening=gap_opening, bfactor=bfactor)
+# seach paths for possible alignment
+spans_locations = aln.prepare.search_paths(sub_matrix, paths=paths, window=window, sigma_factor=sigma_factor, mode='local' if bfactor==1 else 'global', min_span=min_span)
 							
 results = pd.DataFrame(spans_locations.values())
 results['i'] = 0
+# remove redundant hits
 results = aln.postprocess.filter_result_dataframe(results, column='score')
 
 # Print best alignment
@@ -203,7 +191,7 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 
 # Changelog
 
-* 26/09/2023 enhanced embedding extraction script, calculations can now be resumed when broken see Databases section for more info
-* 26/09/2023 enhanced adaptive batching strategy for `-bs 0` option, batches size is now divisable by 4 for better performcence and `-res_per_batch` options was added
-* 9/10/2023 add support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
-* 9/10/2023 add multiprocess featrue to embeddings generation `-nproc X` options will now spawn `X` independent processes.
+* 26/09/2023 improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.
+* 26/09/2023 improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance and `-res_per_batch` options have been added.
+* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
+* 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.

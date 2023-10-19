@@ -143,7 +143,7 @@ def load_and_score_database(query_emb : torch.Tensor,
 	return filedict
 
 
-@torch.jit.script
+
 def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int) -> torch.Tensor:
 	'''
 	calculate cosine similarity for a batch of embeddings
@@ -161,7 +161,7 @@ def batch_chunk_cosine_similarity(x: torch.Tensor, B: torch.Tensor, poolfactor: 
 	if poolfactor > 1:
 		B = avg_pool1d(B.T, poolfactor).T
 	score = torch.nn.functional.cosine_similarity(x, B, dim=0)
-	scores = []
+	scores: List[torch.FloatTensor] = list()
 	for bi in B:
 		score = chunk_cosine_similarity(x, bi)
 		scores.append(score)
@@ -193,18 +193,16 @@ def load_full_embeddings(filelist : List[os.PathLike],
 	'''
 	missing_files : int = 0
 
-	with tqdm(total=len(filelist), desc="Loading embeddings") as pbar:
-		for itr, file in enumerate(filelist):
-			if not os.path.isfile(file):
-					missing_files += 1
-					continue
-			if poolfactor is not None:
-				embedding = torch.load(file).float()
-				embedding = avg_pool1d(embedding.unsqueeze(0), poolfactor)
-				stack.append(embedding.squeeze(0))
-			else:
-				stack.append(torch.load(file).numpy())
-			if itr % 5 == 0:
-				pbar.update(5)
+	for itr, file in enumerate(filelist):
+		if not os.path.isfile(file):
+				missing_files += 1
+				continue
+		if poolfactor is not None:
+			embedding = torch.load(file).float()
+			embedding = avg_pool1d(embedding.unsqueeze(0), poolfactor)
+			stack.append(embedding.squeeze(0))
+		else:
+			stack.append(torch.load(file).numpy())
+
 	assert missing_files==0, f'embedding missing files: {missing_files}'
 	return stack
