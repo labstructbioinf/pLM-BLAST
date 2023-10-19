@@ -1,9 +1,10 @@
 #!/bin/bash
 set -e
-
 export MKL_DYNAMIC=FALSE
-case='cupredoxin'
-#case='rossmanns'
+
+case='cupredoxin' # single-query example
+#case='rossmanns' # multi-query example
+
 # data paths
 INDIR="./input"
 OUTDIR="./output"
@@ -38,7 +39,7 @@ if [ ! -f $OUTFILE ]; then
 		-cosine_percentile_cutoff $COSINE_CUTOFF \
 		-alignment_cutoff $ALIGNMENT_CUTOFF \
 		-workers $NUM_WORKERS \
-        -sigma_factor $SIGMA \
+        	-sigma_factor $SIGMA \
 		--use_chunks
 fi
 
