@@ -206,16 +206,19 @@ if __name__ == "__main__":
 		print(f'for valid hits given pLM-BLAST parameters')
 		sys.exit(0)
 
-	# encounter invalid plmblast score
+	# Invalid plmblast score encountered
 	if result_df.score.max() > 1.01:
 		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', result_df.score.min(), result_df.score.max())
 		sys.exit(0)
+		
 	# run postprocessing
 	results = list()
 	for qid, rows in result_df.groupby('id'):
 		query_result = aln.postprocess.prepare_output(args, rows, qid, query_seqs[qid], db_df)
+		query_result['id'] = qid
 		results.append(query_result)
 	results = pd.concat(results)
+	
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('id'):

@@ -337,9 +337,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
-		raise FileNotFoundError(f'''
-						  invalid input infile extension {file} expecting .csv, .p, .pkl, .fas or .fasta'''
-						  )
+		raise FileNotFoundError(f'''could not find input file for `{file}` expecting one of the extensions .csv, .p, .pkl, .fas or .fasta''')
 	
 	if cname != '' and not (file.endswith('.fas') or file.endswith('.fasta')):
 		if cname not in df.columns:

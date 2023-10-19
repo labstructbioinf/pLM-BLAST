@@ -13,3 +13,4 @@ sentencepiece==0.1.99
 accelerate
 h5py
 mkl
+mkl-service
