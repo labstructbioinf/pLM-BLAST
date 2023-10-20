@@ -61,7 +61,7 @@ In the examples above, `database` defines a directory where sequence embeddings 
 
 The batch size (number of sequences per batch) is set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
-The use of `--gpu` is highly recommended for large datasets. To run `.embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
+The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
 The last step is to create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
@@ -82,7 +82,7 @@ where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
-To search the database `database` with a FASTA sequence stored in `query.fas`, a query embedding must be computed:
+To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
 
 ```bash
 python embeddings.py query.fas query.pt
@@ -93,7 +93,7 @@ Then the `plmblast.py` script can be used to search the database:
 ```bash
 python ./scripts/plmblast.py database query output.csv --use_chunks
 ```
-Note that only the base filename should be specified for the query (`csv` and `pt` extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
+Note that only the base filename should be specified for the query (extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
 
