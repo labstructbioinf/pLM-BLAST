@@ -2,7 +2,6 @@
 set -e
 export MKL_DYNAMIC=FALSE
 
-#case='1'
 case='cupredoxin' # single-query example
 #case='rossmanns' # multi-query example
 
@@ -20,7 +19,7 @@ COSINE_CUTOFF=90
 SIGMA=2
 
 # Customize according to your system specifications
-NUM_WORKERS=6
+NUM_WORKERS=20
 
 mkdir -p $OUTDIR
 

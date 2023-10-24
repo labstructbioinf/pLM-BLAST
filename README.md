@@ -85,7 +85,7 @@ where `database` is the output directory for interrupted calculations.
 To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
 
 ```bash
-python embeddings.py query.fas query.pt
+python embeddings.py start query.fas query.pt
 ```
 
 Then the `plmblast.py` script can be used to search the database:

@@ -203,7 +203,7 @@ if __name__ == "__main__":
 	if len(result_stack) > 0: 
 		result_df = pd.concat(result_stack)
 	else:
-		print(f'for valid hits given pLM-BLAST parameters')
+		print(f'No valid hits given pLM-BLAST parameters!')
 		sys.exit(0)
 
 	# Invalid plmblast score encountered
