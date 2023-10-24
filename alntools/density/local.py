@@ -7,10 +7,12 @@ import torch as th
 import torch.nn.functional as F
 
 
-def last_pad(a: th.Tensor, dim: int, pad: Tuple[int, int]):
+def last_pad(a: th.Tensor, dim: int, pad: Tuple[int, int]) -> th.Tensor:
 	'''
 	pads tensor up/down or left right
 	'''
+	assert pad[0] > 0
+	assert pad[1] > 0
 	num_dim = a.ndim
 	#assert a.ndim == 4, f'only 4D tensors are supplied'
 	if num_dim == 3:
@@ -47,46 +49,60 @@ def sequence_to_filters(protein: th.Tensor,
 						norm :bool = True,
 						with_padding : bool = True):
 	r'''
-	create 2d filters with shape of:
-	(num_filters, 1, kernel_size, emb_size)
+	Convert embedding to tensor of 2d filters with shape of:
+	[num_filters, 1, kernel_size, emb_size]
 	from input `protein` with shape: 
-	(seq_len, emb_size)
-	params:
-		kernel_size: List[int]
+	[seq_len, emb_size]
+	Args:
+		kernel_size: int
 		stride: (int)
 		norm (bool) whether to apply normalization to filters
-	returns:
-		
+	Returns:
+		filters: (torch.FloatTensor) [num_filters, 1, kernel_size, emb_size]
 	'''
+	r: int = 0
+	padding: int = 0
+	num_filters: int = 0
+	# store device for possible CUDA use
 	device = protein.device
-	if kernel_size % 2 == 0:
-		paddingh = kernel_size//2 - 1
-		paddingw = kernel_size//2
-	else:
-		padding = (kernel_size - 1)//2 
-		paddingh = paddingw = padding
-	paddingh, paddingw = int(paddingh), int(paddingw)
-	if protein.ndim == 2:
-		pass
-	elif protein.ndim < 3:
-		raise ArithmeticError(f'protein arg must be at least 2 dim, bug given: {protein.shape}')
-	seqlen, emb_size = protein.shape[-2], protein.shape[-1]
+	seqlen, emb_size = protein.shape[0], protein.shape[1]
+	if protein.ndim != 2:
+		raise ArithmeticError(f'protein arg must be 2 dim, given: {protein.shape}')
+	# kernel must be <= sequence lenght
+	if kernel_size >= seqlen:
+		kernel_size = int(seqlen)
+	# calculate padding values
 	if with_padding:
+		r = (seqlen - kernel_size) % stride
+		if r > 0:
+			padding = stride - r
+		if padding % 2 == 0:
+			paddingh = padding//2 - 1
+			paddingw = padding//2
+		else:
+			padding = (padding - 1)//2 
+			paddingh = paddingw = padding
+			paddingh, paddingw = int(paddingh), int(paddingw)
 		protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
 	# protein = F.pad(protein, (0, 0, paddingh, paddingw), 'constant', 0.0)
-	filter_list = []
-	num_filters = (seqlen - kernel_size)//stride
-	for start in range(0, seqlen-kernel_size, stride):
+	filter_list: List[th.Tensor] = list()
+	# rare case when embedding is very small
+	if 0 < seqlen-kernel_size < stride:
+		stride = seqlen - kernel_size
+	for start in range(0, seqlen-kernel_size + 1, stride):
 			# single filter of size (1, kerenl_size, num_emb_feats)
 			# last sample boundary when padding is false
 			if start + kernel_size > seqlen:
 				start = seqlen - kernel_size
-			filt = protein.narrow(0, start, kernel_size).unsqueeze(0)
+			filt = protein.narrow(0, start, kernel_size)
 			filter_list.append(filt)
-	filters = th.cat(filter_list, 0)
-	filters = filters.view(num_filters, 1, kernel_size, emb_size)
+	# merge filters and create addditional dimension for it
+	# filters: [num_filters, 1, kernel_size, emb_size]
+	filters = th.stack(filter_list)
+	filters = filters.view(-1, 1, kernel_size, emb_size)
 	# normalize filters
 	if norm:
+		num_filters = filters.shape[0]
 		norm_val = filters.view(num_filters, -1).pow(2).sum(1, keepdim=True)
 		norm_val[norm_val == 0] = 1e-5
 		norm_val = norm_val.sqrt().view(num_filters, 1, 1, 1)
@@ -120,7 +136,6 @@ def calc_density(protein: th.Tensor, filters: th.Tensor,
 	# add padding to protein to maintain size
 	if with_padding:
 		protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
-	#protein = F.pad(protein, (0, 0, paddingh, paddingw), mode='constant', value=0.0)
 	density = F.conv2d(protein, filters, stride = stride)
 	#output density
 	density2d = density.squeeze()
@@ -249,7 +264,7 @@ def chunk_cosine_similarity(query : th.FloatTensor,
 	if kernel_size > min_seqlen:
 		kernel_size = min_seqlen 
 	assert len(targets) == len(dataset_files), f'{len(targets)} != {len(dataset_files)}'
-	scorestack = chunk_score(query, targets, stride = stride, kernel_size=kernel_size)
+	scorestack = chunk_score(query, targets=targets, stride=stride, kernel_size=kernel_size)
 	quantile_threshold = th.quantile(scorestack, quantile)
 	scoremask = (scorestack >= quantile_threshold)
 	# convert mask to indices
@@ -337,8 +352,7 @@ def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
 		scorestack_t[i] = scorestack[i]
 	if scorestack_t.shape[0] != num_targets:
 		raise ValueError(f'''cosine sim screening result different
-		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}'''
-						 )
+		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}''')
 	return scorestack_t
 
 
