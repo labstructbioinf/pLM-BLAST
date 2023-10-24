@@ -3,14 +3,16 @@ import sys
 import torch
 import pandas as pd
 from tqdm import tqdm
+from glob import glob
 
+# Directory with embeddings stored as separate files
 dbpath = sys.argv[1]
-dbfile = pd.read_csv(dbpath + '.csv')
+
+# Adjustable (see publication for details)
 factor = 64
 kernel = int(1024/factor)
 
-embfilelist = [f'{i}.emb' for i in range(0, dbfile.shape[0])]
-embfilelist = [os.path.join(dbpath, embfile) for embfile in embfilelist]
+embfilelist = glob(os.path.join(dbpath, '*.emb'))
 embpoollist = []
 
 for file in tqdm(embfilelist):
@@ -20,6 +22,7 @@ for file in tqdm(embfilelist):
     embpool = torch.nn.functional.avg_pool1d(emb.unsqueeze(0), kernel).squeeze()
     embpoollist.append(embpool)
 
-torch.save(embpoollist, os.path.join(dbpath, f'emb.{factor}'))
-print('done')
+outfile = os.path.join(dbpath, f'emb.{factor}')
+torch.save(embpoollist, outfile)
+print(f'Done! {outfile} created')
 
