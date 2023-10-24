@@ -4,7 +4,7 @@ export MKL_DYNAMIC=FALSE
 
 #case='1'
 case='cupredoxin' # single-query example
-#case='rossmanns' # multi-query example
+case='rossmanns' # multi-query example
 
 # data paths
 INDIR="./input"
@@ -27,7 +27,7 @@ mkdir -p $OUTDIR
 # Calculate query embedding
 if [ ! -f $OUTDIR/$case.pt ]; then
 	echo "calculate query embedding"
-	python ../embeddings.py start $INDIR/$case.fas $OUTDIR/$case.pt
+	python ../embeddings.py start $INDIR/$case.fas $OUTDIR/$case.pt -bs 0
 	cp $INDIR/$case.fas $OUTDIR/$case.fas
 fi
 
