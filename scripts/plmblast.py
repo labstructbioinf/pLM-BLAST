@@ -125,9 +125,20 @@ if __name__ == "__main__":
 	# Load query
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
+	# read sequence file
 	query_index = aln.filehandle.find_file_extention(args.query)
-	query_embs = args.query + '.pt'
 	query_df = read_input_file(query_index)
+	if os.path.isfile(args.query + '.pt'):
+		query_embs: List[torch.Tensor] = torch.load(args.query + '.pt')
+	elif os.path.isdir(args.query):
+		query_embs_files = filelist = [os.path.join(args.query, f'{f}.emb') for f in range(0, query_df.shape[0])]
+		query_embs: List[torch.Tensor] = ds.load_full_embeddings(query_embs_files, poolfactor=1)
+	else:
+		raise FileNotFoundError(f'''
+						  query embedding file or directory not found in given location: {args.query}
+						  please make sure that query is appropriate directory with embeddings or file
+						  with .pt extension
+						  ''')
 	# add id column
 	if 'id' not in query_df.columns:
 		query_df['id'] = list(range(0, query_df.shape[0]))
@@ -136,16 +147,7 @@ if __name__ == "__main__":
 			raise KeyError('input query `id` column is not unique, please remove this column or set its unique')
 	query_ids = query_df['id'].tolist()
 	query_seqs = query_df['sequence'].tolist()
-	# read embeddings
-	query_embs: List[torch.Tensor] = torch.load(query_embs)
 	query_embs = [emb.float() for emb in query_embs]
-	'''
-	query_embs_pool = [
-		tensor_transform(
-			avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
-			).squeeze() for emb in query_embs
-		]
-	'''
 	query_embs_pool = [emb.numpy() for emb in query_embs]
 
 	if query_df.shape[0] != len(query_embs):

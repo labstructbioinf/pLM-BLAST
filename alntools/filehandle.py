@@ -3,6 +3,8 @@ import math
 from typing import List, Dict, Tuple
 import itertools
 
+from Bio import SeqIO
+import pandas as pd
 import torch
 
 from .density import load_full_embeddings
@@ -21,6 +23,45 @@ def find_file_extention(infile: str) -> str:
     if infile_with_ext == "":
         raise FileNotFoundError(f'no matching index file {infile}')
     return infile_with_ext
+
+
+def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
+	'''
+	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
+	'''
+	# gather input file
+	if file.endswith('csv'):
+		df = pd.read_csv(file)
+	elif file.endswith('.p') or file.endswith('.pkl'):
+		df = pd.read_pickle(file)
+	elif file.endswith('.fas') or file.endswith('.fasta'):
+		# convert fasta file to dataframe
+		data = SeqIO.parse(file, 'fasta')
+		# unpack
+		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
+		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
+		df.set_index('description', inplace=True)
+	elif file == "":
+		raise FileNotFoundError("empty string passed as input file")
+	else:
+		raise FileNotFoundError(f'''
+                          could not find input query or database file with name `{file}`
+                          expecting one of the extensions .csv, .p, .pkl, .fas or .fasta
+                          make sure that both embeddings storage and sequence files are
+                          in the same catalog with the same names
+                          ''')
+	
+	if cname != '' and not (file.endswith('.fas') or file.endswith('.fasta')):
+		if cname not in df.columns:
+			raise KeyError(f'no column: {cname} available in file: {file}, columns: {df.columns}')
+		else:
+			print(f'using column: {cname} as sequence source')
+			if 'seq' in df.columns and cname != 'seq':
+				df.drop(columns=['seq'], inplace=True)
+			df.rename(columns={cname: 'sequence'}, inplace=True)
+	return df
+
+
 
 class BatchLoader:
     
