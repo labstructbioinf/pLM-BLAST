@@ -7,7 +7,6 @@ import concurrent
 import datetime
 from typing import List, Dict
 
-
 import torch
 import mkl
 import numba
@@ -15,15 +14,12 @@ import pandas as pd
 from torch.nn.functional import avg_pool1d
 from tqdm import tqdm
 
-
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from alntools.parser import get_parser
 from embedders.base import read_input_file
 import alntools.density as ds
 import alntools as aln
 
-
-### FUNCTIONS and helper data
 
 # ANSI escape sequences for colors
 colors = {
@@ -39,7 +35,10 @@ colors = {
 	}
 
 
-def check_cohesion(sequences: List[str], filedict: dict, embeddings: list[torch.FloatTensor], truncate: int = 1000):
+def check_cohesion(sequences: List[str],
+				   filedict: dict,
+				   embeddings: List[torch.FloatTensor],
+				   truncate: int = 1000):
 	'''
 	check for missmatch between sequences and their embeddings
 	'''
@@ -56,7 +55,7 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 	'''
 	apply pre-screening
 	Returns:
-	 filedict: (dict) each key is query_id, and values are embeddings above threshold
+		(dict) each key is query_id, and values are embeddings above threshold
 	'''
 	assert len(query_embs) > 0
 	# set torch num CPU limit
@@ -76,7 +75,7 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 			# TODO make avg_pool1d parallel
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze().float() for emb in query_embs]
 			# loop over all query embeddings
-			for i, emb in tqdm(enumerate(query_emb_chunkcs), total=num_queries):
+			for i, emb in tqdm(enumerate(query_emb_chunkcs), total=num_queries, desc='screening seqences'):
 				filedict = ds.local.chunk_cosine_similarity(
 					query=emb,
 					targets=embedding_list,
@@ -125,28 +124,29 @@ if __name__ == "__main__":
 	# Load query
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
+	# read sequence file
 	query_index = aln.filehandle.find_file_extention(args.query)
-	query_embs = args.query + '.pt'
 	query_df = read_input_file(query_index)
+	if os.path.isfile(args.query + '.pt'):
+		query_embs: List[torch.Tensor] = torch.load(args.query + '.pt')
+	elif os.path.isdir(args.query):
+		query_embs_files = filelist = [os.path.join(args.query, f'{f}.emb') for f in range(0, query_df.shape[0])]
+		query_embs: List[torch.Tensor] = ds.load_full_embeddings(query_embs_files, poolfactor=1)
+	else:
+		raise FileNotFoundError(f'''
+						  query embedding file or directory not found in given location: {args.query}
+						  please make sure that query is appropriate directory with embeddings or file
+						  with .pt extension
+						  ''')
 	# add id column
 	if 'id' not in query_df.columns:
 		query_df['id'] = list(range(0, query_df.shape[0]))
 	else:
-		if not query_df['id'].is_unique:
-			raise KeyError('input query `id` column is not unique, please remove this column or set its unique')
+		query_df['id_tmp'] = query_df['id'].copy()
+		query_df['id'] = list(range(0, query_df.shape[0]))
 	query_ids = query_df['id'].tolist()
 	query_seqs = query_df['sequence'].tolist()
-	# read embeddings
-	query_embs: List[torch.Tensor] = torch.load(query_embs)
-	query_embs = [emb.float() for emb in query_embs]
-	'''
-	query_embs_pool = [
-		tensor_transform(
-			avg_pool1d(tensor_transform(emb).unsqueeze(0), EMB_POOL)
-			).squeeze() for emb in query_embs
-		]
-	'''
-	query_embs_pool = [emb.numpy() for emb in query_embs]
+	query_embs_pool = [emb.float().numpy() for emb in query_embs]
 
 	if query_df.shape[0] != len(query_embs):
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
@@ -155,7 +155,6 @@ if __name__ == "__main__":
 			raise ValueError(f'''
 					The length of the embedding and the query sequence are different:
 					 query index {q_number} {len(qs)} != {len(qe)}''')
-
 	##########################################################################
 	# 								filtering								 #
 	##########################################################################
@@ -171,15 +170,14 @@ if __name__ == "__main__":
 	if len(query_filedict) == 0:
 		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
 		sys.exit(0)
-
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
-	result_stack = list()
+	result_stack: List[pd.DataFrame] = list()
 	# limit threads for concurrent
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
-	for query_index, embedding_index, embedding_list in tqdm(batch_loader):
+	for query_index, embedding_index, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
 		iter_id = 0
 		query_emb = query_embs_pool[query_index]
 		job_stack = {}
@@ -218,7 +216,7 @@ if __name__ == "__main__":
 		query_result['id'] = qid
 		results.append(query_result)
 	results = pd.concat(results)
-	
+
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('id'):

@@ -170,7 +170,7 @@ def batch_chunk_cosine_similarity(x: torch.Tensor, B: torch.Tensor, poolfactor: 
 
 
 def load_full_embeddings(filelist : List[os.PathLike],
-							poolfactor:  Union[int, None] = None) -> List[torch.FloatTensor]:
+							poolfactor:  Union[int, None] = None) -> List[torch.Tensor]:
 	
 	'''
 	read per residue embeddings

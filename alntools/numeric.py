@@ -7,7 +7,7 @@ import numba
 from numba import types
 
 
-@numba.jit(nopython=True, fastmath=True, cache=True)
+@numba.njit(fastmath=True, cache=True)
 def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int):
 	'''
@@ -15,13 +15,13 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 	value is calculated over other dimension
 	and vice versa
 	Args:
-		arr: (np.ndarray)
-		ystart: (int)
-		ystop: (int)
-		xstart: (int)
-		xstop: (int)
+		arr (np.ndarray):
+		ystart (int):
+		ystop (int):
+		xstart (int):
+		xstop (int):
 	Returns:
-		max_value: (float)
+		float:
 	'''
 	if xstart == xstop:
 		# iterate over array slice
@@ -37,8 +37,7 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 	return max_value
 
 
-@numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True,
-		   fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
 def fill_matrix_local(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix
@@ -66,8 +65,7 @@ def fill_matrix_local(a: np.ndarray, gap_penalty: float):
 	return H
 
 
-@numba.jit('f4[:,:](f4[:,:], f4)', nogil=True, nopython=True,
-		   fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
 def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix in Needleman-Wunch procedure - global alignment
@@ -122,8 +120,7 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 	return score_matrix
 
 
-@numba.jit('f4[:](f4[:], i4)', nogil=True, nopython=True,
-		fastmath=True, cache=True)
+@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=True, cache=True)
 def move_mean(a: np.ndarray, window_width: int):
 	'''
 	Moving average
@@ -165,7 +162,7 @@ def move_mean(a: np.ndarray, window_width: int):
 	return out
 
 
-@numba.jit('types.Tuple((f4, i4))(f4, f4, f4)', nopython=True, cache=True)
+@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', cache=True)
 def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 	'''
 	return value and index of biggest values
@@ -181,18 +178,17 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 
 @numba.jit(fastmath=True, cache=True)
 def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
-							gap_opening: float = 0, gap_extension: float = 0,
-							stop_value: float = 1e-3) -> np.ndarray:
+							gap_opening: float = 0, stop_value: float = 1e-3) -> np.ndarray:
 	'''
 	find optimal route over single path
 	Args:
-		scoremx: (np.ndarray 2D)
-		point: (tuple) y, x coordinates
-		gap_penalty: (float) gap opening penalty
-		gap_extension: (int) 1 or 2
-		stop_value: (float) end of route criteria
+		scoremx (np.ndarray 2D):
+		point (tuple): y, x coordinates
+		gap_penalty (float): gap opening penalty
+		gap_extension (int): 1 or 2
+		stop_value (float): end of route criteria
 	Returns:
-		path (np.ndarray 2D) coordinates of path
+		ndarray coordinates of path
 	'''
 	f_right: float = 0.0
 	f_left: float = 0.0
@@ -206,9 +202,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	yi: int = point[0]
 	xi: int = point[1]
 	assert y_size > yi
-	# f'y size of scorematrix ({y_size}) is lower then point ({yi})'
 	assert x_size > xi
-	# f'x size of scorematrix ({x_size}) is lower then point ({xi})'
 	# set starting position
 	position: int = 1
 	# maximum size of path
@@ -260,7 +254,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	return path_arr
 
 
-@numba.jit(nopython=True, cache=True)
+@numba.njit(cache=True)
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
 						mthreshold: float = 0.10) -> List[Tuple[int, int]]:
 	'''
@@ -299,8 +293,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
 	return spans
 
 
-@numba.jit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, nopython=True,
-		   fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=True, cache=True)
 def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	'''
 	compute X, Y similarity by matrix multiplication

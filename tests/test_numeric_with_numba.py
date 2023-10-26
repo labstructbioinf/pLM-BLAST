@@ -84,14 +84,19 @@ def test_fill_score_matrix():
 	#assert not (score_matrix == score_matrix_with_penalty).all(), 'penalty score dont affect score_matrix'
 
 
-
-@pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+@pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(8,8), (15, 10), (11, 25), (25, 20), (30, 50), (100, 50)]])
 @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
 @pytest.mark.parametrize("factor", [1, 2, 3])
 def test_borderline_extraction(arr, cutoff, factor):
 	borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
 	if factor == 1:
-		assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+		# small score matrix case
+		if cutoff >= arr.shape[0] or cutoff >= arr.shape[1]:
+			arr_shape0 = arr.shape[0] if cutoff >= arr.shape[0] else arr.shape[0] - cutoff
+			arr_shape1 = arr.shape[1] if cutoff >= arr.shape[1] else arr.shape[1] - cutoff
+			assert (arr_shape0 + arr_shape1 - 1) == borders.shape[0], 'border size mismatch'
+		else:
+			assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
 		# diagonal location should be always here
 		bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
 		assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
