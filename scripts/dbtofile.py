@@ -1,12 +1,27 @@
 import os
 import sys
+import argparse
+
 import torch
 import pandas as pd
 from tqdm import tqdm
 from glob import glob
 
+
+def get_parser() -> argparse.Namespace:
+    
+    parser = argparse.ArgumentParser('''
+                                     create chunk cosine similarity embeddings with reducted size for faster screening.
+                                     Script will create .emb64 file within input directory''')
+    parser.add_argument('inputdir', help='directory with embeddings')
+    args = parser.parse_args()
+    return args
+
 # Directory with embeddings stored as separate files
-dbpath = sys.argv[1]
+dbpath = get_parser().inputdir
+if not os.path.isdir(dbpath):
+    raise NotADirectoryError(f'given path is not a directory: {dbpath}')
+
 
 # Adjustable (see publication for details)
 factor = 64

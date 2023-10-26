@@ -2,7 +2,7 @@
 set -e
 export MKL_DYNAMIC=FALSE
 
-case='cupredoxin' # single-query example
+#case='cupredoxin' # single-query example
 case='rossmanns' # multi-query example
 
 # data paths

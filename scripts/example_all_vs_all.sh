@@ -3,9 +3,9 @@ set -e
 export MKL_DYNAMIC=FALSE
 
 
-OUTFILE="allvsall.hits.csv"
+OUTFILE="output/allvsall.hits.csv"
 # Replace with a path to the database
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_mini"
 
 NUM_WORKERS=6
 # Return hits with scores >=0.3
