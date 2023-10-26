@@ -343,7 +343,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		if cname not in df.columns:
 			raise KeyError(f'no column: {cname} available in file: {file}, columns: {df.columns}')
 		else:
-			print(f'using column: {cname}')
+			print(f'using column: {cname} from file: {file} as source of sequences')
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)

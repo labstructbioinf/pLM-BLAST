@@ -76,7 +76,7 @@ class BatchLoader:
         assert batch_size > 0
         assert isinstance(mode, str)
         assert mode in {"emb", "file"}
-
+        
         self.mode = mode
         self.query_ids = query_ids
         self.query_seqs = query_seqs

@@ -116,7 +116,7 @@ def draw_alignment(coords: List[Tuple[int, int]], seq1: str, seq2: str, output: 
 		return html_string
 
 
-def get_borderline(a: np.array, cutoff: int = 10) -> np.ndarray:
+def get_borderline(a: np.array, cutoff_h: int = 10, cutoff_w: int = 10) -> np.ndarray:
 	'''
 	extract all possible border indices (down, right) for given 2D matrix
 	for example: \n
@@ -129,25 +129,26 @@ def get_borderline(a: np.array, cutoff: int = 10) -> np.ndarray:
 	\n
 	result will contain indices of `X` values starting from upper right to lower left
 	Args:
-		a: (np.ndarray)
-		cutoff: (int) control how far stay from edges - the nearer the edge the shorter diagonal
+		a (np.ndarray):
+		cutoff_h (int): control how far stay from edges - the nearer the edge the shorter diagonal for first dimension
+		cutoff_w (int): control how far stay from edges - the nearer the edge the shorter diagonal for second dimension
 	Returns:
-		boderline: (np.ndarray) [len, 2]
+		np.ndarray: border coordinates with shape of [len, 2] 
 	'''
 	# width aka bottom
 	height, width = a.shape
 	height -= 1; width -= 1
 	# clip values		
 
-	if height < cutoff:
+	if height < cutoff_h:
 		hstart = 0
 	else:
-		hstart = cutoff
+		hstart = cutoff_h
 
-	if width < cutoff:
+	if width < cutoff_w:
 		bstart = 0
 	else:
-		bstart = cutoff
+		bstart = cutoff_w
 	# arange with add syntetic dimension
 	# height + 1 is here for diagonal
 	hindices = np.arange(hstart, height+1)[:, None]
@@ -169,21 +170,28 @@ def get_borderline(a: np.array, cutoff: int = 10) -> np.ndarray:
 def border_argmaxpool(array: np.ndarray,
 					cutoff: int = 10,
 					factor: int = 2) -> np.ndarray:
-	'''
-	get border indices of an array satysfing
+	"""
+	Get border indices of an array satysfing cutoff and factor conditions.
+
 	Args:
-		array: (np.ndarray)
-		cutoff: (int)
-		factor: (int)
+		array (np.ndarray): embedding-based scoring matrix.
+		cutoff (int): parameter to control border cutoff.
+		factor (int): stride-like control of indices returned similar to path[::factor].
+
 	Returns:
-		borderindices: (np.ndarray)
-	'''
-	assert factor > 0
+		(np.ndarray) path indices
+
+	"""
+	assert factor >= 1
 	assert cutoff >= 0
 	assert isinstance(factor, int)
-	assert cutoff*2 < (array.shape[0] + array.shape[1]), 'cutoff exeed array size'
-
-	boderindices = get_borderline(array, cutoff=cutoff)
+	assert isinstance(cutoff, int)
+	assert array.ndim == 2
+	# case when short embeddings are given
+	cutoff_h = cutoff if cutoff < array.shape[0] else 0
+	cutoffh_w = cutoff if cutoff < array.shape[1] else 0
+		
+	boderindices = get_borderline(array, cutoff_h=cutoff_h, cutoff_w=cutoffh_w)
 	if factor > 1:
 		y, x = boderindices[:, 0], boderindices[:, 1]
 		bordevals = array[y, x]
@@ -251,13 +259,13 @@ def gather_all_paths(array: np.ndarray,
 	calculate scoring matrix from input substitution matrix `array`
 	find all Smith-Waterman-like paths from bottom and right edges of scoring matrix
 	Args:
-		array: (np.ndarray) raw subtitution matrix aka densitymap
-		norm_rows: (bool, str) whether to normalize array per row or per array
-		bfactor: (int) use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
-		with_scores: (bool) if True return score matrix
+		array (np.ndarray): raw subtitution matrix aka densitymap
+		norm_rows (bool, str): whether to normalize array per row or per array
+		bfactor (int): use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
+		with_scores (bool): if True return score matrix
 	Returns:
-		paths: (list) list of all valid paths through scoring matrix
-		score_matrix: (np.ndarray) scoring matrix used
+		list: list of all valid paths through scoring matrix
+		np.ndarray: scoring matrix used
 	'''
 	
 	if not isinstance(array, np.ndarray):
