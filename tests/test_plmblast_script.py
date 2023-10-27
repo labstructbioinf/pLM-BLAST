@@ -45,7 +45,7 @@ def remove_outputs():
 @pytest.mark.dependency()
 def test_make_db_emb():
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start', PLMBLAST_DB_CSV, PLMBLAST_DB,
-						'-embedder', 'pt', '-cname', 'sequence', '--gpu', '-bs', '0', '--asdir'],
+						'-embedder', 'pt', '-cname', 'sequence', '--gpu', '-bs', '1', '--asdir'],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
 	assert proc.returncode == 0, proc.stderr
@@ -63,7 +63,7 @@ def test_make_single_emb():
 	# Generate emb for single query
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
 						INPUT_FASTA_SINGLE, INPUT_EMB_SINGLE,
-						"-embedder", "pt", "-cname", "sequence", "--gpu"],
+						"-embedder", "pt", "--gpu"],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
 	assert proc.returncode == 0, proc.stderr
@@ -120,7 +120,7 @@ def test_make_multi_embs():
 	# Generate embs for multi query
 	proc = subprocess.run(["python", EMB_SCRIPT, 
 						INPUT_FASTA_MULTI, INPUT_EMB_MULTI,
-						"-embedder", "pt", "-cname", "sequence", "--gpu"],
+						"-embedder", "pt", "--gpu"],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)
 	assert proc.returncode == 0, proc.stderr
