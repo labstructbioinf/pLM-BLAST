@@ -1,4 +1,4 @@
-# Analysis of Nostoc punctiforme PCC 73102 Bacterial Proteome Using Homology Search Program
+# Analysis of Nostoc punctiforme PCC 73102 Bacterial Proteome Using pLM-BLAST
 
 ## Introduction
 In this report, we describe the analysis of the proteome of the bacterium Nostoc punctiforme PCC 73102 using the pLM-BLAST. We utilize a tool that allows us to identify protein homologs in the sequences of this bacterium.
