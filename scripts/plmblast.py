@@ -58,6 +58,7 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 		(dict) each key is query_id, and values are embeddings above threshold
 	'''
 	assert len(query_embs) > 0
+	assert isinstance(query_embs, list)
 	# set torch num CPU limit
 	torch.set_num_threads(args.MAX_WORKERS)
 	num_queries = len(query_embs)
@@ -73,7 +74,10 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 			dbsize = db_df.shape[0]
 			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]
 			# TODO make avg_pool1d parallel
-			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze().float() for emb in query_embs]
+			# conver to float 
+			query_emb_chunkcs = [emb.float() for emb in query_embs]
+			# pool
+			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
 			# loop over all query embeddings
 			for i, emb in tqdm(enumerate(query_emb_chunkcs), total=num_queries, desc='screening seqences'):
 				filedict = ds.local.chunk_cosine_similarity(
