@@ -16,21 +16,21 @@ For the analysis of the proteome of Nostoc punctiforme PCC 73102, we collected a
 3. To streamline the analysis process, we've broken down the file into smaller segments, with each segment containing 1000 sequences. You'll find a script named "split_fasta.py" in the scripts folder, which can be employed for this task. (It's possible to conduct the analysis without splitting the files, but please bear in mind that longer sequences will demand more GPU memory. For graphics cards with 11 GB capacity, the maximum sequence length is approximately 3,500 amino acids. Consequently, sequences that exceed this length should be processed using the CPU.)
 
     ```console
-    foo@bar:pLM-BLAST$ python examples/scripts/split_fasta.py examples/data/input/protein.fas protein_split -cs 1000 -ml 3500
+    python examples/scripts/split_fasta.py examples/data/input/protein.fas protein_split -cs 1000 -ml 3500
     ```
 4. The fasta files will be used to calculate embeddings. To do this, you should utilize the 'embeddings.py' script.
     ```console
-    foo@bar:pLM-BLAST$ python embeddings.py start examples/data/input/protein_split_1.fas -embedder pt --gpu -bs 1 -t 6000
+    python embeddings.py start examples/data/input/protein_split_1.fas -embedder pt --gpu -bs 1 -t 6000
     ```
     The utilized flags are as follows:
-    * -embedder -> This flag specifies which model to use for creation
-    * --gpu -> With this flag, computations will be performed on the graphics card.
-    * -bs -> The number of sequences analyzed in each batch (a higher number speeds up the analysis but increases RAM usage).
-    * -t -> This value determines the maximum embedding size. In our analysis, we should set a value greater than the longest sequence.
+    * `-embedder` -> This flag specifies which model to use for creation
+    * `--gpu` -> With this flag, computations will be performed on the graphics card.
+    * `-bs` -> The number of sequences analyzed in each batch (a higher number speeds up the analysis but increases RAM usage).
+    * `-t` -> This value determines the maximum embedding size. In our analysis, we should set a value greater than the longest sequence.
     
     For more useful flags, type:
     ```console
-    foo@bar:pLM-BLAST$ python embeddings.py start -h
+    python embeddings.py start -h
     ```
 
 ## Analysis
@@ -38,17 +38,17 @@ The data prepared in this manner will be used to search a database for homologou
 
 Usage:
 ```console
-foo@bar:pLM-BLAST$ python scripts/plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cosine_percentile_cutoff 90 -alignment_cutoff 0.25 -sigma_factor 2 --use_chunks
+python scripts/plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cosine_percentile_cutoff 90 -alignment_cutoff 0.25 -sigma_factor 2 --use_chunks
 ```
 The utilized flags are as follows:
-* -cosine_percentile_cutoff -> Percentile cutoff for chunk cosine similarity pre-screening. The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST'
-* -alignment_cutoff -> pLM-BLAST alignment score cut-off
-* -sigma_factor -> The Sigma factor defines the greediness of the local alignment search procedure
-* --use_chunks -> Use fast chunk cosine similarity screening instead of regular cosine similarity screening
+* `-cosine_percentile_cutoff` -> Percentile cutoff for chunk cosine similarity pre-screening. The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST'
+* `-alignment_cutoff` -> pLM-BLAST alignment score cut-off
+* `-sigma_factor` -> The Sigma factor defines the greediness of the local alignment search procedure
+* `--use_chunks` -> Use fast chunk cosine similarity screening instead of regular cosine similarity screening
 
 For more useful flags, type:
 ```console
-    foo@bar:pLM-BLAST$ python scripts/plmblast.py -h
+python scripts/plmblast.py -h
 ```
 
 ## Results
