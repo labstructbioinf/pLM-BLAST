@@ -87,7 +87,7 @@ def filter_result_dataframe(data: pd.DataFrame,
 	'''
 	keep spans with biggest score and len
 	Args:
-		data: (pd.DataFrame)
+		data (pd.DataFrame): columns required (dbid)
 	Returns:
 		filtred frame sorted by score
 	'''
@@ -108,7 +108,7 @@ def filter_result_dataframe(data: pd.DataFrame,
 	resultsflt = pd.concat(resultsflt)
 	# drop duplicates sometimes
 	resultsflt = resultsflt.drop_duplicates(
-		subset=['pathid', 'i', 'len', 'score'])
+		subset=['pathid', 'dbid', 'len', 'score'])
 	# filter
 	resultsflt = resultsflt.sort_values(by=['score'], ascending=False)
 	return resultsflt

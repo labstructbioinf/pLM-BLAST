@@ -45,7 +45,7 @@ def get_parser() -> argparse.Namespace:
 	
 	# plmblast
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
-						type=range01, default=0.3, dest='ALN_CUT')						
+						type=range01, default=0.3)						
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
 						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
@@ -54,13 +54,15 @@ def get_parser() -> argparse.Namespace:
                     	default=False, action='store_true')
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
 						type=float, default=0, dest='GAP_EXT')
+	parser.add_argument('-bfactor', default=1, type=int, help= \
+					 'increasing this value above 1 will reduce number of alignments that are very close to each other also increase search speed')
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
 						type=int, default=10, dest='MAX_WORKERS')
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure (default: %(default)s)',
 						type=float, default=2, dest='SIGMA_FACTOR')	
-
+	
 	args = parser.parse_args()
 	
 	# validate provided parameters

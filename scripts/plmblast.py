@@ -110,12 +110,13 @@ if __name__ == "__main__":
 	time_start = datetime.datetime.now()
 
 	args = get_parser()
-	module = aln.base.Extractor()
-	module.FILTER_RESULTS = True
-	module.WINDOW_SIZE = args.WINDOW_SIZE
+	module = aln.base.Extractor(min_spanlen=args.WINDOW_SIZE,
+							 window_size=args.WINDOW_SIZE,
+							 sigma_factor=args.SIGMA_FACTOR,
+							 filter_results=True,
+							 bfactor='global' if args.global_aln else args.bfactor)
 	module.GAP_EXT = args.GAP_EXT
-	module.SIGMA_FACTOR = args.SIGMA_FACTOR
-	module.BFACTOR = 'global' if args.global_aln else 1
+	module.sigma_factor = args.SIGMA_FACTOR
 	if args.verbose:
 		print('%s alignment mode' % 'global' if args.global_aln else 'local')
 	
@@ -164,7 +165,8 @@ if __name__ == "__main__":
 	# 								filtering								 #
 	##########################################################################
 	# TODO optimize this choice
-	batch_size = 20*args.MAX_WORKERS
+	jobs_per_process = 20
+	batch_size = jobs_per_process*args.MAX_WORKERS
 	query_filedict = filtering_db(args, query_embs)
 	batch_loader = aln.filehandle.BatchLoader(query_ids=query_ids,
 										    query_seqs=query_seqs,
@@ -185,13 +187,15 @@ if __name__ == "__main__":
 	for query_index, embedding_index, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
 		iter_id = 0
 		query_emb = query_embs_pool[query_index]
-		job_stack = {}
+		job_stack = dict()
+		# submit jobs
 		with concurrent.futures.ProcessPoolExecutor(max_workers = args.MAX_WORKERS) as executor:
 			for (idx, emb) in zip(embedding_index, embedding_list):
 				job = executor.submit(module.full_compare, query_emb, emb, idx)
 				job_stack[job] = iter_id
 				iter_id += 1
 			time.sleep(0.1)
+			# collect jobs
 			for job in concurrent.futures.as_completed(job_stack):
 				try:
 					res = job.result()
@@ -216,24 +220,17 @@ if __name__ == "__main__":
 		
 	# run postprocessing
 	results = list()
-	result_df = result_df.merge(query_df, on='queryid', how='left')
+	result_df = result_df.merge(query_df[['queryid', 'id', 'sequence']], on='queryid', how='left')
 	for qid, rows in result_df.groupby('queryid'):
-		query_result['queryid'] = qid
-		query_result = aln.postprocess.prepare_output(args, rows, qid, query_seqs[qid], dbdf)
-		
+		query_result = aln.postprocess.prepare_output(rows, dbdf, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)
 	results = pd.concat(results)
-	# add input query columns to results
-	results = results.merge(query_df, on='queryid', how='left')
-
 	# save results in desired mode
 	if args.separate:
-		for qid, row in results.groupby('queryid'):
+		for qid, row in results.groupby('qid'):
 			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';')
 	else:
 		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
-		# drop queryid column
-		results.drop(columns=['queryid'], inplace=True)
 		results.to_csv(output_name, sep=';')
 
 	time_end = datetime.datetime.now()
