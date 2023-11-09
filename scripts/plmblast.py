@@ -54,6 +54,7 @@ def check_cohesion(sequences: List[str],
 def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Dict[int, List[str]]:
 	'''
 	apply pre-screening
+
 	Returns:
 		(dict) each key is query_id, and values are embeddings above threshold
 	'''
@@ -71,10 +72,10 @@ def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Di
 			if not os.path.isfile(dbfile):
 				raise FileNotFoundError('missing pooled embedding file emb.64')
 			embedding_list: List[torch.Tensor] = torch.load(dbfile)
-			dbsize = db_df.shape[0]
+			dbsize = dbdf.shape[0]
 			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]
 			# TODO make avg_pool1d parallel
-			# conver to float 
+			# convert to float 
 			query_emb_chunkcs = [emb.float() for emb in query_embs]
 			# pool
 			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
@@ -122,8 +123,8 @@ if __name__ == "__main__":
 	db_index = aln.filehandle.find_file_extention(args.db)
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
-	db_df = read_input_file(db_index)
-	db_df.set_index(db_df.columns[0], inplace=True)
+	dbdf = read_input_file(db_index)
+	dbdf['dbid'] = list(range(dbdf.shape[0]))
 
 	# Load query
 	if args.verbose:
@@ -142,13 +143,13 @@ if __name__ == "__main__":
 						  please make sure that query is appropriate directory with embeddings or file
 						  with .pt extension
 						  ''')
-	# add id column
+	# add id column if not present already
+	# id is user based id column (typically string) to identify query
+	# queryid is integer to identify search results
 	if 'id' not in query_df.columns:
-		query_df['id'] = list(range(0, query_df.shape[0]))
-	else:
-		query_df['id_tmp'] = query_df['id'].copy()
-		query_df['id'] = list(range(0, query_df.shape[0]))
-	query_ids = query_df['id'].tolist()
+		query_df['id'] = list(range(query_df.shape[0]))
+	query_df['queryid'] = list(range(0, query_df.shape[0]))
+	query_ids = query_df['queryid'].tolist()
 	query_seqs = query_df['sequence'].tolist()
 	query_embs_pool = [emb.float().numpy() for emb in query_embs]
 
@@ -162,9 +163,8 @@ if __name__ == "__main__":
 	##########################################################################
 	# 								filtering								 #
 	##########################################################################
-	batch_size = 20*args.MAX_WORKERS
 	# TODO optimize this choice
-	batch_size = min(300, batch_size)
+	batch_size = 20*args.MAX_WORKERS
 	query_filedict = filtering_db(args, query_embs)
 	batch_loader = aln.filehandle.BatchLoader(query_ids=query_ids,
 										    query_seqs=query_seqs,
@@ -178,6 +178,7 @@ if __name__ == "__main__":
 	# 								plm-blast								 #
 	##########################################################################
 	result_stack: List[pd.DataFrame] = list()
+	# TODO wrapp this into context manager
 	# limit threads for concurrent
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
@@ -194,9 +195,9 @@ if __name__ == "__main__":
 			for job in concurrent.futures.as_completed(job_stack):
 				try:
 					res = job.result()
-					if len(res) > 0:
+					if res is not None:
 						# add identifiers
-						res['id'] = query_index
+						res['queryid'] = query_index
 						result_stack.append(res)
 				except Exception as e:
 					raise AssertionError('job not done', e)	
@@ -215,18 +216,24 @@ if __name__ == "__main__":
 		
 	# run postprocessing
 	results = list()
-	for qid, rows in result_df.groupby('id'):
-		query_result = aln.postprocess.prepare_output(args, rows, qid, query_seqs[qid], db_df)
-		query_result['id'] = qid
+	result_df = result_df.merge(query_df, on='queryid', how='left')
+	for qid, rows in result_df.groupby('queryid'):
+		query_result['queryid'] = qid
+		query_result = aln.postprocess.prepare_output(args, rows, qid, query_seqs[qid], dbdf)
+		
 		results.append(query_result)
 	results = pd.concat(results)
+	# add input query columns to results
+	results = results.merge(query_df, on='queryid', how='left')
 
 	# save results in desired mode
 	if args.separate:
-		for qid, row in results.groupby('id'):
+		for qid, row in results.groupby('queryid'):
 			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';')
 	else:
 		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
+		# drop queryid column
+		results.drop(columns=['queryid'], inplace=True)
 		results.to_csv(output_name, sep=';')
 
 	time_end = datetime.datetime.now()
