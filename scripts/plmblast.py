@@ -116,7 +116,6 @@ if __name__ == "__main__":
 							 filter_results=True,
 							 bfactor='global' if args.global_aln else args.bfactor)
 	module.GAP_EXT = args.GAP_EXT
-	module.sigma_factor = args.SIGMA_FACTOR
 	if args.verbose:
 		print('%s alignment mode' % 'global' if args.global_aln else 'local')
 	
@@ -124,15 +123,13 @@ if __name__ == "__main__":
 	db_index = aln.filehandle.find_file_extention(args.db)
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
-	dbdf = read_input_file(db_index)
-	dbdf['dbid'] = list(range(dbdf.shape[0]))
-
+	dbdf = read_input_file(db_index, plmblastid='dbid')
 	# Load query
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
 	# read sequence file
 	query_index = aln.filehandle.find_file_extention(args.query)
-	query_df = read_input_file(query_index)
+	query_df = read_input_file(query_index, plmblastid='queryid')
 	if os.path.isfile(args.query + '.pt'):
 		query_embs: List[torch.Tensor] = torch.load(args.query + '.pt')
 	elif os.path.isdir(args.query):
@@ -147,9 +144,6 @@ if __name__ == "__main__":
 	# add id column if not present already
 	# id is user based id column (typically string) to identify query
 	# queryid is integer to identify search results
-	if 'id' not in query_df.columns:
-		query_df['id'] = list(range(query_df.shape[0]))
-	query_df['queryid'] = list(range(0, query_df.shape[0]))
 	query_ids = query_df['queryid'].tolist()
 	query_seqs = query_df['sequence'].tolist()
 	query_embs_pool = [emb.float().numpy() for emb in query_embs]
@@ -204,7 +198,7 @@ if __name__ == "__main__":
 						res['queryid'] = query_index
 						result_stack.append(res)
 				except Exception as e:
-					raise AssertionError('job not done', e)	
+					raise AssertionError('job error:', e)	
 		gc.collect()
 
 	if len(result_stack) > 0: 
@@ -224,7 +218,7 @@ if __name__ == "__main__":
 	for qid, rows in result_df.groupby('queryid'):
 		query_result = aln.postprocess.prepare_output(rows, dbdf, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)
-	results = pd.concat(results)
+	results = pd.concat(results, axis=0)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):
@@ -234,4 +228,5 @@ if __name__ == "__main__":
 		results.to_csv(output_name, sep=';')
 
 	time_end = datetime.datetime.now()
+	print('total hits: ', results.shape[0])
 	print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
