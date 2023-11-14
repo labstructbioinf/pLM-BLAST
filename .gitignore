@@ -18,6 +18,9 @@ __pycache__/
 **.logs
 **.log
 
+#temp notebook
+tmp.ipynb
+
 # exceptions for tests
 !tests/test_data/*.pt
 !tests/test_data/*.fas
@@ -38,6 +41,8 @@ profile*.txt
 
 # script results
 scripts/output
+# example results
+examples/output
 
 # results cache
 results.*

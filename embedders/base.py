@@ -1,7 +1,7 @@
 import os
 import sys
 import argparse
-from typing import List, Union, Iterable, Tuple
+from typing import List, Union, Iterable, Tuple, Optional
 
 import numpy as np
 from Bio import SeqIO
@@ -143,6 +143,12 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 				raise argparse.ArgumentError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
+	if args.nproc > 1:
+		if not args.asdir and not args.h5py:
+			raise argparse.ArgumentError('''
+								multiprocessing is only available with --asdir or --h5py flag
+								''')
+
 	print('embedder: ', args.embedder, 'on ', 'GPU' if args.gpu else 'CPU')
 	print('input file: ', args.input)
 	print('output: ', args.output)
@@ -318,9 +324,15 @@ def select_device(args: argparse.Namespace) -> torch.device:
 		device = torch.device('cpu')
 	return device
 
-def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
+def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str] = None) -> pd.DataFrame:
 	'''
 	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
+	Args:
+		file (str): path to file
+		cname (str): optional name of column with sequence string
+		plmblastid: (str, None) optional if for plmblast loop
+	Returns:
+		pd.DataFrame: columns: [queryid, id, sequence, description] if desription is not available they are filled
 	'''
 	# gather input file
 	if file.endswith('csv'):
@@ -332,8 +344,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
 		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
-		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
-		df.set_index('description', inplace=True)
+		df = pd.DataFrame(data, columns=['queryid', 'id', 'sequence'])
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
@@ -347,4 +358,14 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
+	# add missing columns
+	if 'description' not in df.columns:
+		df['description'] = ['na']*df.shape[0]
+	if 'id' not in df.columns:
+		df['id'] = list(range(df.shape[0]))
+	if plmblastid is not None:
+		assert plmblastid in ['queryid', 'dbid']
+		df[plmblastid] = list(range(df.shape[0]))
+	if 'queryid' not in df.columns:
+		df['queryid'] = list(range(df.shape[0]))
 	return df

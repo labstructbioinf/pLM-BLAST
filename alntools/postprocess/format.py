@@ -66,9 +66,12 @@ def prepare_output(resdf: pd.DataFrame,
         resdf (pd.DataFrame):
         db_df (pd.DataFrame):
         alignment_cutoff: Optional (float) if > 0 results are filtred with this threshold
-        verbose: (bool):
+        verbose: (bool): 
+    Returns:
+        pd.DataFrame
 
     '''
+    querydf = resdf.copy()
     if alignment_cutoff is None:
           alignment_cutoff = 0.0
 	# check columns
@@ -76,41 +79,44 @@ def prepare_output(resdf: pd.DataFrame,
         if col not in db_df.columns:
             raise KeyError(f'missing {col} column in input database frame')
     for col in COLUMNS_QUERY:
-        if col not in resdf.columns:
+        if col not in querydf.columns:
               raise KeyError(f'missing {col} in input results frame')
-    if len(resdf) == 0:
+    if len(querydf) == 0 and verbose:
         print('No hits found!')
     else:
-        resdf = resdf[resdf.score >= alignment_cutoff]
-        if len(resdf) == 0:
-            print(f'No matches found! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
+        querydf = querydf[querydf.score >= alignment_cutoff]
+        if len(querydf) == 0:
+            print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
+            return pd.DataFrame()
         else:
             # drop technical columns
-            resdf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
-            resdf.rename(columns={'id' : 'qid'}, inplace=True)
-            # TODO simplify below expressions 
+            querydf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
+            querydf.rename(columns={'id' : 'qid'}, inplace=True)
+            db_df_matches = db_df.iloc[querydf['dbid']].copy()
+            aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
+            assert db_df_matches.shape[0] == querydf.shape[0]
             # add database description
             if 'description' in db_df.columns:
-                resdf['sdesc'] = resdf['dbid'].apply(lambda i: db_df.iloc[i]['description'].replace(';', ' '))
+                querydf['sdesc'] = db_df_matches['description'].replace(';', ' ')
             else:
-                resdf['sdesc'] = resdf['dbid']
-            resdf['sid'] = resdf['dbid'].apply(lambda i: db_df.iloc[i]['id'])
-            resdf['tlen'] = resdf['dbid'].apply(lambda i: len(db_df.iloc[i]['sequence']))
-            resdf['qlen'] = resdf['sequence'].apply(len)
-            resdf['qstart'] = resdf['indices'].apply(lambda i: i[0][1])
-            resdf['qend'] = resdf['indices'].apply(lambda i: i[-1][1])
-            resdf['tstart'] = resdf['indices'].apply(lambda i: i[0][0])
-            resdf['tend'] = resdf['indices'].apply(lambda i: i[-1][0])
-            resdf['match_len'] = resdf['qend'] - resdf['qstart'] + 1
+                querydf['sdesc'] = querydf['dbid']
+            querydf['sid'] = db_df_matches['id'].values
+            querydf['tlen'] = db_df_matches['sequence'].apply(len)
+            querydf['qlen'] = querydf['sequence'].apply(len)
+            querydf['qstart'] =  [aln[0][1] for aln in aligmentlist]
+            querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
+            querydf['tstart'] = [aln[0][0] for aln in aligmentlist]
+            querydf['tend'] = [aln[-1][0] for aln in aligmentlist]
+            querydf['match_len'] = querydf['qend'].values - querydf['qstart'].values + 1
             # check if alignment is not exeeding sequence lenght
-            assert (resdf['qstart'] <= resdf['qlen']).all()
-            assert (resdf['qstart'] <= resdf['qlen']).all()
+            assert (querydf['qstart'] <= querydf['qlen']).all()
+            assert (querydf['qstart'] <= querydf['qlen']).all()
 
-            resdf.sort_values(by='score', ascending=False, inplace=True)
-            resdf.reset_index(inplace=True)
+            querydf.sort_values(by='score', ascending=False, inplace=True)
+            querydf.reset_index(inplace=True)
 
             alignment_descriptors = list()
-            for idx, row in resdf.iterrows():
+            for _, row in querydf.iterrows():
                 tmp_aln = draw_alignment(row.indices,
                                         db_df.iloc[row.dbid].sequence,
                                         row.sequence,
@@ -125,12 +131,10 @@ def prepare_output(resdf: pd.DataFrame,
                       }
                 alignment_descriptors.append(alignmnetdata)
             alignment_descriptors = pd.DataFrame(alignment_descriptors)
-            resdf = pd.concat((resdf, alignment_descriptors), axis=1)
-            
+            querydf = pd.concat((querydf, alignment_descriptors), axis=1)
             # drop parsed above columns
             if col in ['index', 'indices', 'i', 'dbid']:
-                  if col in resdf.columns:
-                        resdf.drop(columns=col, inplace=True)
-            resdf.index.name = 'index'
-            resdf = resdf[COLUMNS_TO_SAVE]
-    return resdf
+                  if col in querydf.columns:
+                        querydf.drop(columns=col, inplace=True)
+            querydf.index.name = 'index'
+    return querydf[COLUMNS_TO_SAVE]

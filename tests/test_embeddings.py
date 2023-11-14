@@ -211,26 +211,25 @@ def test_checkpointing(checkpoint_file: str):
 	assert expected_files == found_files, proc.stdout
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
-@pytest.mark.parametrize('embedder',['pt'])
-def test_parallelism(embedder):
+@pytest.mark.parametrize('savemode', ['--asdir', '--h5py', ''])
+def test_parallelism(savemode):
 	assert th.cuda.device_count() > 1, 'cannot run test'
 		
 	embdata = pd.read_pickle(EMBEDDING_DATA)
-	seqlist = embdata['seq'].tolist()
 	# cmd
-	proc = subprocess.run(["python", "embeddings.py", "start",
-	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", embedder,
-	  "-bs", "0", '-nproc', '2'],
-	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	cmd = f"python embeddings.py start {EMBEDDING_DATA} {EMBEDDING_OUTPUT} -bs 0 -nproc 2 {savemode}"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# chech process error code
-	assert proc.returncode == 0, proc.stderr
-	assert proc.stderr, proc.stderr
-	# check process output file/dir
-	assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
-	# check output consistency
-	embout = th.load(EMBEDDING_OUTPUT)
-	assert len(embout) == embdata.shape[0], proc.stderr
+	if savemode != "":
+		assert proc.returncode == 0, proc.stderr
+		assert proc.stderr, proc.stderr
+		# check process output file/dir
+		assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
+		# check output consistency
+		embout = th.load(EMBEDDING_OUTPUT)
+		assert len(embout) == embdata.shape[0], proc.stderr
+	else:
+		assert proc.returncode != 0 # savemode: file should raise an exception
 
 
 @pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])

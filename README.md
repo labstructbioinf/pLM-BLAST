@@ -8,6 +8,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
     + [Databases](#databases)
     + [Searching a database](#searching-a-database)
     + [Use in Python](#use-in-python)
+    + [Examples](examples/README.md)
 * [ Remarks ](#Remarks)
     + [How to cite](#how-to-cite)
     + [Funding](#funding)
@@ -195,3 +196,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 26/09/2023 improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance and `-res_per_batch` options have been added.
 * 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
 * 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.
+* 27/10/2023 added `examples` directory with end to end usages 

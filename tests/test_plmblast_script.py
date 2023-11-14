@@ -12,8 +12,9 @@ EMB_SCRIPT = os.path.join("embeddings.py")
 EMB64_SCRIPT = os.path.join("scripts/dbtofile.py")
 PLMBLAST_SCRIPT = os.path.join("scripts/plmblast.py")
 
-PLMBLAST_DB = os.path.join(DIR, 'test_data/database')
-PLMBLAST_DB_CSV = os.path.join(DIR, 'test_data/database.csv')
+# use static db location for speed
+PLMBLAST_DB = "/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
+PLMBLAST_DB_CSV = PLMBLAST_DB + ".csv"
 
 INPUT_FASTA_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.fas')
 INPUT_EMB_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.pt')
@@ -40,15 +41,6 @@ def remove_outputs():
 	clear_files(files)
 	if os.path.isdir(PLMBLAST_DB):
 		shutil.rmtree(PLMBLAST_DB)
-	
-
-@pytest.mark.dependency()
-def test_make_db_emb():
-	proc = subprocess.run(["python", EMB_SCRIPT, 'start', PLMBLAST_DB_CSV, PLMBLAST_DB,
-						'-embedder', 'pt', '-cname', 'sequence', '--gpu', '-bs', '1', '--asdir'],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
 
 
 @pytest.mark.dependency()
@@ -59,8 +51,10 @@ def test_make_db_emb64():
 	assert proc.returncode == 0, proc.stderr
 
 
+@pytest.mark.parametrize("infile", [INPUT_FASTA_SINGLE, INPUT_FASTA_MULTI])
+@pytest.mark.parametrize("outfile", [INPUT_EMB_SINGLE, INPUT_EMB_MULTI])
 def test_make_single_emb():
-	# Generate emb for single query
+	# Generate representations for further tests
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
 						INPUT_FASTA_SINGLE, INPUT_EMB_SINGLE,
 						"-embedder", "pt", "--gpu"],

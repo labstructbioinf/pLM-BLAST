@@ -11,7 +11,6 @@ import torch
 import mkl
 import numba
 import pandas as pd
-from torch.nn.functional import avg_pool1d
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -49,60 +48,6 @@ def check_cohesion(sequences: List[str],
 			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
 		else:
 			pass
-
-
-def filtering_db(args: argparse.Namespace, query_embs: List[torch.Tensor]) -> Dict[int, List[str]]:
-	'''
-	apply pre-screening
-
-	Returns:
-		(dict) each key is query_id, and values are embeddings above threshold
-	'''
-	assert len(query_embs) > 0
-	assert isinstance(query_embs, list)
-	# set torch num CPU limit
-	torch.set_num_threads(args.MAX_WORKERS)
-	num_queries = len(query_embs)
-	if args.COS_PER_CUT < 100:
-		query_filedict = dict()
-		if args.use_chunks:
-			if args.verbose:
-				print('Loading database for chunk cosine similarity screening...')
-			dbfile = os.path.join(args.db, 'emb.64')
-			if not os.path.isfile(dbfile):
-				raise FileNotFoundError('missing pooled embedding file emb.64')
-			embedding_list: List[torch.Tensor] = torch.load(dbfile)
-			dbsize = dbdf.shape[0]
-			filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]
-			# TODO make avg_pool1d parallel
-			# convert to float 
-			query_emb_chunkcs = [emb.float() for emb in query_embs]
-			# pool
-			query_emb_chunkcs = [avg_pool1d(emb.unsqueeze(0), 16).squeeze() for emb in query_embs]
-			# loop over all query embeddings
-			for i, emb in tqdm(enumerate(query_emb_chunkcs), total=num_queries, desc='screening seqences'):
-				filedict = ds.local.chunk_cosine_similarity(
-					query=emb,
-					targets=embedding_list,
-					quantile=args.COS_PER_CUT/100,
-					dataset_files=filelist,
-					stride=10)
-				query_filedict[i] = filedict
-		else:
-			if args.verbose:
-				print('Using regular cosine similarity screening...')
-			for i, emb in enumerate(query_embs):
-				filedict = ds.load_and_score_database(emb,
-														dbpath=args.db,
-														quantile=args.COS_PER_CUT/100,
-														num_workers=args.MAX_WORKERS)
-				filedict = {k: v.replace('.emb.sum', f'.emb{emb_type}') for k, v in filedict.items()}
-				query_filedict[i] = filedict
-	else:
-		filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]  # db_df is a database index
-		filedict = {k: v for k, v in zip(range(len(filelist)), filelist)}
-		query_filedict = {0: filedict}
-	return query_filedict
 
 
 if __name__ == "__main__":
@@ -161,7 +106,9 @@ if __name__ == "__main__":
 	# TODO optimize this choice
 	jobs_per_process = 20
 	batch_size = jobs_per_process*args.MAX_WORKERS
-	query_filedict = filtering_db(args, query_embs)
+	query_filedict = aln.prepare.apply_database_screening(args,
+													    query_embs=query_embs,
+														 dbsize=dbdf.shape[0])
 	batch_loader = aln.filehandle.BatchLoader(query_ids=query_ids,
 										    query_seqs=query_seqs,
 											filedict=query_filedict,
