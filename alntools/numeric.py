@@ -7,7 +7,10 @@ import numba
 from numba import types
 
 
-@numba.njit(fastmath=True, cache=True)
+fastmath=True
+cache=True
+
+@numba.njit(fastmath=fastmath, cache=cache)
 def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int):
 	'''
@@ -37,7 +40,7 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 	return max_value
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=fastmath, cache=cache)
 def fill_matrix_local(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix
@@ -65,7 +68,7 @@ def fill_matrix_local(a: np.ndarray, gap_penalty: float):
 	return H
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=fastmath, cache=cache)
 def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix in Needleman-Wunch procedure - global alignment
@@ -120,7 +123,7 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 	return score_matrix
 
 
-@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=True, cache=True)
+@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=fastmath, cache=cache)
 def move_mean(a: np.ndarray, window_width: int):
 	'''
 	Moving average
@@ -162,7 +165,7 @@ def move_mean(a: np.ndarray, window_width: int):
 	return out
 
 
-@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', cache=True)
+@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', fastmath=fastmath, cache=cache)
 def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 	'''
 	return value and index of biggest values
@@ -176,7 +179,7 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 		return y, 1
 
 
-@numba.jit(fastmath=True, cache=True)
+@numba.jit(fastmath=fastmath, cache=cache)
 def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 							gap_opening: float = 0, stop_value: float = 1e-3) -> np.ndarray:
 	'''
@@ -254,7 +257,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	return path_arr
 
 
-@numba.njit(cache=True)
+@numba.njit(fastmath=True, cache=True)
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
 						mthreshold: float = 0.10) -> List[Tuple[int, int]]:
 	'''
@@ -293,7 +296,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
 	return spans
 
 
-@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=fastmath, cache=cache)
 def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	'''
 	compute X, Y similarity by matrix multiplication

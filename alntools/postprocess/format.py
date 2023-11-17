@@ -56,7 +56,7 @@ def calc_identity(s1: List[str], s2: List[str]) -> float:
 	
 
 def prepare_output(resdf: pd.DataFrame,
-					db_df: pd.DataFrame,
+					dbdf: pd.DataFrame,
                     alignment_cutoff: Optional[float] = None,
                     verbose: bool = False) -> pd.DataFrame:
     '''
@@ -64,77 +64,78 @@ def prepare_output(resdf: pd.DataFrame,
     
     Args:
         resdf (pd.DataFrame):
-        db_df (pd.DataFrame):
+        dbdf (pd.DataFrame):
         alignment_cutoff: Optional (float) if > 0 results are filtred with this threshold
         verbose: (bool): 
     Returns:
         pd.DataFrame
-
     '''
-    querydf = resdf.copy()
+    querydf = resdf.reset_index()
     if alignment_cutoff is None:
           alignment_cutoff = 0.0
 	# check columns
     for col in COLUMNS_DB:
-        if col not in db_df.columns:
+        if col not in dbdf.columns:
             raise KeyError(f'missing {col} column in input database frame')
     for col in COLUMNS_QUERY:
         if col not in querydf.columns:
               raise KeyError(f'missing {col} in input results frame')
     if len(querydf) == 0 and verbose:
         print('No hits found!')
+        return pd.DataFrame()
     else:
-        querydf = querydf[querydf.score >= alignment_cutoff]
-        if len(querydf) == 0:
-            print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
-            return pd.DataFrame()
+        querydf = querydf[querydf.score >= alignment_cutoff].copy()
+    if len(querydf) == 0:
+        print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
+        return pd.DataFrame()
+    else:
+        # drop technical columns
+        querydf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
+        querydf.rename(columns={'id' : 'qid'}, inplace=True)
+        dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
+        aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
+        assert dbdf_matches.shape[0] == querydf.shape[0]
+        # add database description
+        if 'description' in dbdf.columns:
+            querydf['sdesc'] = dbdf_matches['description'].replace(';', ' ').tolist()
         else:
-            # drop technical columns
-            querydf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
-            querydf.rename(columns={'id' : 'qid'}, inplace=True)
-            db_df_matches = db_df.iloc[querydf['dbid']].copy()
-            aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
-            assert db_df_matches.shape[0] == querydf.shape[0]
-            # add database description
-            if 'description' in db_df.columns:
-                querydf['sdesc'] = db_df_matches['description'].replace(';', ' ')
-            else:
-                querydf['sdesc'] = querydf['dbid']
-            querydf['sid'] = db_df_matches['id'].values
-            querydf['tlen'] = db_df_matches['sequence'].apply(len)
-            querydf['qlen'] = querydf['sequence'].apply(len)
-            querydf['qstart'] =  [aln[0][1] for aln in aligmentlist]
-            querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
-            querydf['tstart'] = [aln[0][0] for aln in aligmentlist]
-            querydf['tend'] = [aln[-1][0] for aln in aligmentlist]
-            querydf['match_len'] = querydf['qend'].values - querydf['qstart'].values + 1
-            # check if alignment is not exeeding sequence lenght
-            assert (querydf['qstart'] <= querydf['qlen']).all()
-            assert (querydf['qstart'] <= querydf['qlen']).all()
+            querydf['sdesc'] = querydf['dbid']
+        querydf['sid'] = dbdf_matches['id'].values
+        querydf['tlen'] = dbdf_matches['sequence'].apply(len).values.astype(int)
+        querydf['qlen'] = querydf['sequence'].apply(len).values.astype(int)
+        querydf['qstart'] =  [aln[0][1] for aln in aligmentlist]
+        querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
+        querydf['tstart'] = [aln[0][0] for aln in aligmentlist]
+        querydf['tend'] = [aln[-1][0] for aln in aligmentlist]
+        querydf['match_len'] = (querydf['qend'].values - querydf['qstart'].values + 1).astype(int)
+        # check if alignment is not exeeding sequence lenght
+        assert (querydf['qstart'] <= querydf['qlen']).all()
+        assert (querydf['qstart'] <= querydf['qlen']).all()
 
-            querydf.sort_values(by='score', ascending=False, inplace=True)
-            querydf.reset_index(inplace=True)
+        querydf.sort_values(by='score', ascending=False, inplace=True)
 
-            alignment_descriptors = list()
-            for _, row in querydf.iterrows():
-                tmp_aln = draw_alignment(row.indices,
-                                        db_df.iloc[row.dbid].sequence,
-                                        row.sequence,
-                                        output='str')
-                tmp_aln = tmp_aln.split('\n')
-                alignmnetdata = {
-                      'qseq': tmp_aln[2],
-                      'tseq': tmp_aln[0],
-                      'con': calc_con(tmp_aln[2], tmp_aln[0]),
-                      'ident': calc_identity(tmp_aln[2], tmp_aln[0]),
-                      'similarity': calc_similarity(tmp_aln[2], tmp_aln[0])
-                      }
-                alignment_descriptors.append(alignmnetdata)
-            alignment_descriptors = pd.DataFrame(alignment_descriptors)
-            querydf = pd.concat((querydf, alignment_descriptors), axis=1)
-            # drop parsed above columns
-            if col in ['index', 'indices', 'i', 'dbid']:
-                  if col in querydf.columns:
-                        querydf.drop(columns=col, inplace=True)
-            querydf.index.name = 'index'
+        alignment_desc = list()
+        for _, row in querydf.iterrows():
+            tmp_aln = draw_alignment(row.indices,
+                                    dbdf.iloc[row.dbid].sequence,
+                                    row.sequence,
+                                    output='str')
+            tmp_aln = tmp_aln.split('\n')
+            qaln, taln = tmp_aln[2], tmp_aln[0]
+            alignmnetdata = {
+                    'qseq': qaln,
+                    'tseq': taln,
+                    'con': calc_con(qaln, taln),
+                    'ident': calc_identity(qaln, taln),
+                    'similarity': calc_similarity(qaln, taln)
+                    }
+            alignment_desc.append(alignmnetdata)
+        alignment_desc = pd.DataFrame(alignment_desc, index=querydf.index)
+        assert alignment_desc.shape[0] == querydf.shape[0]
+        querydf = pd.concat((querydf, alignment_desc), axis=1)
+        # drop parsed above columns
+        if col in ['index', 'indices', 'i', 'dbid']:
+                if col in querydf.columns:
+                    querydf.drop(columns=col, inplace=True)
+        querydf.index.name = 'index'
     return querydf[COLUMNS_TO_SAVE]

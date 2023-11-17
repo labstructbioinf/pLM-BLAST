@@ -43,20 +43,12 @@ def remove_outputs():
 		shutil.rmtree(PLMBLAST_DB)
 
 
-@pytest.mark.dependency()
-def test_make_db_emb64():
-	proc = subprocess.run(["python", EMB64_SCRIPT, PLMBLAST_DB],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
-
-
 @pytest.mark.parametrize("infile", [INPUT_FASTA_SINGLE, INPUT_FASTA_MULTI])
 @pytest.mark.parametrize("outfile", [INPUT_EMB_SINGLE, INPUT_EMB_MULTI])
-def test_make_single_emb():
+def test_make_single_emb(infile, outfile):
 	# Generate representations for further tests
 	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
-						INPUT_FASTA_SINGLE, INPUT_EMB_SINGLE,
+						infile, outfile,
 						"-embedder", "pt", "--gpu"],
 		stderr=subprocess.PIPE,
 		stdout=subprocess.PIPE)

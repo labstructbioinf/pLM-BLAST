@@ -92,7 +92,6 @@ if __name__ == "__main__":
 	query_ids = query_df['queryid'].tolist()
 	query_seqs = query_df['sequence'].tolist()
 	query_embs_pool = [emb.float().numpy() for emb in query_embs]
-
 	if query_df.shape[0] != len(query_embs):
 		raise ValueError(f'The length of the embedding file and the sequence df are different: {query_df.shape[0]} != {len(query_embs)}')
 	for q_number, (qs, qe) in enumerate(zip(query_seqs, query_embs)):
@@ -149,7 +148,8 @@ if __name__ == "__main__":
 		gc.collect()
 
 	if len(result_stack) > 0: 
-		result_df = pd.concat(result_stack)
+		result_df = pd.concat(result_stack, ignore_index=True)
+		result_df.reset_index(inplace=True)
 	else:
 		print(f'No valid hits given pLM-BLAST parameters!')
 		sys.exit(0)
@@ -161,7 +161,9 @@ if __name__ == "__main__":
 		
 	# run postprocessing
 	results = list()
+	#result_df = pd.concat((result_df, query_df.iloc[result_df['queryid']][['id', 'sequence']]), axis=1, ignore_index=True)
 	result_df = result_df.merge(query_df[['queryid', 'id', 'sequence']], on='queryid', how='left')
+
 	for qid, rows in result_df.groupby('queryid'):
 		query_result = aln.postprocess.prepare_output(rows, dbdf, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)
@@ -175,5 +177,5 @@ if __name__ == "__main__":
 		results.to_csv(output_name, sep=';')
 
 	time_end = datetime.datetime.now()
-	print('total hits: ', results.shape[0])
+	print('total hits found: ', results.shape[0])
 	print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
