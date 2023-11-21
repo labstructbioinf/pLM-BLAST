@@ -1,6 +1,7 @@
 # examples
 
 list of usage examples
-* [Analysis of Nostoc punctiforme PCC 73102 Bacterial Proteome Using pLM-BLAST](bacteria.md)
-* [all vs all database scan](allvsall.md)
-* [step by step in python](stepbystep.md)
+* [Analysis of Nostoc punctiforme PCC 73102 Bacterial Proteome](bacteria.md)
+* [all vs all database scan](allvsall.md) small set of Rossmann-like protein sequences
+* [one vs all database scan](onevsall.sh) cupredoxin ECOD database scan
+* [step by step in python](stepbystep_in_python.md) Cupredoxin self-similarity

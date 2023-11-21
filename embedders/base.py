@@ -11,6 +11,11 @@ import torch
 from .schema import BatchIterator
 from .checkpoint import checkpoint_from_json
 
+
+class EmbedderError(BaseException):
+	pass
+
+
 def create_parser() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description =
 		"""
@@ -117,10 +122,10 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		elif args.embedder.startswith('esm') or args.embedder.startswith('prost'):
 			pass
 		else:
-			raise argparse.ArgumentError("invalid embedder name", args.embedder)
+			raise EmbedderError("invalid embedder name: %s" % args.embedder)
 		
 		if args.truncate < 1:
-			raise argparse.ArgumentError('truncate must be greater then zero')
+			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
 		if args.h5py:
@@ -132,7 +137,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
-		raise argparse.ArgumentError(f'invalid subparser_name: {args.subparser_name}')
+		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():
 			raise ValueError('''
@@ -140,12 +145,12 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 					that you torch package is built with gpu support''')
 		if args.nproc > 1:
 			if torch.cuda.device_count() < args.nproc:
-				raise argparse.ArgumentError('''
+				raise EmbedderError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
 	if args.nproc > 1:
 		if not args.asdir and not args.h5py:
-			raise argparse.ArgumentError('''
+			raise EmbedderError('''
 								multiprocessing is only available with --asdir or --h5py flag
 								''')
 
@@ -166,16 +171,22 @@ def prepare_dataframe(df: pd.DataFrame,
 			from [last_batch:]
 		'''
 		assert 'sequence' in df.columns
+		batch_size = args.batch_size
 		# prepare dataframe
 		df.reset_index(inplace=True)
 		num_records = df.shape[0]
+		if num_records < args.nproc:
+			raise EmbedderError("less sequences then requested processes, please lower nproc value")
+		# addaptive batch size dont work with one sequence
+		if num_records == 1 and batch_size == 0:
+			batch_size = 1
 		# cut sequences
 		df['seqlens'] = df['sequence'].apply(len)
 		df['sequence'] = df.apply(lambda row: \
 					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
 		# update size
 		df['seqlens'] = df['sequence'].apply(len)
-		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
+		batch_list = make_iterator(df['seqlens'].tolist(), batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
 			batch_iterator = BatchIterator(batch_list=batch_list)

@@ -81,8 +81,9 @@ def main_prottrans(df: pd.DataFrame,
 				seq_len = lenlist[i]
 				emb = embeddings[i]
 				if emb.shape[0] < seq_len:
-					raise KeyError(f'sequence is longer then embedding {emb.shape} and {seq_len} ')	   
-				embeddings_filt.append(emb[:seq_len])
+					raise KeyError(f'sequence is longer then embedding {emb.shape} and {seq_len} ')
+				# without cloning torch.save will save whole tensor
+				embeddings_filt.append(emb[:seq_len].clone())
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
