@@ -315,6 +315,7 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	target_norm = target_norm.pow(2).sum(0).sqrt()
 	return target_norm
 
+
 @th.jit.script
 def single_process(query_kernels, target, stride: int):
 
@@ -350,6 +351,41 @@ def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
 	scorestack_t = th.zeros(num_targets, dtype=th.float32)
 	for i in th.arange(num_targets):
 		scorestack_t[i] = scorestack[i]
+	if scorestack_t.shape[0] != num_targets:
+		raise ValueError(f'''cosine sim screening result different
+		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}''')
+	return scorestack_t
+
+
+@th.jit.script
+def chunk_score_batch(queries: List[th.Tensor], targets: List[th.Tensor], stride: int, kernel_size: int):
+	'''
+	perform chunk cosine similarity screening
+	Args:
+		queries: (List[torch.FloatTensor])
+		targets: (list of torch.FloatTensor) embeddings to compare
+		stride: (int)
+		kernel_size: (int)
+	Returns:
+		(torch.FloatTensor): [num_targets, num_queries]
+	'''
+	num_targets: int = len(targets)
+	num_queries: int = len(queries)
+	scorestack: List[th.Tensor] = list()
+	kernels: List[th.Tensor] = list()
+	kernel_splits: List[int] = list()
+	for q in queries:
+		query_kernels = sequence_to_filters(q, kernel_size=kernel_size,
+											norm=True, with_padding=False)
+		kernel_splits.append(query_kernels.shape[0])
+		kernels.append(query_kernels)
+	# concat along num_filters
+	kernels = th.cat(kernels, dim=0)
+	scorestack: List[th.Tensor] = [single_process(kernels, t, stride=stride) for t in targets]
+	scorestack_t = th.zeros((num_targets, num_queries), dtype=th.float32)
+	for i in th.arange(num_targets):
+		for j, split in enumerate(th.split(scorestack[i], kernel_splits)):
+			scorestack_t[i, j] = split.max().item()
 	if scorestack_t.shape[0] != num_targets:
 		raise ValueError(f'''cosine sim screening result different
 		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}''')

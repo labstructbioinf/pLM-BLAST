@@ -7,6 +7,7 @@ from alntools.numeric import embedding_local_similarity
 from alntools import gather_all_paths
 from alntools.density.local import chunk_score
 from alntools.density import chunk_cosine_similarity
+from alntools.density.local import chunk_score_batch
 
 PATH_SYMMETRIC_TEST = 'tests/test_data/asymetric'
 ATOL=1e-6
@@ -100,3 +101,10 @@ def test_chunk_cosine_similarity(emb1, emb2, kernelsize, stride):
 	chunk_cosine_similarity(query, [target], quantile=quantile, dataset_files=datasetfiles, stride=stride, kernel_size=kernelsize)
 	#sim = chunk_score(query=query, targets=[target], stride=stride, kernel_size=kernelsize)
 
+
+
+def test_chunk_cosine_similarity_batch():
+
+	queries = [torch.rand(embsize, 512) for embsize in torch.randint(50, 500, size=(10, ))]
+	targets = [torch.rand(embsize, 512) for embsize in torch.randint(50, 500, size=(100, ))]
+	results = chunk_score_batch(queries, targets, stride=10, kernel_size=20)
