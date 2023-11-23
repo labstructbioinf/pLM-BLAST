@@ -8,8 +8,8 @@ def range_limited_float_type(arg, MIN, MAX):
 		f = float(arg)
 	except ValueError:
 		raise argparse.ArgumentTypeError("Must be a floating point number")
-	if f <= MIN or f >= MAX :
-		raise argparse.ArgumentTypeError("Argument must be <= " + str(MAX) + " and >= " + str(MIN))
+	if f < MIN or f >= MAX :
+		raise argparse.ArgumentTypeError(f"Argument must be {MIN} <= x < {MAX}")
 	return f
 
 
@@ -20,16 +20,20 @@ def get_parser() -> argparse.Namespace:
 		)
 
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
-	range0100 = lambda f:range_limited_float_type(f, 0, 101)
+	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
 	# input and output
-	parser.add_argument('db', help='Directory with a database to search',
+	parser.add_argument('db', help=\
+					 	'''Directory with a database to search, script will require db to be directory with embeddings and db.fas file.
+						   For instance path: path/to/database will search for path/to/database directory and path/to/database[.fas, .csv, .p, .pkl] file''',
 						type=str)	
-	parser.add_argument('query', help='Base name of query files. Extensions are automatically added (.pt for embeddings and .csv, .p, .pkl, .fas or .fasta for sequences)',
+	parser.add_argument('query', help=\
+						'''Base name of query files. Extensions are automatically added, similar as db argument, additinally query will also look for .pt file
+						   apart of directory with embeddings
+						''',
 						type=str)	
-	parser.add_argument('output', help='Output file (or directory if `--separate` flag is given)',
+	parser.add_argument('output', help='Output csv file (or directory if `--separate` flag is given), results are stored with separator `;`',
 						type=str)	
-						
 	parser.add_argument('--separate', help='Store the results of multi-query searches in separate files specified in `output`. Otherwise a single file is written',
 					 action='store_true', default=False)
 	parser.add_argument('--raw', help='Skip post-processing steps and return pickled Pandas data frames with all alignments', 
@@ -38,7 +42,7 @@ def get_parser() -> argparse.Namespace:
 	# cosine similarity scan
 	parser.add_argument('-cosine_percentile_cutoff', help=\
 					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
-						type=range0100, default=95, dest='COS_PER_CUT')	
+						type=range0100, default=0, dest='COS_PER_CUT')	
 	parser.add_argument('--use_chunks', help=\
 					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=False)
@@ -56,6 +60,7 @@ def get_parser() -> argparse.Namespace:
 						type=float, default=0, dest='GAP_EXT')
 	parser.add_argument('-bfactor', default=1, type=int, help= \
 					 'increasing this value above 1 will reduce number of alignments that are very close to each other also increase search speed')
+	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',

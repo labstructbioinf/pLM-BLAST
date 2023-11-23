@@ -2,10 +2,9 @@ import sys
 import os
 import gc
 import time
-import argparse
 import concurrent
 import datetime
-from typing import List, Dict
+from typing import List
 
 import torch
 import mkl
@@ -34,26 +33,9 @@ colors = {
 	}
 
 
-def check_cohesion(sequences: List[str],
-				   filedict: dict,
-				   embeddings: List[torch.FloatTensor],
-				   truncate: int = 1000):
-	'''
-	check for missmatch between sequences and their embeddings
-	'''
-	for (idx,file), emb in zip(filedict.items(), embeddings):
-		seqlen = len(sequences[idx])
-		if seqlen < truncate:
-			assert seqlen == emb.shape[0], f'''
-			index and embeddings files differ, for idx {idx} seqlen {seqlen} and emb {emb.shape} file: {file}'''
-		else:
-			pass
-
-
 if __name__ == "__main__":
 
 	time_start = datetime.datetime.now()
-
 	args = get_parser()
 	module = aln.base.Extractor(min_spanlen=args.WINDOW_SIZE,
 							 window_size=args.WINDOW_SIZE,
@@ -64,7 +46,7 @@ if __name__ == "__main__":
 	if args.verbose:
 		print('%s alignment mode' % 'global' if args.global_aln else 'local')
 	
-	# Load database 
+	# Load database  index file
 	db_index = aln.filehandle.find_file_extention(args.db)
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
@@ -78,8 +60,7 @@ if __name__ == "__main__":
 	if os.path.isfile(args.query + '.pt'):
 		query_embs: List[torch.Tensor] = torch.load(args.query + '.pt')
 	elif os.path.isdir(args.query):
-		query_embs_files = filelist = [os.path.join(args.query, f'{f}.emb') for f in range(0, query_df.shape[0])]
-		query_embs: List[torch.Tensor] = ds.load_full_embeddings(query_embs_files, poolfactor=1)
+		query_embs = ds.parallel.load_embeddings_parallel(args.query, num_records=query_df.shape[0])
 	else:
 		raise FileNotFoundError(f'''
 						  query embedding file or directory not found in given location: {args.query}
@@ -161,9 +142,7 @@ if __name__ == "__main__":
 		
 	# run postprocessing
 	results = list()
-	#result_df = pd.concat((result_df, query_df.iloc[result_df['queryid']][['id', 'sequence']]), axis=1, ignore_index=True)
 	result_df = result_df.merge(query_df[['queryid', 'id', 'sequence']], on='queryid', how='left')
-
 	for qid, rows in result_df.groupby('queryid'):
 		query_result = aln.postprocess.prepare_output(rows, dbdf, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)

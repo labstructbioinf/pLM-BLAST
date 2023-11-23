@@ -1,5 +1,4 @@
 '''functions to make results more friendly'''
-import argparse
 from typing import List, Optional
 
 import pandas as pd

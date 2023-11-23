@@ -1,58 +1,41 @@
+'''test plmblast.py script in different ways'''
 import os
-import shutil
+import subprocess
+
 import pytest
 import pandas as pd
-import subprocess
 
 from alntools.filehandle import BatchLoader
 
+
 DIR = os.path.dirname(__file__)
-
-EMB_SCRIPT = os.path.join("embeddings.py")
-EMB64_SCRIPT = os.path.join("scripts/dbtofile.py")
-PLMBLAST_SCRIPT = os.path.join("scripts/plmblast.py")
-
-# use static db location for speed
-PLMBLAST_DB = "/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
+SCRIPT = os.path.join("scripts/plmblast.py")
+TESTDATA = os.environ.get("PLMBLAST_TESTDATA")
+# use static db location to avoid unessesery calculations
+PLMBLAST_DB = os.environ.get("PLMBLAST_DB")
 PLMBLAST_DB_CSV = PLMBLAST_DB + ".csv"
-
-INPUT_FASTA_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.fas')
-INPUT_EMB_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.pt')
+INPUT_SINGLE = os.path.join(TESTDATA, 'cupredoxin')
+INPUT_MULTI = os.path.join(TESTDATA, 'rossmanns')
+# outputs
 OUTPUT_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.hits.csv')
-
-INPUT_FASTA_MULTI = os.path.join(DIR, 'test_data/rossmanns.fas')
-INPUT_EMB_MULTI = os.path.join(DIR, 'test_data/rossmanns.pt')
-OUTPUT_MULTI = os.path.join(DIR, 'test_data/multi_query.hits.csv')
-
+OUTPUT_MULTI = os.path.join(DIR, 'test_data/rossmanns.hits.csv')
 MULTI_QUERY_MULTI_FILE_PATH = os.path.join(DIR, 'test_data')
-
-def clear_files(files):    
-    for file in files:
-        if os.path.isfile(file):
-            os.remove(file)
 
 
 @pytest.fixture(scope='session', autouse=True)
 def remove_outputs():
-	files = [
-		INPUT_EMB_SINGLE, OUTPUT_SINGLE, OUTPUT_MULTI,
-		'tests/test_data/1BSV_1.hits.csv', 'tests/test_data/1FVK_1.hits.csv',
-		'tests/test_data/1MXR_1.hits.csv', 'tests/test_data/7QZP_1.hits.csv']
-	clear_files(files)
-	if os.path.isdir(PLMBLAST_DB):
-		shutil.rmtree(PLMBLAST_DB)
+	for file in [OUTPUT_MULTI, OUTPUT_SINGLE]:
+		if os.path.isfile(file):
+			os.remove(file)
 
 
-@pytest.mark.parametrize("infile", [INPUT_FASTA_SINGLE, INPUT_FASTA_MULTI])
-@pytest.mark.parametrize("outfile", [INPUT_EMB_SINGLE, INPUT_EMB_MULTI])
-def test_make_single_emb(infile, outfile):
-	# Generate representations for further tests
-	proc = subprocess.run(["python", EMB_SCRIPT, 'start',
-						infile, outfile,
-						"-embedder", "pt", "--gpu"],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
+def test_data_exists():
+	assert os.path.isdir(PLMBLAST_DB), f"missing db file: {PLMBLAST_DB}"
+	assert os.path.isfile(PLMBLAST_DB_CSV)
+	assert os.path.isfile(INPUT_SINGLE + ".fas")
+	assert os.path.isfile(INPUT_SINGLE + ".pt")
+	assert os.path.isfile(INPUT_MULTI + ".fas")
+	assert os.path.isfile(INPUT_MULTI + ".pt")
 
 
 @pytest.mark.parametrize('batch_size', [100, 200, 300])
@@ -83,47 +66,41 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 	for qid, files in query_files.items():
 		assert len(files) == len(filedict[qid])
 
-@pytest.mark.dependency()
-@pytest.mark.parametrize('win', ["10", "20", "30"])
-@pytest.mark.parametrize('gap_ext', ["0", "0.1"])
-def test_single_query(win: str, gap_ext: str):
-	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_FASTA_SINGLE[:-4], OUTPUT_SINGLE,
-							"-win", win, '-gap_ext', gap_ext],
-			stderr=subprocess.PIPE,
-			stdout=subprocess.PIPE)
+
+@pytest.mark.parametrize('win', [10, 15, 25])
+@pytest.mark.parametrize('gap_ext', [0, 0.1])
+@pytest.mark.parametrize("cosine_percentile_cutoff", [90, 0])
+@pytest.mark.parametrize('screening_mode', ["", "--use_chunks"])
+def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, screening_mode: str):
+	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
+	cmd += f" -cosine_percentile_cutoff {cosine_percentile_cutoff}"
+	cmd += f" {screening_mode}" if screening_mode != "" else ""
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
 	assert os.path.isfile(OUTPUT_SINGLE)
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")
-	assert output.shape[0] > 0
-	if os.path.isfile(OUTPUT_SINGLE):
-		os.remove(OUTPUT_SINGLE)
+	if win < 20:
+		assert output.shape[0] > 0, "no results for given query"
 
 
-@pytest.mark.dependency()
-def test_make_multi_embs():
-	# Generate embs for multi query
-	proc = subprocess.run(["python", EMB_SCRIPT, 
-						INPUT_FASTA_MULTI, INPUT_EMB_MULTI,
-						"-embedder", "pt", "--gpu"],
-		stderr=subprocess.PIPE,
-		stdout=subprocess.PIPE)
-	assert proc.returncode == 0, proc.stderr
+def test_results_reproducibility():
+	result_stack = list()
+	for n in range(10):
+		output =  OUTPUT_SINGLE.replace(".csv", f"{n}.csv")
+		cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {output}"
+		proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+		# check process error code
+		assert proc.returncode == 0, proc.stderr
+		result_stack.append(pd.read_csv(output))
 
-@pytest.mark.dependency()
-@pytest.mark.parametrize('win', ["10", "20"])
-@pytest.mark.parametrize('gap_ext', ["0", "0.1"])
+
+@pytest.mark.parametrize('win', [10, 20])
+@pytest.mark.parametrize('gap_ext', [0, 0.1])
 def test_multi_query(win: str, gap_ext: str):
 
-	assert os.path.isfile(INPUT_FASTA_MULTI)
-	assert os.path.isfile(INPUT_EMB_MULTI)
-
-	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_FASTA_MULTI[:-4], OUTPUT_MULTI,
-							"-win", win, '-gap_ext', gap_ext],
-			stderr=subprocess.PIPE,
-			stdout=subprocess.PIPE)
+	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext}"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
 	assert os.path.isfile(OUTPUT_MULTI)
@@ -134,14 +111,21 @@ def test_multi_query(win: str, gap_ext: str):
 		os.remove(OUTPUT_MULTI)
 
 
-@pytest.mark.dependency()
-@pytest.mark.parametrize('win', ["10", "20"])
-@pytest.mark.parametrize('gap_ext', ["0", "0.1"])
+@pytest.mark.parametrize('win', [10, 20])
+@pytest.mark.parametrize('gap_ext', [0, 0.1])
 def test_multi_query_multi_files(win: str, gap_ext: str):
-	proc = subprocess.run(["python", PLMBLAST_SCRIPT, PLMBLAST_DB,
-							INPUT_FASTA_MULTI[:-4], MULTI_QUERY_MULTI_FILE_PATH,
-							"-win", win, '-gap_ext', gap_ext, '--separate'],
-			stderr=subprocess.PIPE,
-			stdout=subprocess.PIPE)
+	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext} --separate"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
+
+
+def test_self_similarity():
+	cmd = f"python {SCRIPT} {INPUT_SINGLE} {INPUT_SINGLE} {OUTPUT_SINGLE}"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	# check process error code
+	assert proc.returncode == 0, proc.stderr
+	assert os.path.isfile(OUTPUT_SINGLE)
+	output = pd.read_csv(OUTPUT_SINGLE)
+	# self similarity will always be not empty
+	assert output.shape[0] > 0

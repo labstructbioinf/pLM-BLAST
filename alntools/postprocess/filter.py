@@ -91,6 +91,8 @@ def filter_result_dataframe(data: pd.DataFrame,
 	Returns:
 		filtred frame sorted by score
 	'''
+	if 'dbid' not in data.columns:
+		data['dbid'] = 0
 	data = data.sort_values(by=['len'], ascending=False)
 	indices = data.indices.tolist()
 	data['y1'] = [yx[0][0] for yx in indices]

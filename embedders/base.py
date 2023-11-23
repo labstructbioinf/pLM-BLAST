@@ -112,11 +112,22 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		if df.shape[0] == 0:
 			raise AssertionError('input dataframe is empty: ', args.input)
 		out_basedir = os.path.dirname(args.output)
+		######################################################
+		# 				validate output						 #
+		######################################################
 		if out_basedir != '':
 			if not args.asdir and not os.path.isdir(out_basedir):
 				raise FileNotFoundError(f'output directory is invalid: {out_basedir}')
 			elif args.asdir and not os.path.isdir(args.output):
-				os.mkdir(args.output)
+				os.makedirs(args.output, exist_ok=True)
+		if args.h5py:
+			# remove previous h5py
+			if os.path.isfile(args.output):
+				os.remove(args.output)
+		# add extension for file mode if needed
+		if not args.h5py and not args.asdir:
+			if not args.output.endswith('.pt'):
+				args.output = args.output + ".pt"
 		if (args.embedder == 'pt') or args.embedder.lower().find('prot') !=- 1 :
 			pass
 		elif args.embedder.startswith('esm') or args.embedder.startswith('prost'):
@@ -128,9 +139,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
-		if args.h5py:
-			if os.path.isfile(args.output):
-				os.remove(args.output)
 		df.reset_index(inplace=True)
 	elif args.subparser_name == 'resume':
 		args = checkpoint_from_json(args.output)
@@ -242,8 +250,9 @@ def save_as_separate_files(embeddings: List[torch.Tensor],
 def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterable:
 	'''
 	create slice iterator over sequence list
+
 	Returns:
-		endbatch_index: (Iterable[slice]) iterator over start stop batch indices
+		Iterable[slice]: iterator over start stop batch indices
 	'''
 	assert len(seqlen_list) > 1
 	num_seq = len(seqlen_list)
@@ -334,6 +343,7 @@ def select_device(args: argparse.Namespace) -> torch.device:
 	else:
 		device = torch.device('cpu')
 	return device
+
 
 def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str] = None) -> pd.DataFrame:
 	'''

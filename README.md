@@ -94,6 +94,11 @@ Then the `plmblast.py` script can be used to search the database:
 ```bash
 python ./scripts/plmblast.py database query output.csv --use_chunks
 ```
+to load results in python type
+```python
+import pandas as pd
+results = pd.read_csv("output.csv", sep=";")
+```
 Note that only the base filename should be specified for the query (extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
