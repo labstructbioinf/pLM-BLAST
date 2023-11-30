@@ -7,7 +7,7 @@ case='cupredoxin' # single-query example
 
 # data paths
 INDIR="./data/input"
-OUTDIR="./output"
+OUTDIR="./data/output"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database

@@ -30,12 +30,12 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 		# iterate over array slice
 		max_value = arr[ystart, xstart]
 		for yidx in range(ystart+1, ystop):
-			if max_value > arr[yidx, xstart]:
+			if max_value < arr[yidx, xstart]:
 				max_value = arr[yidx, xstart]
 	else:
 		max_value = arr[ystart, xstart]
 		for xidx in range(xstart+1, xstop):
-			if max_value > arr[ystart, xidx]:
+			if max_value < arr[ystart, xidx]:
 				max_value = arr[ystart, xidx]
 	return max_value
 

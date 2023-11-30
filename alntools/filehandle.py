@@ -1,6 +1,7 @@
 import os
 import math
 from typing import List, Dict, Tuple
+from collections import namedtuple
 import itertools
 
 from Bio import SeqIO
@@ -10,7 +11,7 @@ import torch
 from .density import load_full_embeddings
 
 extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
-
+record = namedtuple('record', ['id', 'file'])
 
 def find_file_extention(infile: str) -> str:
     '''search for extension for query or index files'''
@@ -62,31 +63,33 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	return df
 
 
-
 class BatchLoader:
-    
+    asdir = True
+    qdata = None
+    _files_per_record = dict()
+    _indices_per_record = dict()
+    _iteratons_per_record = dict()
     def __init__(self, query_ids: List[str],
-                  query_seqs: List[str],
+                  querypath: List[str],
                     filedict: Dict[int, Dict[int, str]],
                       batch_size: int = 300,
                       mode='emb'):
 
-        assert len(query_ids) == len(query_seqs)
-        assert len(query_seqs) > 0
+        assert len(query_ids)
         assert batch_size > 0
         assert isinstance(mode, str)
         assert mode in {"emb", "file"}
         
         self.mode = mode
         self.query_ids = query_ids
-        self.query_seqs = query_seqs
+        self.querypath = querypath
+        if not os.path.isdir(self.querypath):
+            self.asdir = False
+            self.qdata = torch.load(self.querypath + ".pt")
+
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
-        # total number of embeddings to load per each query
-        self._files_per_record = dict()
-        self._indices_per_record = dict()
-        self._iteratons_per_record = dict()
         # calculate batch items for each query_id
         for qid in self.query_ids:
             batch_index_per_qid, batch_files_per_qid = self._query_file_to_slice(query_id=qid) 
@@ -100,8 +103,8 @@ class BatchLoader:
         self._query_data_to_iteration = list()
         self._query_flatten: List[List[str]] = list(itertools.chain(*self._files_per_record.values()))
         self._query_flatten_id: List[List[int]] = list(itertools.chain(*self._indices_per_record.values()))
-        for qid, qseq in zip(self.query_ids, self.query_seqs):
-             self._query_data_to_iteration += [(qid, qseq)]*self._iteratons_per_record[qid]
+        for qid in self.query_ids:
+             self._query_data_to_iteration += [qid]*self._iteratons_per_record[qid]
         # checks
         assert len(self._query_data_to_iteration) == self.num_iterations, \
             f'{len(self._query_data_to_iteration)} != {self.num_iterations}'
@@ -117,17 +120,23 @@ class BatchLoader:
     def __next__(self):
         if self.current_iteration < self.num_iterations:
              # find correct query id
-             query_id, query_seq = self._query_data_to_iteration[self.current_iteration]
+             query_id = self._query_data_to_iteration[self.current_iteration]
              query_files = self._query_flatten[self.current_iteration]
-             query_indices = self._query_flatten_id[self.current_iteration]
+             query_dbindices = self._query_flatten_id[self.current_iteration]
+             # load query embeddings
+             if self.qdata is None:
+                qembedding = os.path.join(self.querypath, f"{query_id}.emb")
+                qembedding = self._load_batch([qembedding])[0]
+             else:
+                qembedding = self.qdata[query_id]
              # return embeddings
              if self.mode == 'emb':
-                embeddings = self._load_batch(query_files)
+                dbembeddings = self._load_batch(query_files)
             # return files
              else:
-                 embeddings = query_files
+                 dbembeddings = query_files
              self.current_iteration += 1
-             return query_id, query_indices, embeddings
+             return query_id, query_dbindices, qembedding, dbembeddings
         else:
              raise StopIteration
 
@@ -159,5 +168,5 @@ class BatchLoader:
     
     def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
-         embeddings = load_full_embeddings(filelist)
+         embeddings = load_full_embeddings(filelist, poolfactor=None)
          return embeddings

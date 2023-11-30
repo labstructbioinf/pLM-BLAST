@@ -14,10 +14,10 @@ def mask_like(densitymap: np.array,
 	'''
 	create densitymap mask for visualization
 	Args:
-		densitymap: (np.ndarray)
-		paths: (list of paths)
+		densitymap (np.ndarray):
+		paths (list of paths):
 	Returns:
-		mask: (np.ndarray) binary mask
+		(np.ndarray) binary mask
 	'''
 	mask = np.zeros_like(densitymap)
 	for path in paths:
@@ -36,15 +36,16 @@ def search_paths(submatrix: np.ndarray,
 		 as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
 	'''
 	iterate over all paths and search for routes matching alignmnet criteria
+
 	Args:
-		submatrix: (np.ndarray) density matrix
-		paths: (list) list of paths to scan
-		window: (int) size of moving average window
-		min_span: (int) minimal length of alignment to collect
-		sigma_factor: (float) standard deviation threshold
-		as_df: (bool) when True, instead of dictionary dataframe is returned
+		submatrix (np.ndarray): density matrix
+		paths (list): list of paths to scan
+		window (int): size of moving average window
+		min_span (int): minimal length of alignment to collect
+		sigma_factor (float): standard deviation threshold
+		as_df (bool): when True, instead of dictionary dataframe is returned
 	Returns:
-		record: (dict) alignment paths
+		record (dict): alignment paths
 	'''
 	assert isinstance(submatrix, np.ndarray)
 	assert isinstance(paths, list)
@@ -91,12 +92,6 @@ def search_paths(submatrix: np.ndarray,
 					continue
 				y1, x1 = y[start:stop-1], x[start:stop-1]
 				arr_values = submatrix[y1, x1]
-				'''
-				if arr_values.mean() < path_threshold:
-					print(arr_values)
-					print(line_mean[start:stop])
-					raise ValueError('array values are wrong', arr_values.mean(), path_threshold)
-				'''
 				arr_indices = np.stack([y1, x1], axis=1)
 				keyid = f'{ipath}_{idx}'
 				spans_locations[keyid] = {

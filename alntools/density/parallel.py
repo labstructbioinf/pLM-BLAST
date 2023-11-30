@@ -56,7 +56,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 	'''
 	handle loading database composed from single files
 	'''
-	def __init__(self, path: List[os.PathLike], num_records: int, flatten: False):
+	def __init__(self, path: List[os.PathLike], num_records: int, flatten: bool = False):
 
 		dirname = os.path.dirname(path)
 		if not (dirname == ''):
@@ -84,7 +84,7 @@ def load_embeddings_parallel(path: str, num_records: int, num_workers: Optional[
 	batch_size = 128
 	# TODO optimize this choice
 	dataset = DatabaseChunk(path=path, num_records=num_records)
-	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x)
+	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x, worker_init_fn=worker_init_fn)
 	embeddinglist = list()
 	for batch in dataloader:
 		embeddinglist.extend(batch)
@@ -95,7 +95,7 @@ def load_embeddings_parallel_generator(path: str, num_records: int, num_workers:
 	batch_size = 128
 	# TODO optimize this choice
 	dataset = DatabaseChunk(path=path, num_records=num_records)
-	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x)
+	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x, worker_init_fn=worker_init_fn)
 	for batch in dataloader:
 		yield batch
 
@@ -105,11 +105,12 @@ def load_and_score_database(query_emb : torch.Tensor,
 							num_records: Optional[int],
 							quantile : float = 0.9,
 							num_workers: int = 1,
-							device : torch.device = torch.device('cpu')) -> Dict[int, os.PathLike]:
+							device : torch.device = torch.device('cpu')) -> Dict[int, str]:
 	'''
 	perform cosine similarity screening
+
 	Returns:
-		filedict: (dict) with file id and path to embedding used
+		(dict): with file id and path to embedding used
 	'''
 	assert 0 < quantile < 1
 	batch_size = 256

@@ -13,6 +13,9 @@ __pycache__/
 **.emb.*
 **.emb*
 
+# example
+example/input/data/scope40.fas
+
 # temp logs
 **.txt
 **.logs

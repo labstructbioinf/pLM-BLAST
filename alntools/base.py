@@ -66,19 +66,21 @@ class Extractor:
 		self.filter_results = filter_results
 		self.bfactor = bfactor
 		self.mode = 'global' if self.bfactor == 'global' else 'local'
+		self.local_mode = True if self.mode != 'global' else False
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
+
 		Args:
-			X: (np.ndarray)
-			Y: (np.ndarray)
-			mode: (str) if set to `all` densitymap and alignment paths are returned
+			X (np.ndarray):
+			Y (np.ndarray):
+			mode (str): if set to `all` densitymap and alignment paths are returned
 		Returns:
-			results: (pd.DataFrame) alignment hits frame
-			densitymap: (np.ndarray)
-			paths: (list[np.array])
-			scorematrix: (np.ndarray)
+			(pd.DataFrame): alignment hits frame
+			densitymap (np.ndarray):
+			paths (list[np.array]):
+			scorematrix (np.ndarray):
 		'''
 		if not np.issubdtype(X.dtype, np.float32):
 			X = X.astype(np.float32)
@@ -133,6 +135,29 @@ class Extractor:
 				res = filter_result_dataframe(res)
 			return res
 
+	def full_compare_args(self, args, result_stack) -> Optional[pd.DataFrame]:
+		'''
+		perform comparison of two sequence embeddings
+
+		Args:
+			emb1 (np.ndarray): sequence embedding [seqlen, embdim]
+			emb2 (np.ndarray): sequence embedding [seqlen, embdim]
+			dbid (int): typically database protein index, identifier used when multiple function results are concatenated
+			file (str): embedding/sequence source file may be omitted
+		Returns:
+			data: (pd.DataFrame) frame with alignments and their scores
+		'''
+		emb1, emb2, dbid, qid = args
+		res = self.embedding_to_span(emb1, emb2)
+		if len(res) > 0:
+			# add referece index to each hit
+			res['dbid'] = dbid
+			res['queryid'] = qid
+			# filter out redundant hits
+			if self.filter_results and self.bfactor != 'global':
+				res = filter_result_dataframe(res)
+			if res is not None:
+				result_stack.append(res)
 
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:

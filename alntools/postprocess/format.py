@@ -12,7 +12,7 @@ RESIDUES = list('ARNDCQEGHILKMFPSTWYVBZX*')
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 # columns to save in output
-COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'sdesc', 'qstart',
+COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
                 'match_len']
 RESIDUE_GROUPS = ['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-', 'X']
@@ -94,11 +94,7 @@ def prepare_output(resdf: pd.DataFrame,
         dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
         assert dbdf_matches.shape[0] == querydf.shape[0]
-        # add database description
-        if 'description' in dbdf.columns:
-            querydf['sdesc'] = dbdf_matches['description'].replace(';', ' ').tolist()
-        else:
-            querydf['sdesc'] = querydf['dbid']
+
         querydf['sid'] = dbdf_matches['id'].values
         querydf['tlen'] = dbdf_matches['sequence'].apply(len).values.astype(int)
         querydf['qlen'] = querydf['sequence'].apply(len).values.astype(int)

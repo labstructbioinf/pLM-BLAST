@@ -6,6 +6,8 @@ export MKL_DYNAMIC=FALSE
 
 INPUT="data/input/rossmannsdb.fas"
 DBDIR="data/output/rossmannsdb"
+#DB="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
+DB="/home/nfs/kkaminski/PLMBLST/ecod30db_mini"
 RESULTS=allvsall.csv
 # create database directory
 mkdir -p data/output
@@ -19,10 +21,9 @@ fi
 NUM_WORKERS=6
 # Return hits with scores >=0.3
 ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=90
+COSINE_CUTOFF=0
 SIGMA=2
 # no cutoff because our database is small we dont need additional filtering
-COSINE_CUTOFF=100
 # Run plm-blast
 python ../scripts/plmblast.py \
 	$DBDIR \

@@ -1,6 +1,22 @@
 import os
 import argparse
 
+import multiprocessing
+
+
+def get_available_cores() -> int:
+	# chat gpt3 answer
+	try:
+		if "SLURM_JOB_CPUS_PER_NODE" in os.environ:
+			num_cores = int(os.environ.get("SLURM_JOB_CPUS_PER_NODE"))
+		else:
+			num_cores = multiprocessing.cpu_count()
+	except Exception as e:
+		print(f'Cannot check available cores using safe value 4: {e}')
+		num_cores = 4
+	return num_cores
+
+
 
 def range_limited_float_type(arg, MIN, MAX):
 	""" Type function for argparse - a float within some predefined bounds """
@@ -24,7 +40,7 @@ def get_parser() -> argparse.Namespace:
 
 	# input and output
 	parser.add_argument('db', help=\
-					 	'''Directory with a database to search, script will require db to be directory with embeddings and db.fas file.
+					 	'''Directory with a database to search, script will require db to be directory with embeddings and db[.fas, .csv, .p, .pkl] file with sequences.
 						   For instance path: path/to/database will search for path/to/database directory and path/to/database[.fas, .csv, .p, .pkl] file''',
 						type=str)	
 	parser.add_argument('query', help=\
@@ -53,7 +69,7 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
 						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
-						type=int, default=25, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')
+						type=int, default=25, choices=range(50), metavar="[1-50]", dest='min_spanlen')
 	parser.add_argument('--global_aln', help='Use global pLM-BLAST alignment. (default: %(default)s)',
                     	default=False, action='store_true')
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
@@ -63,15 +79,16 @@ def get_parser() -> argparse.Namespace:
 	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
-	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-						type=int, default=10, dest='MAX_WORKERS')
+	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s) set 0 to use all available cores or num of cores set in slurm session',
+						type=int, default=0, dest='workers')
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure (default: %(default)s)',
 						type=float, default=2, dest='SIGMA_FACTOR')	
-	
 	args = parser.parse_args()
 	
 	# validate provided parameters
-	assert args.MAX_WORKERS > 0
-	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
-	
+	assert args.workers >= 0
+	assert args.min_spanlen >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
+	# get available cores
+	if args.workers == 0:
+		args.workers = get_available_cores()
 	return args
