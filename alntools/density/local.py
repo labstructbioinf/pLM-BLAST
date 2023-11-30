@@ -337,6 +337,7 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	return target_norm
 
 
+@th.jit.script
 def unfold_targets(targets: List[th.Tensor], kernel_size: int, stride: int, embdim: int):
 	'''
 	[kernel_size*embdim, num_folds]
@@ -410,7 +411,23 @@ def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
 	return scorestack_t.unsqueeze(1)
 
 
-#@th.jit.script
+def unfold_large_db(targets, kernel_size: int, stride: int, embdim: int):
+
+	num_targets = len(targets)
+	targets_unfold: List[th.Tensor] = list()
+	unfold_size: List[int] = list()
+	for bstart, bstop in batch_slice_iterator_script(num_targets, batchsize=12800):
+		# shape: [target_folds, query_folds]()
+		batch_targets, unfold_size = unfold_targets(targets[bstart:bstop],
+											   kernel_size=kernel_size,
+												stride=stride, embdim=embdim)
+		targets_unfold.append(targets_unfold)
+		unfold_size.extend(unfold_size)
+	targets_unfold = th.cat(targets_unfold, dim=0)
+	return targets_unfold, unfold_size
+
+
+@th.jit.script
 def chunk_score_batch(queries: List[th.Tensor], targets: List[th.Tensor], stride: int, kernel_size: int):
 	'''
 	perform chunk cosine similarity screening

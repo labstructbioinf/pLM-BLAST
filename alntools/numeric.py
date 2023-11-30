@@ -94,7 +94,8 @@ def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 
 def fill_score_matrix(sub_matrix: np.ndarray,
 					  gap_penalty: Union[int, float] = 0.0,
-					  mode: str = 'local') -> np.ndarray:
+					  global_mode: bool = False,
+					  norm: bool = False) -> np.ndarray:
 	'''
 	use substitution matrix to create score matrix
 	set mode = local for Smith-Waterman like procedure (many local alignments)
@@ -108,18 +109,20 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 		score_matrix: (np.array)
 	'''
 	assert gap_penalty >= 0, 'gap penalty must be positive'
-	assert isinstance(mode, str)
-	assert mode in {"global", "local"}
+	assert isinstance(global_mode, bool)
 	assert isinstance(gap_penalty, (int, float, np.float32))
 	assert isinstance(sub_matrix, np.ndarray), \
 		'substitution matrix must be numpy array'
 	# func fill_matrix require np.float32 array as input
 	if not np.issubsctype(sub_matrix, np.float32):
 		sub_matrix = sub_matrix.astype(np.float32)
-	if mode == 'local':
+	if norm:
+		sub_matrix = (sub_matrix - sub_matrix.mean())/(sub_matrix.std() + 1e-3)
+	if not global_mode:
 		score_matrix = fill_matrix_local(sub_matrix, gap_penalty=gap_penalty)
-	elif mode == 'global':
+	else:
 		score_matrix = fill_matrix_global(sub_matrix, gap_penalty=gap_penalty)
+
 	return score_matrix
 
 

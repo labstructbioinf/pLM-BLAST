@@ -7,6 +7,7 @@ from tqdm import tqdm
 import torch
 from torch.nn.functional import avg_pool1d
 
+from filehandle import DataObject
 from ..density.local import chunk_cosine_similarity
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
@@ -14,9 +15,9 @@ from ..density.local import batch_slice_iterator
 
 
 def apply_database_screening(args: argparse.Namespace,
-                            querysize: int,
-                            dbsize: Optional[int],
-                            batchsize: int = 64,
+                            querydata: DataObject,
+                            dbdata: DataObject,
+                            batchsize: int = 256,
                             stride: int = 10) -> Dict[int, List[str]]:
     '''
     apply pre-screening for database search
@@ -29,11 +30,9 @@ def apply_database_screening(args: argparse.Namespace,
     '''
     # set torch num CPU limit
     torch.set_num_threads(args.workers)
-    num_workers = args.workers
-    num_workers_loader = num_workers//2
-    num_queries = querysize
-    filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]
-    if 0 < args.COS_PER_CUT < 100 and dbsize > 1:
+    num_workers_loader = 0
+    num_queries = querydata.size
+    if 0 < args.COS_PER_CUT < 100 and dbdata.size > 1:
         query_filedict = dict()
         dbpath = os.path.join(args.db, 'emb.64')
         querypath = os.path.join(args.query, 'emb.64')
@@ -44,14 +43,14 @@ def apply_database_screening(args: argparse.Namespace,
                 especially for larger databases. It can be created manually by scripts/dbtofile.py''')
             # load regular database and pool
             # find db structure
-            if os.path.isfile(args.db + ".pt"):
-                db_embs = torch.load(args.db + ".pt")
+            if dbdata.datatype == "file":
+                db_embs = torch.load(dbdata.embeddingpath)
                 db_embs = calculate_pool_embs(db_embs)
             else:
                 # generator version to reduce RAM usage
                 db_embs = list()
                 print('loading embeddings')
-                for embs in load_embeddings_parallel_generator(args.db, num_records=dbsize, num_workers=num_workers_loader):
+                for embs in load_embeddings_parallel_generator(args.db, num_records=dbdata.size, num_workers=num_workers_loader):
                     db_embs.extend(calculate_pool_embs(embs))
             # try to write emb.64 file
             try:
@@ -64,13 +63,13 @@ def apply_database_screening(args: argparse.Namespace,
             if args.verbose:
                 print('Loading database for chunk cosine similarity screening...')
             if not os.path.isfile(querypath):
-                query_embs_chunkcs = list()
-                if os.path.isdir(querypath):
-                    for embs in load_embeddings_parallel_generator(args.query, num_records=dbsize, num_workers=0):
+                if querydata.datatype == "dir":
+                    query_embs_chunkcs = list()
+                    for embs in load_embeddings_parallel_generator(args.query, num_records=querydata.size, num_workers=0):
                         query_embs_chunkcs.extend(calculate_pool_embs(embs))
-                else:
-                    query_embs_chunkcs = torch.load(args.query + ".pt")
-                    query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
+                    else:
+                        query_embs_chunkcs = torch.load(querydata.embeddingpath)
+                        query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
             else:
                 query_embs_chunkcs = torch.load(querypath)
             # loop over all query embeddings
@@ -86,12 +85,12 @@ def apply_database_screening(args: argparse.Namespace,
                     for filedict in filedict_batch:
                         query_filedict[index] = filedict
                         index += 1
-                    pbar.update(len(filedict_batch))
+                        pbar.update(1)
         else:
             if args.verbose:
                 print('Using regular cosine similarity screening...')
             # TODO make sure that regular screening works
-            for i, emb in tqdm(enumerate(query_embs), total=num_queries, desc='screening seqences'):
+            for i, emb in tqdm(enumerate(load_embeddings_parallel_generator(args.query,num_records=dbsize,num_workers=0)), total=num_queries, desc='screening seqences'):
                 filedict = load_and_score_database(emb,
                                                     dbpath=args.db,
                                                     num_records=dbsize,

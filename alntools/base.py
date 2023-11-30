@@ -1,10 +1,9 @@
 '''module merging all extraction steps into user friendly functions'''
-import itertools
+from typing import List
+from typing import Union, Optional
 
 import pandas as pd
-from typing import Union, Optional
 import numpy as np
-import torch
 
 from .numeric import embedding_local_similarity
 from .alignment import gather_all_paths
@@ -16,7 +15,7 @@ class Extractor:
 	'''
 	main class for handling alignment extaction
 	'''
-	min_spanlen: int = 20
+	min_spanlen: int = 25
 	window_size: int = 20
 	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
 	NORM: Union[bool, str] = True
@@ -66,9 +65,9 @@ class Extractor:
 		self.filter_results = filter_results
 		self.bfactor = bfactor
 		self.mode = 'global' if self.bfactor == 'global' else 'local'
-		self.local_mode = True if self.mode != 'global' else False
+		self.global_mode = True if self.mode == 'global' else False
 
-	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
+	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results') -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
 
@@ -90,7 +89,7 @@ class Extractor:
 			raise AttributeError(f'mode must me results or all, but given: {mode}')
 		densitymap = embedding_local_similarity(X, Y)
 		paths = gather_all_paths(densitymap,
-								 norm=self.NORM,
+						   		 norm=False,
 								 minlen=self.min_spanlen,
 								 bfactor=self.bfactor,
 								 gap_opening=self.GAP_OPEN,
@@ -104,7 +103,7 @@ class Extractor:
 							   window=self.window_size,
 							   min_span=self.min_spanlen,
 							   sigma_factor=self.sigma_factor,
-							   mode=self.mode,
+							   global_mode=self.global_mode,
 							   as_df=True)
 		if mode == 'all':
 			return (results, densitymap, paths, scorematrix)
@@ -131,11 +130,11 @@ class Extractor:
 			res['dbid'] = dbid
 			res['dbfile'] = file
 			# filter out redundant hits
-			if self.filter_results and self.bfactor != 'global':
+			if self.filter_results and not self.global_mode:
 				res = filter_result_dataframe(res)
 			return res
 
-	def full_compare_args(self, args, result_stack) -> Optional[pd.DataFrame]:
+	def full_compare_args(self, args, result_stack: List[pd.DataFrame]):
 		'''
 		perform comparison of two sequence embeddings
 
@@ -154,7 +153,7 @@ class Extractor:
 			res['dbid'] = dbid
 			res['queryid'] = qid
 			# filter out redundant hits
-			if self.filter_results and self.bfactor != 'global':
+			if self.filter_results and not self.global_mode:
 				res = filter_result_dataframe(res)
 			if res is not None:
 				result_stack.append(res)

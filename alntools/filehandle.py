@@ -10,9 +10,53 @@ import torch
 
 from .density import load_full_embeddings
 
+
 extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
 record = namedtuple('record', ['id', 'file'])
 
+
+class DataObject:
+     size: int = 0
+     indexfile: str
+     indexdata: pd.DataFrame
+     datatype: str = ""
+     embeddingpath: str = ""
+     pathdata: str
+     ext: str = ".emb"
+     def __init__(self, indexdata: pd.DataFrame, pathdata: str):
+
+        self.pathdata = pathdata
+        self.indexdata = indexdata
+        self.size = indexdata.shape[0]
+        self._find_datatype()
+     
+     @classmethod
+     def from_dir(cls, pathdata: str):
+        """
+        path to data
+        """
+        infile_with_extention = find_file_extention(pathdata)
+        indexfile = read_input_file(infile_with_extention)
+        indexfile['run_index'] = list(range(0, indexfile.shape[0]))
+        return cls(indexdata=indexfile, pathdata=pathdata)
+     
+     def _find_datatype(self):
+          
+        self.embeddingpath = self.pathdata
+        if os.path.isdir(self.pathdata):
+            self.datatype = 'dir'
+        elif os.path.isfile(self.pathdata + ".pt"):
+            self.datatype = 'file'
+            self.embeddingpath += ".pt"
+        else:
+             FileNotFoundError(f'''no valid database in given location: {self.pathdata},
+                                make sure it contain {self.pathdata}.pt file or it is a 
+                                directory with .emb files''')
+          
+     def dirfiles(self):
+          return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in self.indexdata['run_index'].tolist()]
+          
+               
 def find_file_extention(infile: str) -> str:
     '''search for extension for query or index files'''
     assert isinstance(infile, str)
@@ -56,7 +100,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		if cname not in df.columns:
 			raise KeyError(f'no column: {cname} available in file: {file}, columns: {df.columns}')
 		else:
-			print(f'using column: {cname} as sequence source')
+			#print(f'using column: {cname}')
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
@@ -64,29 +108,41 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 
 
 class BatchLoader:
-    asdir = True
+    qasdir = True
+    dbasdir = True
+    # this will be always nan if datatype = file
     qdata = None
+    dbdata = None
+    queryfiles: List[str]
     _files_per_record = dict()
     _indices_per_record = dict()
     _iteratons_per_record = dict()
-    def __init__(self, query_ids: List[str],
-                  querypath: List[str],
-                    filedict: Dict[int, Dict[int, str]],
-                      batch_size: int = 300,
-                      mode='emb'):
+    current_iteration = 0
+    def __init__(self,
+                 querydata: DataObject,
+                 dbdata: DataObject, 
+                 filedict: Dict[int, Dict[int, str]],
+                 batch_size: int = 300,
+                 mode='emb'):
 
-        assert len(query_ids)
         assert batch_size > 0
         assert isinstance(mode, str)
         assert mode in {"emb", "file"}
         
         self.mode = mode
-        self.query_ids = query_ids
-        self.querypath = querypath
-        if not os.path.isdir(self.querypath):
-            self.asdir = False
-            self.qdata = torch.load(self.querypath + ".pt")
-
+        self.query_ids = querydata.indexdata['run_index'].tolist()
+        if querydata.datatype == "file":
+            self.qasdir = False
+            self.qdata = torch.load(querydata.embeddingpath)
+            if not isinstance(self.qdata, list):
+                 self.qdata = [self.qdata.numpy()]
+        else:
+             self.queryfiles = querydata.dirfiles()
+        if dbdata.datatype == "file":
+             self.dbasdir = False
+             self.dbdata = torch.load(dbdata.embeddingpath)
+             if not isinstance(self.dbdata, list):
+                self.dbdata = [self.dbdata.numpy()]
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
@@ -109,7 +165,6 @@ class BatchLoader:
         assert len(self._query_data_to_iteration) == self.num_iterations, \
             f'{len(self._query_data_to_iteration)} != {self.num_iterations}'
         assert len(self._query_flatten) == self.num_iterations
-        self.current_iteration = 0
    
     def __len__(self):
          return self.num_iterations
@@ -121,20 +176,22 @@ class BatchLoader:
         if self.current_iteration < self.num_iterations:
              # find correct query id
              query_id = self._query_data_to_iteration[self.current_iteration]
-             query_files = self._query_flatten[self.current_iteration]
+             db_files = self._query_flatten[self.current_iteration]
              query_dbindices = self._query_flatten_id[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = os.path.join(self.querypath, f"{query_id}.emb")
-                qembedding = self._load_batch([qembedding])[0]
+                qembedding = torch.load(self.queryfiles[query_id]).numpy()
              else:
                 qembedding = self.qdata[query_id]
              # return embeddings
              if self.mode == 'emb':
-                dbembeddings = self._load_batch(query_files)
+                if self.dbdata is None:
+                    dbembeddings = self._load_batch(db_files)
+                else:
+                     dbembeddings = self.dbdata[query_dbindices]
             # return files
              else:
-                 dbembeddings = query_files
+                 dbembeddings = db_files
              self.current_iteration += 1
              return query_id, query_dbindices, qembedding, dbembeddings
         else:

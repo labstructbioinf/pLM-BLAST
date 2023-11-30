@@ -86,13 +86,18 @@ def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, scr
 
 def test_results_reproducibility():
 	result_stack = list()
-	for n in range(10):
+	for n in range(3):
 		output =  OUTPUT_SINGLE.replace(".csv", f"{n}.csv")
 		cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {output}"
 		proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 		# check process error code
 		assert proc.returncode == 0, proc.stderr
 		result_stack.append(pd.read_csv(output))
+	for i, resulti in enumerate(result_stack):
+		for j, resultj in enumerate(result_stack):
+			if i == j:
+				continue
+			assert (resulti == resultj).all(), 'results are not identical'
 
 
 @pytest.mark.parametrize('win', [10, 20])

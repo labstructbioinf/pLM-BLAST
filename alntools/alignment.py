@@ -249,8 +249,8 @@ def border_argmaxlenpool(array: np.ndarray,
 
 
 def gather_all_paths(array: np.ndarray,
+					norm: bool = False,
 					minlen: int = 10,
-					norm: bool = True,
 					bfactor: Union[int, str] = 1,
 					gap_opening: float = 0,
 					gap_extension: float = 0,
@@ -260,39 +260,30 @@ def gather_all_paths(array: np.ndarray,
 	find all Smith-Waterman-like paths from bottom and right edges of scoring matrix
 	Args:
 		array (np.ndarray): raw subtitution matrix aka densitymap
-		norm_rows (bool, str): whether to normalize array per row or per array
 		bfactor (int): use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
 		with_scores (bool): if True return score matrix
 	Returns:
 		list: list of all valid paths through scoring matrix
 		np.ndarray: scoring matrix used
 	'''
-	
+	assert minlen > 0
+	assert isinstance(with_scores, bool)
 	if not isinstance(array, np.ndarray):
 		array = array.numpy().astype(np.float32)
-	if not isinstance(norm, (str, bool)):
-		raise ValueError(f'norm_rows arg should be bool type, but given: {norm}')
 	if not isinstance(bfactor, (str, int)):
 		raise TypeError(f'bfactor should be int/str but given: {type(bfactor)}')
-	# standarize embedding
-	if isinstance(norm, bool):
-		if norm:
-			arraynorm = (array - array.mean())/(array.std() + 1e-3)
-		else:
-			arraynorm = array.copy()
 	# set local or global alignment mode
+	global_mode = False
 	if bfactor == 'global':
-		mode = 'global'
-	else:
-		mode = 'local'
-	score_matrix = fill_score_matrix(arraynorm, gap_penalty=gap_opening, mode=mode)
+		global_mode = True
+	score_matrix = fill_score_matrix(array, gap_penalty=gap_opening, global_mode=global_mode, norm=norm)
 	# get all edge indices for left and bottom
 	# score_matrix shape array.shape + 1
 	# local alignment mode
 	if isinstance(bfactor, int):
 		indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
 	# global alignment mode
-	elif isinstance(bfactor, str) and bfactor == 'global':
+	elif global_mode:
 		indices = [(score_matrix.shape[0] - 1, score_matrix.shape[1] - 1)]
 	paths = list()
 	for ind in indices:

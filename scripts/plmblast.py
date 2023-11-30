@@ -46,64 +46,46 @@ if __name__ == "__main__":
 	if args.verbose:
 		print('%s alignment mode' % 'global' if args.global_aln else 'local')
 	
-	# Load database  index file
-	db_index = aln.filehandle.find_file_extention(args.db)
+	# Load database index file
+	dbdata = aln.filehandle.DataObject.from_dir(args.db)
 	if args.verbose:
 		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
-	dbdf = read_input_file(db_index, plmblastid='dbid')
 	# Load query
 	if args.verbose:
 		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
 	# read sequence file
-	query_index = aln.filehandle.find_file_extention(args.query)
-	query_df = read_input_file(query_index, plmblastid='queryid')
-	if os.path.isfile(args.query + '.pt') or os.path.isdir(args.query):
-		pass
-	else:
-		raise FileNotFoundError(f'''
-						  query embedding file or directory not found in given location: {args.query}
-						  please make sure that query is appropriate directory with embeddings or file
-						  with .pt extension
-						  ''')
+	querydata = aln.filehandle.DataObject.from_dir(args.query)
 	# add id column if not present already
-	# id is user based id column (typically string) to identify query
-	# queryid is integer to identify search results
-	query_ids = query_df['queryid'].tolist()
-	query_seqs = query_df['sequence'].tolist()
 	##########################################################################
 	# 								filtering								 #
 	##########################################################################
-	# TODO optimize this choice
-	jobs_per_process = 30
-	batch_size = jobs_per_process*args.workers
+	batch_size = aln.cfg.jobs_per_process*args.workers
 	print('prescreening')
 	query_filedict = aln.prepare.apply_database_screening(args,
-													    querysize=query_df.shape[0],
-														dbsize=dbdf.shape[0])
-	batch_loader = aln.filehandle.BatchLoader(query_ids=query_ids,
-										    querypath=args.query,
+													   	querydata=querydata,
+														dbdata=dbdata)
+	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
+										    dbdata=dbdata,
 											filedict=query_filedict,
-											batch_size=batch_size,
-											mode="emb")
+											batch_size=batch_size)
 	if len(query_filedict) == 0:
 		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
 		sys.exit(0)
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
-	result_stack: List[pd.DataFrame] = list()
 	# TODO wrapp this into context manager
 	# limit threads for concurrent
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
 	with multiprocessing.Manager() as manager:
-		result_stack = manager.list()
+		result_stack: List[pd.DataFrame] = manager.list()
 		compare_fn = partial(module.full_compare_args, result_stack=result_stack)
 		for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
 			# submit jobs
 			with multiprocessing.Pool(processes=args.workers) as pool:
 				iterable = ((query_emb, emb, db_index, query_index) for db_index, emb in zip(embedding_index, embedding_list))
-				job_stack = pool.map_async(compare_fn, iterable, chunksize=3)
+				job_stack = pool.map_async(compare_fn, iterable, chunksize=aln.cfg.mp_chunksize)
 				# collect jobs
 				job_stack.wait()
 			gc.collect()
@@ -122,11 +104,14 @@ if __name__ == "__main__":
 	print('merging results')
 	# run postprocessing
 	results = list()
-	result_df = result_df.merge(query_df[['queryid', 'id', 'sequence']], on='queryid', how='left')
+	result_df = result_df.merge(
+		querydata.indexdata[['run_index', 'id', 'sequence']],
+		 left_on="queryid", right_on="run_index", how='left')
 	for qid, rows in result_df.groupby('queryid'):
-		query_result = aln.postprocess.prepare_output(rows, dbdf, alignment_cutoff=args.alignment_cutoff)
+		query_result = aln.postprocess.prepare_output(rows, dbdata.indexdata, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)
 	results = pd.concat(results, axis=0)
+	results.sort_values(by['qid', 'score'], ascending=False, inplace=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):

@@ -6,8 +6,6 @@ export MKL_DYNAMIC=FALSE
 
 INPUT="data/input/rossmannsdb.fas"
 DBDIR="data/output/rossmannsdb"
-#DB="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
-DB="/home/nfs/kkaminski/PLMBLST/ecod30db_mini"
 RESULTS=allvsall.csv
 # create database directory
 mkdir -p data/output

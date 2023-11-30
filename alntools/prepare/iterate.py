@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .. numeric import move_mean, find_alignment_span
-
-AVG_EMBEDDING_STD = 0.1
+from ..settings import AVG_EMBEDDING_STD
 
 
 def mask_like(densitymap: np.array,
@@ -32,7 +31,7 @@ def search_paths(submatrix: np.ndarray,
 		 window: int = 10,
 		 min_span: int = 20,
 		 sigma_factor: float = 1.0,
-		 mode: str = 'local',
+		 global_mode: bool = False,
 		 as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
 	'''
 	iterate over all paths and search for routes matching alignmnet criteria
@@ -45,23 +44,25 @@ def search_paths(submatrix: np.ndarray,
 		sigma_factor (float): standard deviation threshold
 		as_df (bool): when True, instead of dictionary dataframe is returned
 	Returns:
-		record (dict): alignment paths
+		(dict): alignment paths
 	'''
 	assert isinstance(submatrix, np.ndarray)
 	assert isinstance(paths, list)
 	assert isinstance(window, int) and window > 0
 	assert isinstance(min_span, int) and min_span > 0
 	assert isinstance(sigma_factor, (int, float))
-	assert mode in {"local", "global"}
+	assert isinstance(global_mode, bool)
 	assert isinstance(as_df, bool)
 
 	min_span = max(min_span, window)
 	if not np.issubsctype(submatrix, np.float32):
 		submatrix = submatrix.astype(np.float32)
-	arr_sigma = submatrix.std()
+
 	# force sigma to be not greater then average std of embeddings
 	# also not too small
-	arr_sigma = max(arr_sigma, AVG_EMBEDDING_STD)
+	#arr_sigma = submatrix.std()
+	#arr_sigma = max(arr_sigma, AVG_EMBEDDING_STD)
+	arr_sigma = AVG_EMBEDDING_STD
 	path_threshold = sigma_factor*arr_sigma
 	spans_locations = dict()
 	# iterate over all paths
@@ -73,7 +74,7 @@ def search_paths(submatrix: np.ndarray,
 		# revert indices and and split them into x, y
 		y, x = diag_ind[::-1, 0].ravel(), diag_ind[::-1, 1].ravel()
 		pathvals = submatrix[y, x].ravel()
-		if mode == 'local':
+		if not global_mode:
 			# smooth values in local mode
 			if window != 1:
 				line_mean = move_mean(pathvals, window)
@@ -93,8 +94,7 @@ def search_paths(submatrix: np.ndarray,
 				y1, x1 = y[start:stop-1], x[start:stop-1]
 				arr_values = submatrix[y1, x1]
 				arr_indices = np.stack([y1, x1], axis=1)
-				keyid = f'{ipath}_{idx}'
-				spans_locations[keyid] = {
+				spans_locations[idx] = {
 					'pathid': ipath,
 					'spanid': idx,
 					'span_start': start,
@@ -102,7 +102,7 @@ def search_paths(submatrix: np.ndarray,
 					'indices': arr_indices,
 					'score': arr_values.mean(),
 					"len": alnlen,
-					"mode": mode
+					"mode": "global" if global_mode else "local"
 				}
 	if as_df:
 		return pd.DataFrame(spans_locations.values())
