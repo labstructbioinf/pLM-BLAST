@@ -7,17 +7,16 @@ from tqdm import tqdm
 import torch
 from torch.nn.functional import avg_pool1d
 
-from filehandle import DataObject
+from ..filehandle import DataObject
 from ..density.local import chunk_cosine_similarity
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density.local import batch_slice_iterator
-
+from ..settings import SCR_BATCH_SIZE, EMB64_EXT
 
 def apply_database_screening(args: argparse.Namespace,
                             querydata: DataObject,
                             dbdata: DataObject,
-                            batchsize: int = 256,
                             stride: int = 10) -> Dict[int, List[str]]:
     '''
     apply pre-screening for database search
@@ -32,10 +31,12 @@ def apply_database_screening(args: argparse.Namespace,
     torch.set_num_threads(args.workers)
     num_workers_loader = 0
     num_queries = querydata.size
+    percentile_factor = args.COS_PER_CUT/100
     if 0 < args.COS_PER_CUT < 100 and dbdata.size > 1:
+        print(f"Pre-screening with {args.COS_PER_CUT} quantile")
         query_filedict = dict()
-        dbpath = os.path.join(args.db, 'emb.64')
-        querypath = os.path.join(args.query, 'emb.64')
+        dbpath = os.path.join(args.db, EMB64_EXT)
+        querypath = os.path.join(args.query, EMB64_EXT)
         if not os.path.isfile(dbpath):
             print(
                 f'''missing pooled embedding file {dbpath} for given database, it will be generated on fly,
@@ -50,7 +51,9 @@ def apply_database_screening(args: argparse.Namespace,
                 # generator version to reduce RAM usage
                 db_embs = list()
                 print('loading embeddings')
-                for embs in load_embeddings_parallel_generator(args.db, num_records=dbdata.size, num_workers=num_workers_loader):
+                for embs in load_embeddings_parallel_generator(dbdata.embeddingpath,
+                                                               num_records=dbdata.size,
+                                                               num_workers=num_workers_loader):
                     db_embs.extend(calculate_pool_embs(embs))
             # try to write emb.64 file
             try:
@@ -65,43 +68,50 @@ def apply_database_screening(args: argparse.Namespace,
             if not os.path.isfile(querypath):
                 if querydata.datatype == "dir":
                     query_embs_chunkcs = list()
-                    for embs in load_embeddings_parallel_generator(args.query, num_records=querydata.size, num_workers=0):
+                    for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
+                                                                   num_records=querydata.size,
+                                                                   num_workers=0):
                         query_embs_chunkcs.extend(calculate_pool_embs(embs))
-                    else:
-                        query_embs_chunkcs = torch.load(querydata.embeddingpath)
-                        query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
+                else:
+                    query_embs_chunkcs = torch.load(querydata.embeddingpath)
+                    query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
             else:
                 query_embs_chunkcs = torch.load(querypath)
             # loop over all query embeddings
             index = 0
             with tqdm(total=num_queries, desc='screening seqences') as pbar:
-                for embslice in batch_slice_iterator(num_queries, batchsize):
+                for embslice in batch_slice_iterator(num_queries, batchsize=SCR_BATCH_SIZE):
                     filedict_batch = chunk_cosine_similarity(
                                                         query=query_embs_chunkcs[embslice],
                                                         targets=db_embs,
-                                                        quantile=args.COS_PER_CUT/100,
-                                                        dataset_files=filelist,
+                                                        quantile=percentile_factor,
+                                                        dataset_files=dbdata.dirfiles,
                                                         stride=stride)
                     for filedict in filedict_batch:
                         query_filedict[index] = filedict
                         index += 1
                         pbar.update(1)
+            avg_hits = [len(v) for v in query_filedict.values()]
+            avg_hits = int(sum(avg_hits)/len(avg_hits))
+            print(f"{avg_hits} alignment candidates per query")
         else:
             if args.verbose:
                 print('Using regular cosine similarity screening...')
             # TODO make sure that regular screening works
-            for i, emb in tqdm(enumerate(load_embeddings_parallel_generator(args.query,num_records=dbsize,num_workers=0)), total=num_queries, desc='screening seqences'):
+            for i, emb in tqdm(enumerate(load_embeddings_parallel_generator(querydata.embeddingpath,
+                                                                             num_records=querydata.size,
+                                                                             num_workers=0)),
+                                                                               total=num_queries, desc='screening seqences'):
                 filedict = load_and_score_database(emb,
-                                                    dbpath=args.db,
-                                                    num_records=dbsize,
-                                                    quantile=args.COS_PER_CUT/100,
+                                                    dbpath=dbdata.embeddingpath,
+                                                    num_records=dbdata.size,
+                                                    quantile=percentile_factor,
                                                     num_workers=2)
                 query_filedict[i] = filedict
     else:
         # no screening case
-        print("screening skipped")
-        filelist = [os.path.join(args.db, f'{f}.emb') for f in range(0, dbsize)]  # db_df is a database index
-        filedict = {k: v for k, v in zip(range(len(filelist)), filelist)}
+        print("Pre-screening skipped")
+        filedict = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
         query_filedict = {queryid : filedict for queryid in range(num_queries)}
     return query_filedict
 

@@ -24,6 +24,9 @@ examples/data/input/scope40.fas
 #temp notebook
 tmp.ipynb
 
+# tests
+test.sh
+
 # exceptions for tests
 !tests/test_data/*.pt
 !tests/test_data/*.fas

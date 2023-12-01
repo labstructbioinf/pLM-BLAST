@@ -1,14 +1,13 @@
 import os
 import math
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from collections import namedtuple
 import itertools
 
+import numpy as np
 from Bio import SeqIO
 import pandas as pd
 import torch
-
-from .density import load_full_embeddings
 
 
 extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
@@ -16,6 +15,9 @@ record = namedtuple('record', ['id', 'file'])
 
 
 class DataObject:
+     """
+     core object to handle pLM-Blast script calls
+     """
      size: int = 0
      indexfile: str
      indexdata: pd.DataFrame
@@ -23,22 +25,25 @@ class DataObject:
      embeddingpath: str = ""
      pathdata: str
      ext: str = ".emb"
-     def __init__(self, indexdata: pd.DataFrame, pathdata: str):
+     objtype: str = "query"
+     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: str = "query"):
 
         self.pathdata = pathdata
         self.indexdata = indexdata
+        self.objtype = objtype
         self.size = indexdata.shape[0]
         self._find_datatype()
+        print(f"loaded {self.objtype}: {self.pathdata} - {self.datatype} mode")
      
      @classmethod
-     def from_dir(cls, pathdata: str):
+     def from_dir(cls, pathdata: str, objtype: str = "query"):
         """
         path to data
         """
         infile_with_extention = find_file_extention(pathdata)
         indexfile = read_input_file(infile_with_extention)
         indexfile['run_index'] = list(range(0, indexfile.shape[0]))
-        return cls(indexdata=indexfile, pathdata=pathdata)
+        return cls(indexdata=indexfile, pathdata=pathdata, objtype=objtype)
      
      def _find_datatype(self):
           
@@ -52,9 +57,16 @@ class DataObject:
              FileNotFoundError(f'''no valid database in given location: {self.pathdata},
                                 make sure it contain {self.pathdata}.pt file or it is a 
                                 directory with .emb files''')
-          
-     def dirfiles(self):
-          return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in self.indexdata['run_index'].tolist()]
+    
+     @property
+     def dirfiles(self) -> Union[List[str], List[int]]:
+          """
+          return all files availabe for this dataobj
+          """
+          if self.datatype == "dir":
+                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in self.indexdata['run_index'].tolist()]
+          else:
+                return self.indexdata['run_index'].tolist()
           
                
 def find_file_extention(infile: str) -> str:
@@ -73,6 +85,8 @@ def find_file_extention(infile: str) -> str:
 def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	'''
 	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
+    Returns:
+        pd.DataFrame: with columns: sequence, id and optionally description
 	'''
 	# gather input file
 	if file.endswith('csv'):
@@ -100,7 +114,6 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		if cname not in df.columns:
 			raise KeyError(f'no column: {cname} available in file: {file}, columns: {df.columns}')
 		else:
-			#print(f'using column: {cname}')
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
@@ -133,16 +146,12 @@ class BatchLoader:
         self.query_ids = querydata.indexdata['run_index'].tolist()
         if querydata.datatype == "file":
             self.qasdir = False
-            self.qdata = torch.load(querydata.embeddingpath)
-            if not isinstance(self.qdata, list):
-                 self.qdata = [self.qdata.numpy()]
+            self.qdata = self._load_single(querydata.embeddingpath)
         else:
-             self.queryfiles = querydata.dirfiles()
+             self.queryfiles = querydata.dirfiles
         if dbdata.datatype == "file":
              self.dbasdir = False
-             self.dbdata = torch.load(dbdata.embeddingpath)
-             if not isinstance(self.dbdata, list):
-                self.dbdata = [self.dbdata.numpy()]
+             self.dbdata =  self._load_single(dbdata.embeddingpath)
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
@@ -180,7 +189,7 @@ class BatchLoader:
              query_dbindices = self._query_flatten_id[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = torch.load(self.queryfiles[query_id]).numpy()
+                qembedding = self._load_single(self.queryfiles[query_id])
              else:
                 qembedding = self.qdata[query_id]
              # return embeddings
@@ -188,7 +197,11 @@ class BatchLoader:
                 if self.dbdata is None:
                     dbembeddings = self._load_batch(db_files)
                 else:
-                     dbembeddings = self.dbdata[query_dbindices]
+                     # if dbdata is single file
+                    if len(self.dbdata) == 1:
+                          dbembeddings = [self.dbdata[query_dbindices[0]]]
+                    else:
+                        dbembeddings = self.dbdata[query_dbindices].numpy()
             # return files
              else:
                  dbembeddings = db_files
@@ -225,5 +238,13 @@ class BatchLoader:
     
     def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
-         embeddings = load_full_embeddings(filelist, poolfactor=None)
+         embeddings = [torch.load(f).float().numpy() for f in filelist]
          return embeddings
+    
+    def _load_single(self, f) -> List[np.ndarray]:
+        emb = torch.load(f)
+        if isinstance(emb, list):
+            emb = [e.float().numpy() for e in emb]
+        else:
+            emb = [emb.float().numpy()]
+        return emb

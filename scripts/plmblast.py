@@ -4,7 +4,6 @@ import gc
 import datetime
 from typing import List
 import multiprocessing
-from multiprocessing.shared_memory import SharedMemory
 from functools import partial
 
 import mkl
@@ -14,8 +13,8 @@ from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from alntools.parser import get_parser
-from embedders.base import read_input_file
-import alntools.density as ds
+from alntools.filehandle import DataObject
+from alntools.base import Extractor
 import alntools as aln
 
 
@@ -37,40 +36,31 @@ if __name__ == "__main__":
 
 	time_start = datetime.datetime.now()
 	args = get_parser()
-	module = aln.base.Extractor(min_spanlen=args.min_spanlen,
+	module = Extractor(min_spanlen=args.min_spanlen,
 							 window_size=args.WINDOW_SIZE,
 							 sigma_factor=args.SIGMA_FACTOR,
 							 filter_results=True,
 							 bfactor='global' if args.global_aln else args.bfactor)
 	module.GAP_EXT = args.GAP_EXT
-	if args.verbose:
-		print('%s alignment mode' % 'global' if args.global_aln else 'local')
-	
+	module.NORM = False
+	module.show_config()
 	# Load database index file
-	dbdata = aln.filehandle.DataObject.from_dir(args.db)
-	if args.verbose:
-		print(f"Loading database {colors['yellow']}{args.db}{colors['reset']}")
-	# Load query
-	if args.verbose:
-		print(f"Loading query {colors['yellow']}{args.query}{colors['reset']}")
-	# read sequence file
-	querydata = aln.filehandle.DataObject.from_dir(args.query)
+	dbdata = DataObject.from_dir(args.db, objtype="database")
+	# Load query index file
+	querydata = DataObject.from_dir(args.query, objtype="query")
 	# add id column if not present already
 	##########################################################################
 	# 								filtering								 #
 	##########################################################################
 	batch_size = aln.cfg.jobs_per_process*args.workers
-	print('prescreening')
 	query_filedict = aln.prepare.apply_database_screening(args,
 													   	querydata=querydata,
 														dbdata=dbdata)
+	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										    dbdata=dbdata,
 											filedict=query_filedict,
 											batch_size=batch_size)
-	if len(query_filedict) == 0:
-		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
-		sys.exit(0)
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
@@ -111,7 +101,7 @@ if __name__ == "__main__":
 		query_result = aln.postprocess.prepare_output(rows, dbdata.indexdata, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)
 	results = pd.concat(results, axis=0)
-	results.sort_values(by['qid', 'score'], ascending=False, inplace=True)
+	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):

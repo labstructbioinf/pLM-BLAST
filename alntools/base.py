@@ -58,7 +58,6 @@ class Extractor:
 		if isinstance(bfactor, str):
 			assert bfactor == 'global'
 
-
 		self.min_spanlen = min_spanlen
 		self.window_size = window_size
 		self.sigma_factor = sigma_factor
@@ -89,7 +88,7 @@ class Extractor:
 			raise AttributeError(f'mode must me results or all, but given: {mode}')
 		densitymap = embedding_local_similarity(X, Y)
 		paths = gather_all_paths(densitymap,
-						   		 norm=False,
+						   		 norm=self.NORM,
 								 minlen=self.min_spanlen,
 								 bfactor=self.bfactor,
 								 gap_opening=self.GAP_OPEN,
@@ -157,6 +156,16 @@ class Extractor:
 				res = filter_result_dataframe(res)
 			if res is not None:
 				result_stack.append(res)
+
+	def show_config(self):
+		"""
+		print run spefication
+		"""
+		if self.global_mode:
+			print("running pLM-Blast in global alignment mode")
+		else:
+			print(f'running pLM-Blast in local alignment mode')
+			print(f'minimal alignment len: {self.min_spanlen} sigma: {self.sigma_factor}')
 
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:

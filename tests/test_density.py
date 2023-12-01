@@ -125,4 +125,6 @@ def test_chunk_result_equality():
 		result_single = chunk_score(q, targets, stride=10, kernel_size=20).view(-1)
 		result_flat = results[:, i].view(-1)
 		assert result_single.shape[0] == result_flat.shape[0]
-		assert torch.allclose(result_flat, result_single, atol=1e-3)
+		if not torch.allclose(result_flat, result_single, atol=1e-3):
+			result_diff = (result_flat - result_single).abs()
+			raise ValueError(f"results are differnt by avg {result_diff.mean()} and max {result_diff.max()}")

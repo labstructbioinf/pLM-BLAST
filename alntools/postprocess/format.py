@@ -5,23 +5,21 @@ import pandas as pd
 from Bio.Align import substitution_matrices
 
 from ..alignment import draw_alignment
+from ..settings import (RESIDUES,
+                        RESIDUE_GROUPMAP)
 
 blosum62 = substitution_matrices.load("BLOSUM62")
 
-RESIDUES = list('ARNDCQEGHILKMFPSTWYVBZX*')
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 # columns to save in output
 COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
                 'match_len']
-RESIDUE_GROUPS = ['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-', 'X']
-RESIDUE_GROUPMAP = {resgroup : i for i, resgroup in enumerate(RESIDUE_GROUPS)}
-
 
 
 def calc_con(s1, s2):
-	res=[]
+	res = list()
 	for c1, c2 in zip(list(s1), list(s2)):
 		if c1=='-' or c2=='-': 
 			res+=' '
@@ -85,7 +83,8 @@ def prepare_output(resdf: pd.DataFrame,
     else:
         querydf = querydf[querydf.score >= alignment_cutoff].copy()
     if len(querydf) == 0:
-        print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
+        if verbose:
+            print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
         return pd.DataFrame()
     else:
         # drop technical columns
