@@ -9,4 +9,5 @@ RESIDUES = list('ARNDCQEGHILKMFPSTWYVBZX*')
 RESIDUE_GROUPS = ['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-', 'X']
 RESIDUE_GROUPMAP = {resgroup : i for i, resgroup in enumerate(RESIDUE_GROUPS)}
 
-EMB64_EXT = ".emb.64"
+# changed from ".emb.64"
+EMB64_EXT = "emb.64"
