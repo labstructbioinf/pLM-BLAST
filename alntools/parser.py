@@ -91,4 +91,5 @@ def get_parser() -> argparse.Namespace:
 	# get available cores
 	if args.workers == 0:
 		args.workers = get_available_cores()
+		print(f"using all {args.workers} CPU cores")
 	return args

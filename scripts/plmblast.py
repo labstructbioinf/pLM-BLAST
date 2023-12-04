@@ -10,6 +10,7 @@ import mkl
 import numba
 import pandas as pd
 from tqdm import tqdm
+import torch
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from alntools.parser import get_parser
@@ -66,8 +67,10 @@ if __name__ == "__main__":
 	##########################################################################
 	# TODO wrapp this into context manager
 	# limit threads for concurrent
+	os.environ["MKL_DYNAMIC"] = str(False)
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
+	torch.set_num_threads(1)
 	with multiprocessing.Manager() as manager:
 		result_stack: List[pd.DataFrame] = manager.list()
 		compare_fn = partial(module.full_compare_args, result_stack=result_stack)

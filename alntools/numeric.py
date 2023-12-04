@@ -260,7 +260,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	return path_arr
 
 
-@numba.njit(fastmath=True, cache=True)
+@numba.njit(fastmath=fastmath, cache=cache)
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
 						mthreshold: float = 0.10) -> List[Tuple[int, int]]:
 	'''
@@ -327,5 +327,6 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)
 	emb1_normed = X / emb1_norm
 	emb2_normed = Y / emb2_norm
-	density = (emb1_normed @ emb2_normed.T).T
+	#density = (emb1_normed @ emb2_normed.T).T
+	density = emb2_normed @ emb1_normed.T
 	return density
