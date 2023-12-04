@@ -1,7 +1,7 @@
 import os
 import argparse
 
-import multiprocessing
+import psutil
 
 
 def get_available_cores() -> int:
@@ -10,7 +10,7 @@ def get_available_cores() -> int:
 		if "SLURM_JOB_CPUS_PER_NODE" in os.environ:
 			num_cores = int(os.environ.get("SLURM_JOB_CPUS_PER_NODE"))
 		else:
-			num_cores = multiprocessing.cpu_count()
+			num_cores = psutil.cpu_count(logical=False)
 	except Exception as e:
 		print(f'Cannot check available cores using safe value 4: {e}')
 		num_cores = 4
