@@ -367,3 +367,9 @@ def embedding_local_similarity2(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	#density = (emb1_normed @ emb2_normed.T).T
 	density = emb2_normed @ emb1_normed.T
 	return density
+
+
+def signal_enhancement(arr: np.ndarray):
+	arr_left = (arr - arr.mean(0, keepdims=True))/arr.std(0, keepdims=True)
+	arr_right = (arr - arr.mean(1, keepdims=True))/arr.std(1, keepdims=True)
+	return (arr_left + arr_right)/2

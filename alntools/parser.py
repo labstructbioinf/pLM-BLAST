@@ -76,6 +76,12 @@ def get_parser() -> argparse.Namespace:
 						type=float, default=0, dest='GAP_EXT')
 	parser.add_argument('-bfactor', default=1, type=int, help= \
 					 'increasing this value above 1 will reduce number of alignments that are very close to each other also increase search speed')
+	parser.add_argument('--enh', default=False, action='store_true', help=\
+					 """
+					 use additional normalisation introduced in paper:  Embedding-based alignment: combining protein language
+					 models and alignment approaches to detect structural
+					 similarities in the twilight-zone link: https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2.full.pdf
+					 """)
 	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)

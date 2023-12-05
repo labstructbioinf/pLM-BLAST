@@ -7,6 +7,7 @@ import numpy as np
 
 from .numeric import embedding_local_similarity
 from .numeric import embedding_local_similarity2
+from .numeric import signal_enhancement
 from .alignment import gather_all_paths
 from .prepare import search_paths
 from .postprocess import filter_result_dataframe
@@ -27,6 +28,8 @@ class Extractor:
 	filter_results: bool = False
 	mode: str = 'local'
 	featurewise_norm: bool = False
+	enhance: bool = False
+	enhance_signal: bool = False
 
 
 	def __init__(self,
@@ -36,6 +39,7 @@ class Extractor:
 				filter_results: bool = False,
 				bfactor: int = 1,
 				featurewise_norm = False,
+				enhance_signal = False,
 				**kw_args):
 		'''
 		pLM-BLAST module
@@ -62,6 +66,7 @@ class Extractor:
 		if isinstance(bfactor, str):
 			assert bfactor == 'global'
 		assert isinstance(featurewise_norm, bool)
+		assert isinstance(enhance_signal, bool)
 
 		self.min_spanlen = min_spanlen
 		self.window_size = window_size
@@ -70,6 +75,8 @@ class Extractor:
 		self.bfactor = bfactor
 		self.mode = 'global' if self.bfactor == 'global' else 'local'
 		self.global_mode = True if self.mode == 'global' else False
+		self.featurewise_norm = featurewise_norm
+		self.enhance_signal = enhance_signal
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results') -> pd.DataFrame:
 		'''
@@ -96,6 +103,8 @@ class Extractor:
 			densitymap = embedding_local_similarity2(X, Y)
 		else:
 			densitymap = embedding_local_similarity(X, Y)
+		if self.enhance_signal:
+			densitymap = signal_enhancement(densitymap)
 		return self.submatrix_to_span(densitymap, mode=mode)
 
 	def submatrix_to_span(self, submatrix: np.ndarray, mode: str = "results"):
@@ -164,6 +173,8 @@ class Extractor:
 		else:
 			print(f'running pLM-Blast in local alignment mode')
 			print(f'minimal alignment len: {self.min_spanlen} sigma: {self.sigma_factor}')
+		if self.enhance_signal:
+			print(f"using signal enhancement")
 
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:

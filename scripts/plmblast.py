@@ -41,7 +41,8 @@ if __name__ == "__main__":
 							 window_size=args.WINDOW_SIZE,
 							 sigma_factor=args.SIGMA_FACTOR,
 							 filter_results=True,
-							 bfactor='global' if args.global_aln else args.bfactor)
+							 bfactor='global' if args.global_aln else args.bfactor,
+							 enhance_signal=args.enh)
 	module.GAP_EXT = args.GAP_EXT
 	module.NORM = False
 	module.show_config()
@@ -91,7 +92,8 @@ if __name__ == "__main__":
 			sys.exit(0)
 
 	# Invalid plmblast score encountered
-	if result_df.score.max() > 1.01:
+	# only valid when signal ehancement is off
+	if result_df.score.max() > 1.01 and not args.enh:
 		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', result_df.score.min(), result_df.score.max())
 		sys.exit(0)
 	print('merging results')
