@@ -17,7 +17,7 @@ COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
                 'match_len']
 
-
+208
 def calc_con(s1, s2):
 	res = list()
 	for c1, c2 in zip(list(s1), list(s2)):

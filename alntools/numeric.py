@@ -330,3 +330,40 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	#density = (emb1_normed @ emb2_normed.T).T
 	density = emb2_normed @ emb1_normed.T
 	return density
+
+
+def embedding_local_similarity2(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+	'''
+	compute X, Y similarity by matrix multiplication
+	result shape [num X residues, num Y residues]
+	norm per embedding feature
+	Args:
+		X, Y - (np.ndarray 2D) protein embeddings as 2D tensors
+		  [num residues, embedding size]
+	Returns:
+		density (torch.Tensor)
+	'''
+	assert X.ndim == 2 and Y.ndim == 2
+	assert X.shape[1] == Y.shape[1]
+
+	xlen: int = X.shape[0]
+	ylen: int = Y.shape[0]
+	embdim: int = X.shape[1]
+	# normalize
+	emb1_mu: np.ndarray = np.empty((1, embdim), dtype=np.float32)
+	emb2_mu: np.ndarray = np.empty((1, embdim), dtype=np.float32)
+
+	emb1_mu_t: np.ndarray = embdim*np.ones_like(emb1_mu)
+	emb2_mu_t: np.ndarray = embdim*np.ones_like(emb2_mu)
+
+	emb1_normed: np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
+	emb2_normed: np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
+	density: np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
+	# numba does not support sum() args other then first
+	emb1_mu = np.expand_dims(X.sum(0), axis=0)/emb1_mu_t
+	emb2_mu = np.expand_dims(Y.sum(0), axis=0)/emb2_mu_t
+	emb1_normed = X - emb1_mu
+	emb2_normed = Y - emb2_mu
+	#density = (emb1_normed @ emb2_normed.T).T
+	density = emb2_normed @ emb1_normed.T
+	return density

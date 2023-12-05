@@ -274,8 +274,11 @@ def gather_all_paths(array: np.ndarray,
 		raise TypeError(f'bfactor should be int/str but given: {type(bfactor)}')
 	# set local or global alignment mode
 	global_mode = False
+	stop_value = 1e-3
 	if bfactor == 'global':
 		global_mode = True
+		stop_value = -10000
+
 	score_matrix = fill_score_matrix(array, gap_penalty=gap_opening, global_mode=global_mode, norm=norm)
 	# get all edge indices for left and bottom
 	# score_matrix shape array.shape + 1
@@ -287,7 +290,7 @@ def gather_all_paths(array: np.ndarray,
 		indices = [(score_matrix.shape[0] - 1, score_matrix.shape[1] - 1)]
 	paths = list()
 	for ind in indices:
-		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening)
+		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, stop_value=stop_value)
 		paths.append(path)
 	if with_scores:
 		return (paths, score_matrix)
