@@ -37,6 +37,11 @@ if __name__ == "__main__":
 
 	time_start = datetime.datetime.now()
 	args = get_parser()
+	os.environ["MKL_DYNAMIC"] = str(False)
+	os.environ["OMP_NUM_THREADS"] = str(args.workers)
+	mkl.set_num_threads(1)
+	numba.set_num_threads(1)
+	torch.set_num_threads(args.workers)
 	module = Extractor(min_spanlen=args.min_spanlen,
 							 window_size=args.WINDOW_SIZE,
 							 sigma_factor=args.SIGMA_FACTOR,
@@ -68,13 +73,7 @@ if __name__ == "__main__":
 	##########################################################################
 	# TODO wrapp this into context manager
 	# limit threads for concurrent
-	os.environ["MKL_DYNAMIC"] = str(False)
-	os.environ["OMP_NUM_THREADS"] = str(args.workers)
-	mkl.set_num_threads(1)
-	numba.set_num_threads(1)
-	torch.set_num_threads(1)
-	print(torch.get_num_threads()
-	print(multiprocessing.cpu_count()))
+
 	with multiprocessing.Manager() as manager:
 		result_stack: List[pd.DataFrame] = manager.list()
 		compare_fn = partial(module.full_compare_args, result_stack=result_stack)
