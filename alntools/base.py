@@ -159,6 +159,7 @@ class Extractor:
 		perform comparison of two sequence embeddings
 		args - the same as for `full_compare` method
 		'''
+	
 		emb1, emb2, dbid, qid = args
 		res = self.full_compare(emb1=emb1, emb2=emb2, dbid=dbid, qid=qid)
 		if res is not None:

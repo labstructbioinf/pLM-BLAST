@@ -6,12 +6,21 @@ from typing import List
 import multiprocessing
 from functools import partial
 
+
+#os.environ["MKL_DYNAMIC"] = str(False)
+#os.environ["NUMEXPR_NUM_THREADS"] = '1'
+#os.environ['MKL_NUM_THREADS'] = '1'
+#os.environ["OMP_NUM_THREADS"] = '1'
+#os.environ['OPENBLAS_NUM_THREADS'] = '1'
+
 import mkl
 import numba
 import pandas as pd
 from tqdm import tqdm
 import torch
 
+mkl.set_num_threads(1)
+numba.set_num_threads(1)
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from alntools.parser import get_parser
 from alntools.filehandle import DataObject
@@ -37,10 +46,7 @@ if __name__ == "__main__":
 
 	time_start = datetime.datetime.now()
 	args = get_parser()
-	os.environ["MKL_DYNAMIC"] = str(False)
-	os.environ["OMP_NUM_THREADS"] = str(args.workers)
-	mkl.set_num_threads(1)
-	numba.set_num_threads(1)
+	print("num cores: ", args.workers)
 	torch.set_num_threads(args.workers)
 	module = Extractor(min_spanlen=args.min_spanlen,
 							 window_size=args.WINDOW_SIZE,
@@ -73,18 +79,21 @@ if __name__ == "__main__":
 	##########################################################################
 	# TODO wrapp this into context manager
 	# limit threads for concurrent
-
+	torch.set_num_threads(1)
 	with multiprocessing.Manager() as manager:
 		result_stack: List[pd.DataFrame] = manager.list()
 		compare_fn = partial(module.full_compare_args, result_stack=result_stack)
-		for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
-			# submit jobs
-			with multiprocessing.Pool(processes=args.workers) as pool:
+		# Create the multiprocessing pool outside the loop
+		with multiprocessing.Pool(processes=int(args.workers)) as pool:
+			for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
+				# submit jobs
 				iterable = ((query_emb, emb, db_index, query_index) for db_index, emb in zip(embedding_index, embedding_list))
 				job_stack = pool.map_async(compare_fn, iterable, chunksize=aln.cfg.mp_chunksize)
-				# collect jobs
+				# Wait for the asynchronous processing to complete
 				job_stack.wait()
-			gc.collect()
+				# Get the result of the asynchronous processing
+				job_stack.get()
+				gc.collect()
 		results_stack = list(result_stack)
 		if len(result_stack) > 0: 
 			result_df = pd.concat(result_stack, ignore_index=True)

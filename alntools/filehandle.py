@@ -189,7 +189,7 @@ class BatchLoader:
              query_dbindices = self._query_flatten_id[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = self._load_single(self.queryfiles[query_id])
+                qembedding = self._load_single(self.queryfiles[query_id]).pop()
              else:
                 qembedding = self.qdata[query_id]
              # return embeddings
