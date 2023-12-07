@@ -28,7 +28,6 @@ def apply_database_screening(args: argparse.Namespace,
         (dict) each key is query_id, and values are embeddings above threshold
     '''
     # set torch num CPU limit
-    torch.set_num_threads(args.workers)
     num_workers_loader = 0
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
