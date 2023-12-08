@@ -1,28 +1,29 @@
 '''functions to make results more friendly'''
-import argparse
-from typing import Optional, List
+from typing import List, Optional
 
 import pandas as pd
 from Bio.Align import substitution_matrices
 
 from ..alignment import draw_alignment
+from ..settings import (RESIDUES,
+                        RESIDUE_GROUPMAP)
 
 blosum62 = substitution_matrices.load("BLOSUM62")
+
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 # columns to save in output
-COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
+COLUMNS_TO_SAVE = ['pathid', 'qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
                 'match_len']
 
 def calc_con(s1, s2):
-	aa_list = list('ARNDCQEGHILKMFPSTWYVBZX*')
-	res=[]
+	res = list()
 	for c1, c2 in zip(list(s1), list(s2)):
 		if c1=='-' or c2=='-': 
 			res+=' '
 			continue
-		bscore = blosum62[aa_list.index(c1)][aa_list.index(c2)]
+		bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
 		if bscore >= 6 or c1==c2:
 			res+='|'
 		elif bscore >= 0:
@@ -30,22 +31,24 @@ def calc_con(s1, s2):
 		else:
 			res+='.'
 	return ''.join(res)
-	
+
+def residue_to_group(residue: str) -> int:	
+    for resgroup, groupid in RESIDUE_GROUPMAP.items():
+        if residue in resgroup:
+            return groupid
+    assert False, f'invalid resdue {residue}'
 
 def calc_similarity(s1, s2) -> float:
-	def aa_to_group(aa):
-		for pos, g in enumerate(['GAVLI', 'FYW', 'CM', 'ST', 'KRH', 'DENQ', 'P', '-', 'X']):
-			g = list(g)
-			if aa in g: return pos
-		# TODO be verbose
-		assert False
-	res = [aa_to_group(c1)==aa_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
-	return sum(res)/len(res)
+	res = [residue_to_group(c1)==residue_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
+	return round(sum(res)/len(res), 2)
 	
 
-def calc_ident(s1, s2):
-	res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
-	return sum(res)/len(res)
+def calc_identity(s1: List[str], s2: List[str]) -> float:
+    '''
+    return identity based on alignment string
+    '''
+    res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
+    return round(sum(res)/len(res), 2)
 	
 
 def prepare_output(resdf: pd.DataFrame,
@@ -54,7 +57,7 @@ def prepare_output(resdf: pd.DataFrame,
                     verbose: bool = False) -> pd.DataFrame:
     '''
     add description to results based on extracted alignments and database frame records
-    required column: `id`
+    
     Args:
         resdf (pd.DataFrame):
         dbdf (pd.DataFrame):
@@ -63,7 +66,10 @@ def prepare_output(resdf: pd.DataFrame,
     Returns:
         pd.DataFrame
     '''
-    querydf = resdf.reset_index()
+    # drop technical columns    
+    querydf = resdf.drop(columns=['span_start', 'span_end', 'spanid', 'len'])
+    if 'index' in querydf.columns:
+         querydf.drop(columns=['index'], inplace=True)
     if alignment_cutoff is None:
           alignment_cutoff = 0.0
 	# check columns
@@ -72,7 +78,7 @@ def prepare_output(resdf: pd.DataFrame,
             raise KeyError(f'missing {col} column in input database frame')
     for col in COLUMNS_QUERY:
         if col not in querydf.columns:
-              raise KeyError(f'missing {col} column in input results  among: {querydf.columns}')
+              raise KeyError(f'missing {col} in input results frame')
     if len(querydf) == 0 and verbose:
         print('No hits found!')
         return pd.DataFrame()
@@ -83,8 +89,6 @@ def prepare_output(resdf: pd.DataFrame,
             print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
         return pd.DataFrame()
     else:
-        # drop technical columns
-        querydf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
         querydf.rename(columns={'id' : 'qid'}, inplace=True)
         dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
@@ -116,7 +120,7 @@ def prepare_output(resdf: pd.DataFrame,
                     'qseq': qaln,
                     'tseq': taln,
                     'con': calc_con(qaln, taln),
-                    'ident': calc_ident(qaln, taln),
+                    'ident': calc_identity(qaln, taln),
                     'similarity': calc_similarity(qaln, taln)
                     }
             alignment_desc.append(alignmnetdata)

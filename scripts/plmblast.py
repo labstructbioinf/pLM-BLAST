@@ -38,24 +38,13 @@ if __name__ == "__main__":
 	time_start = datetime.datetime.now()
 
 	args = get_parser()
-	module = aln.base.Extractor()
+	module = aln.base.Extractor(enhance_signal=args.enh)
 	module.FILTER_RESULTS = True
 	module.WINDOW_SIZE = args.WINDOW_SIZE
 	module.GAP_EXT = args.GAP_EXT
 	module.SIGMA_FACTOR = args.SIGMA_FACTOR
-	module.BFACTOR = 'global' if args.global_aln else 1
-	
-if __name__ == "__main__":
-
-	time_start = datetime.datetime.now()
-	args = get_parser()
+	module.BFACTOR = 'global' if args.global_aln else args.bfactor
 	print("num cores: ", args.workers)
-	module = aln.base.Extractor(min_spanlen=args.min_spanlen,
-							 window_size=args.WINDOW_SIZE,
-							 sigma_factor=args.SIGMA_FACTOR,
-							 filter_results=True,
-							 bfactor='global' if args.global_aln else args.bfactor,
-							 enhance_signal=args.enh)
 	module.GAP_EXT = args.GAP_EXT
 	module.NORM = False
 	#module.show_config()
@@ -105,6 +94,7 @@ if __name__ == "__main__":
 
 	if len(result_stack) > 0: 
 		result_df = pd.concat(result_stack)
+		print(f'hit candidates, {result_df.shape[0]}')
 	else:
 		print(f'No valid hits given pLM-BLAST parameters!')
 		sys.exit(0)
@@ -132,10 +122,10 @@ if __name__ == "__main__":
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):
-			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';')
+			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';', index=False)
 	else:
 		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
-		results.to_csv(output_name, sep=';')
+		results.to_csv(output_name, sep=';', index=False)
 
 	time_end = datetime.datetime.now()
 	print('total hits found: ', results.shape[0])

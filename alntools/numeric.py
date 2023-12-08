@@ -1,10 +1,16 @@
 '''numerical array calculations powered by numba'''
 
 from typing import Tuple, List, Union
+import logging;
 
 import numpy as np
 import numba
 from numba import types
+
+# suppress numba deprecated warning
+from numba.core.errors import NumbaDeprecationWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 
 
 @numba.njit(fastmath=True, cache=True)

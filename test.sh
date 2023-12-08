@@ -4,7 +4,7 @@ set -e
 
 
 INPUT="data/input/rossmannsdb.fas"
-DBDIR=/home/nfs/kkaminski/PLMBLST/test_data/rossmanns
+DBDIR=/home/nfs/kkaminski/PLMBLST/single/wrap1
 DB=/home/nfs/kkaminski/PLMBLST/ecod30db_20220902
 RESULTS=allvsall.csv
 # create database directory
@@ -24,5 +24,4 @@ python scripts/plmblast.py \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
 	-workers $NUM_WORKERS \
 		-sigma_factor $SIGMA \
-	--use_chunks \
-	--enh
+	--use_chunks
