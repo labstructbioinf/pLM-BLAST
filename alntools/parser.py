@@ -20,10 +20,10 @@ def get_parser() -> argparse.Namespace:
 		)
 
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
-	range0100 = lambda f:range_limited_float_type(f, 0, 101)
+	range0100 = lambda f:range_limited_float_type(f, -1, 100)
 
 	# input and output
-	parser.add_argument('db', help='Directory with a database to search',
+	parser.add_argument('db', help='Directory with a database to search expect file',
 						type=str)	
 	parser.add_argument('query', help='Base name of query files. Extensions are automatically added (.pt for embeddings and .csv, .p, .pkl, .fas or .fasta for sequences)',
 						type=str)	
@@ -38,18 +38,18 @@ def get_parser() -> argparse.Namespace:
 	# cosine similarity scan
 	parser.add_argument('-cosine_percentile_cutoff', help=\
 					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
-						type=range0100, default=95, dest='COS_PER_CUT')	
+						type=range0100, default=0, dest='COS_PER_CUT')	
 	parser.add_argument('--use_chunks', help=\
 					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=False)
 	
 	# plmblast
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
-						type=range01, default=0.3, dest='ALN_CUT')						
+						type=range01, default=0.3, dest='alignment_cutoff')						
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
 						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
-						type=int, default=25, choices=range(50), metavar="[1-50]", dest='MIN_SPAN_LEN')
+						type=int, default=25, choices=range(50), metavar="[1-50]", dest='min_spanlen')
 	parser.add_argument('--global_aln', help='Use global pLM-BLAST alignment. (default: %(default)s)',
                     	default=False, action='store_true')
 	parser.add_argument('-gap_ext', help='Gap extension penalty (default: %(default)s)',
@@ -57,14 +57,16 @@ def get_parser() -> argparse.Namespace:
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s)',
-						type=int, default=10, dest='MAX_WORKERS')
+						type=int, default=10, dest='workers')
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure (default: %(default)s)',
-						type=float, default=2, dest='SIGMA_FACTOR')	
+						type=float, default=2, dest='SIGMA_FACTOR')
+	parser.add_argument('-bfactor', type=int, default=1)
+	parser.add_argument('--enh', action='store_true', help="additional substitution matrix normalization described here as signal enhancement: https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2")
 
 	args = parser.parse_args()
 	
 	# validate provided parameters
-	assert args.MAX_WORKERS > 0
-	assert args.MIN_SPAN_LEN >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
+	assert args.workers > 0
+	assert args.min_spanlen >= args.WINDOW_SIZE, 'The minimum alignment length must be equal to or greater than the window length'
 	
 	return args

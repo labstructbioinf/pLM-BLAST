@@ -323,3 +323,10 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	emb2_normed = Y / emb2_norm
 	density = (emb1_normed @ emb2_normed.T).T
 	return density
+
+
+@numba.jit(fastmath=True, cache=True)
+def signal_enhancement(arr: np.ndarray):
+	arr_left = (arr - arr.mean(0, keepdims=True))/arr.std(0, keepdims=True)
+	arr_right = (arr - arr.mean(1, keepdims=True))/arr.std(1, keepdims=True)
+	return (arr_left + arr_right)/2

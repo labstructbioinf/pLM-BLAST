@@ -90,13 +90,10 @@ def search_paths(submatrix: np.ndarray,
 				if alnlen < min_span:
 					continue
 				y1, x1 = y[start:stop-1], x[start:stop-1]
+				ylen = y1[-1] - y1[0]
+				if ylen < min_span:
+					continue
 				arr_values = submatrix[y1, x1]
-				'''
-				if arr_values.mean() < path_threshold:
-					print(arr_values)
-					print(line_mean[start:stop])
-					raise ValueError('array values are wrong', arr_values.mean(), path_threshold)
-				'''
 				arr_indices = np.stack([y1, x1], axis=1)
 				keyid = f'{ipath}_{idx}'
 				spans_locations[keyid] = {
