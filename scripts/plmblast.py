@@ -88,13 +88,11 @@ if __name__ == "__main__":
 	numba.set_num_threads(1)
 	for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
 		iter_id = 0
-		job_stack = {}
-		print()
+		job_stack = list()
 		with ProcessPoolExecutor(max_workers = args.workers) as executor:
 			for (idx, emb) in zip(embedding_index, embedding_list):
 				job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
-				job_stack[job] = iter_id
-				iter_id += 1
+				job_stack.append(job)
 			time.sleep(0.1)
 			for job in as_completed(job_stack):
 				try:

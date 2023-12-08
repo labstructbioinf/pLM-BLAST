@@ -97,7 +97,7 @@ class Extractor:
 			if self.FILTER_RESULTS:
 				res = filter_result_dataframe(res)
 			return res
-		return []
+		return None
 
 
 	@staticmethod
