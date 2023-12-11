@@ -11,12 +11,12 @@ import torch
 
 
 extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
-record = namedtuple('record', ['id', 'file'])
+record = namedtuple('record', ['qid', 'qdbids' , 'dbfiles'])
 
 
 class DataObject:
      """
-     core object to handle pLM-Blast script calls
+     core object to handle pLM-Blast script calls for either query or database
      """
      size: int = 0
      indexfile: str
@@ -26,6 +26,7 @@ class DataObject:
      pathdata: str
      ext: str = ".emb"
      objtype: str = "query"
+
      def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: str = "query"):
 
         self.pathdata = pathdata
@@ -33,7 +34,7 @@ class DataObject:
         self.objtype = objtype
         self.size = indexdata.shape[0]
         self._find_datatype()
-        print(f"loaded {self.objtype}: {self.pathdata} - {self.datatype} mode")
+        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype} mode")
      
      @classmethod
      def from_dir(cls, pathdata: str, objtype: str = "query"):
@@ -130,6 +131,7 @@ class BatchLoader:
     _files_per_record = dict()
     _indices_per_record = dict()
     _iteratons_per_record = dict()
+    _qdata_record: List[record] = list()
     current_iteration = 0
     def __init__(self,
                  querydata: DataObject,
@@ -165,15 +167,20 @@ class BatchLoader:
         self.num_iterations = sum(self._iteratons_per_record.values())
         # iterations/batches per query without need of knowing qid
         # each list element should be list of files for certain batch
-        self._query_data_to_iteration = list()
-        self._query_flatten: List[List[str]] = list(itertools.chain(*self._files_per_record.values()))
-        self._query_flatten_id: List[List[int]] = list(itertools.chain(*self._indices_per_record.values()))
+        _query_data_to_iteration = list()
+        _query_flatten: List[List[str]] = list(itertools.chain(*self._files_per_record.values()))
+        _query_flatten_id: List[List[int]] = list(itertools.chain(*self._indices_per_record.values()))
         for qid in self.query_ids:
-             self._query_data_to_iteration += [qid]*self._iteratons_per_record[qid]
+            _query_data_to_iteration += [qid]*self._iteratons_per_record[qid]
+        # merge all needed data into single object
+        for itr in range(self.num_iterations):
+             self._qdata_record.append(record(qid=_query_data_to_iteration[itr],
+                                       dbfiles=_query_flatten[itr],
+                                       qdbids=_query_flatten_id[itr]))
         # checks
-        assert len(self._query_data_to_iteration) == self.num_iterations, \
-            f'{len(self._query_data_to_iteration)} != {self.num_iterations}'
-        assert len(self._query_flatten) == self.num_iterations
+        assert len(self._qdata_record) == self.num_iterations, \
+            f'{len(self._qdata_record)} != {self.num_iterations}'
+        assert len(_query_flatten) == self.num_iterations
    
     def __len__(self):
          return self.num_iterations
@@ -181,32 +188,30 @@ class BatchLoader:
     def __iter__(self):
         return self
     
-    def __next__(self):
+    def __next__(self) -> Tuple[int, List[int], np.ndarray, List[np.ndarray]]:
         if self.current_iteration < self.num_iterations:
-             # find correct query id
-             query_id = self._query_data_to_iteration[self.current_iteration]
-             db_files = self._query_flatten[self.current_iteration]
-             query_dbindices = self._query_flatten_id[self.current_iteration]
+             # get id
+             qdata = self._qdata_record[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = self._load_single(self.queryfiles[query_id]).pop()
+                qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
              else:
-                qembedding = self.qdata[query_id]
+                qembedding = self.qdata[qdata.qid]
              # return embeddings
              if self.mode == 'emb':
                 if self.dbdata is None:
-                    dbembeddings = self._load_batch(db_files)
+                    dbembeddings = self._load_batch(qdata.dbfiles)
                 else:
                      # if dbdata is single file
                     if len(self.dbdata) == 1:
-                          dbembeddings = [self.dbdata[query_dbindices[0]]]
+                          dbembeddings = [self.dbdata[qdata.qdbids[0]]]
                     else:
-                        dbembeddings = self.dbdata[query_dbindices].numpy()
+                        dbembeddings = self.dbdata[qdata.qdbids].numpy()
             # return files
              else:
-                 dbembeddings = db_files
+                 dbembeddings = qdata.dbfiles
              self.current_iteration += 1
-             return query_id, query_dbindices, qembedding, dbembeddings
+             return qdata.qid, qdata.qdbids, qembedding, dbembeddings
         else:
              raise StopIteration
 
@@ -242,6 +247,11 @@ class BatchLoader:
          return embeddings
     
     def _load_single(self, f) -> List[np.ndarray]:
+        """
+        load torch file content
+        Returns:
+            list(np.ndarray) or np.ndarray
+        """
         emb = torch.load(f)
         if isinstance(emb, list):
             emb = [e.float().numpy() for e in emb]

@@ -11,6 +11,11 @@ import torch
 from .schema import BatchIterator
 from .checkpoint import checkpoint_from_json
 
+
+class EmbedderError(Exception):
+	pass
+
+
 def create_parser() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description =
 		"""
@@ -112,27 +117,34 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 				raise FileNotFoundError(f'output directory is invalid: {out_basedir}')
 			elif args.asdir and not os.path.isdir(args.output):
 				os.mkdir(args.output)
+		# add .pt extention to file mode
+		if not args.asdir and not args.h5py:
+			if not args.output.endswith(".pt"):
+				args.output += ".pt"
 		if (args.embedder == 'pt') or args.embedder.lower().find('prot') !=- 1 :
 			pass
 		elif args.embedder.startswith('esm') or args.embedder.startswith('prost'):
 			pass
 		else:
-			raise argparse.ArgumentError("invalid embedder name", args.embedder)
+			raise EmbedderError("invalid embedder name", args.embedder)
 		
 		if args.truncate < 1:
-			raise argparse.ArgumentError('truncate must be greater then zero')
+			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
 		if args.h5py:
 			if os.path.isfile(args.output):
 				os.remove(args.output)
 		df.reset_index(inplace=True)
+		if args.nproc > 1:
+			if not args.asdir and not args.h5py:
+				raise EmbedderError("tu use `nproc` you must specify --asdir flag")
 	elif args.subparser_name == 'resume':
 		args = checkpoint_from_json(args.output)
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
-		raise argparse.ArgumentError(f'invalid subparser_name: {args.subparser_name}')
+		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():
 			raise ValueError('''
@@ -140,7 +152,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 					that you torch package is built with gpu support''')
 		if args.nproc > 1:
 			if torch.cuda.device_count() < args.nproc:
-				raise argparse.ArgumentError('''
+				raise EmbedderError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
 	print('embedder: ', args.embedder, 'on ', 'GPU' if args.gpu else 'CPU')
