@@ -468,3 +468,13 @@ def chunk_score_batch(queries: List[th.Tensor], targets: List[th.Tensor], stride
 			scorestack_t[tid, qid] = tqslit.max()
 	assert (~th.isnan(scorestack_t)).all(), f"nans found {th.isnan(scorestack_t).sum()}%"
 	return scorestack_t
+
+
+@th.jit.script
+def calculate_pool_embs(embs: List[th.Tensor]) -> List[th.Tensor]:
+    """
+    convert embeddings to torch.float32 and [seqlen, 64]
+    """
+    if len(embs) == 0:
+        raise ValueError('target database is empty')
+    return [F.avg_pool1d(emb.float().unsqueeze(0), 16).squeeze() for emb in embs]

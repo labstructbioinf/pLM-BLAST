@@ -8,7 +8,7 @@ import torch
 from torch.nn.functional import avg_pool1d
 
 from ..filehandle import DataObject
-from ..density.local import chunk_cosine_similarity
+from ..density.local import chunk_cosine_similarity, calculate_pool_embs
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density import batch_slice_iterator
@@ -116,13 +116,3 @@ def apply_database_screening(args: argparse.Namespace,
         filedict = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
         query_filedict = {queryid : filedict for queryid in range(num_queries)}
     return query_filedict
-
-
-@torch.jit.script
-def calculate_pool_embs(embs: List[torch.Tensor]) -> List[torch.Tensor]:
-    """
-    convert embeddings to torch.float32 and [seqlen, 64]
-    """
-    if len(embs) == 0:
-        raise ValueError('target database is empty')
-    return [avg_pool1d(emb.float().unsqueeze(0), 16).squeeze() for emb in embs]
