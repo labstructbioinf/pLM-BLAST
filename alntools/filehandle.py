@@ -206,7 +206,7 @@ class BatchLoader:
                     if len(self.dbdata) == 1:
                           dbembeddings = [self.dbdata[qdata.qdbids[0]]]
                     else:
-                        dbembeddings = self.dbdata[qdata.qdbids].numpy()
+                        dbembeddings = [self.dbdata[qdb] for qdb in qdata.qdbids]
             # return files
              else:
                  dbembeddings = qdata.dbfiles

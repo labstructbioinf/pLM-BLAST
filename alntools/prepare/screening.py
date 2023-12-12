@@ -33,7 +33,7 @@ def apply_database_screening(args: argparse.Namespace,
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
     torch.set_num_threads(args.workers)
-    if 0 < args.COS_PER_CUT < 100 and dbdata.size > 1:
+    if 0 < args.COS_PER_CUT < 100 and dbdata.size > 10:
         print(f"Pre-screening with {args.COS_PER_CUT} quantile")
         query_filedict = dict()
         dbpath = os.path.join(args.db, EMB64_EXT)

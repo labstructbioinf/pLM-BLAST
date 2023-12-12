@@ -13,7 +13,7 @@ blosum62 = substitution_matrices.load("BLOSUM62")
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 # columns to save in output
-COLUMNS_TO_SAVE = ['pathid', 'qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
+COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
                 'match_len']
 

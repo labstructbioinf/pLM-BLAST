@@ -6,9 +6,11 @@ import torch
 import pandas as pd
 from tqdm import tqdm
 
-from ..alntools.filehandle import DataObject
-from ..alntools.density.local import calculate_pool_embs
-from ..alntools.density.parallel import load_embeddings_parallel_generator
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from alntools.filehandle import DataObject
+from alntools.density.local import calculate_pool_embs
+from alntools.density.parallel import load_embeddings_parallel_generator
 
 def get_parser() -> argparse.Namespace:
     
@@ -32,11 +34,6 @@ for embs in load_embeddings_parallel_generator(dbdata.embeddingpath,
                                                 num_workers=2):
     db_embs.extend(calculate_pool_embs(embs))
     # try to write emb.64 file
-try:
-    torch.save(db_embs, dbpath)
-except Exception as e:
-    print(f'cannot write {dbpath} due to: {e}')
-
 outfile = os.path.join(dbpath, f'emb.64')
 torch.save(db_embs, outfile)
 print(f'Done! {outfile} created')
