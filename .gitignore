@@ -31,6 +31,9 @@ tests/output
 *.png
 # tests
 .pytest_cache
+*.hits.csv
+stest.sh
+test.sh
 # code profiler
 profile*.txt
 # line profiler

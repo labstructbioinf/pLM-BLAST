@@ -58,6 +58,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 	'''
 	def __init__(self, path: List[os.PathLike], num_records: int, flatten: bool = False):
 
+		assert os.path.isdir(path), f"path {path} is no a valid directory"
 		dirname = os.path.dirname(path)
 		if not (dirname == ''):
 			if not os.path.isdir(dirname):
@@ -71,7 +72,6 @@ class DatabaseChunk(torch.utils.data.Dataset):
 
 	def __len__(self):
 		return len(self.embedding_files)
-
 
 	def __getitem__(self, idx):
 		embedding = torch.load(self.embedding_files[idx])
@@ -91,10 +91,15 @@ def load_embeddings_parallel(path: str, num_records: int, num_workers: Optional[
 	return embeddinglist
 
 
-def load_embeddings_parallel_generator(path: str, num_records: int, num_workers: Optional[int] = 0) -> List[torch.Tensor]:
-	batch_size = 128
+def load_embeddings_parallel_generator(path: str, num_records: int, batch_size: int = 1, num_workers: Optional[int] = 0) -> List[torch.Tensor]:
 	# TODO optimize this choice
-	dataset = DatabaseChunk(path=path, num_records=num_records)
+	if os.path.isfile(path):
+		dataset = torch.load(path)
+	elif os.path.isdir(path):
+		dataset = DatabaseChunk(path=path, num_records=num_records)
+	else:
+		raise FileNotFoundError(f"path is not valid directory: {path}")
+	
 	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x, worker_init_fn=worker_init_fn)
 	for batch in dataloader:
 		yield batch
@@ -108,20 +113,25 @@ def load_and_score_database(query_emb : torch.Tensor,
 							device : torch.device = torch.device('cpu')) -> Dict[int, str]:
 	'''
 	perform cosine similarity screening
-
+	Args:
+		dbpath (str): file with .pt extension or directory
 	Returns:
 		(dict): with file id and path to embedding used
 	'''
 	assert 0 < quantile < 1
+	if isinstance(query_emb, list):
+		query_emb = query_emb[0]
 	batch_size = 256
 	pooling = 1
 	num_workers = 0
 	verbose = False
 	# setup database
-	if os.path.isfile(dbpath + ".pt"):
-		dataset = torch.load(dbpath + ".pt")
-	else:
+	if os.path.isfile(dbpath):
+		dataset = torch.load(dbpath)
+	elif os.path.isdir(dbpath):
 		dataset = DatabaseChunk(dbpath, num_records=num_records, flatten=True)
+	else:
+		raise FileNotFoundError('dbpath: {dbpath} is not directory or embedding file')
 	num_embeddings = len(dataset)
 	dataloader = torch.utils.data.DataLoader(dataset,
 								batch_size=batch_size,
@@ -143,7 +153,6 @@ def load_and_score_database(query_emb : torch.Tensor,
 		for i, batch in enumerate(dataloader):
 			# TODO process all queries at once
 			# this should give huge performence boost
-			print(batch.shape)
 			score = batch_cosine_similarity(query_emb, batch, poolfactor=pooling)
 			scorestack.append(score)
 			pbar.update(1)

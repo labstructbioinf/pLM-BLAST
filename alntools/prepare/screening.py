@@ -12,9 +12,8 @@ from ..density.local import chunk_cosine_similarity
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density import batch_slice_iterator
+from ..settings import EMB64_EXT, SCR_BATCH_SIZE
 
-SCR_BATCH_SIZE = 256
-EMB64_EXT = "emb.64"
 
 def apply_database_screening(args: argparse.Namespace,
                             querydata: DataObject,
