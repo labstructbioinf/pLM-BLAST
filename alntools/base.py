@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import torch
 
-from .numeric import embedding_local_similarity
+from .numeric import embedding_local_similarity, signal_enhancement
 from .alignment import gather_all_paths
 from .prepare import search_paths
 from .postprocess import filter_result_dataframe
@@ -25,10 +25,12 @@ class Extractor:
 	GAP_OPEN: float = 0.0
 	GAP_EXT: float = 0.0
 	FILTER_RESULTS: bool = False
+	enh: bool = False
 
-
-	def __init__(self, *args, **kw_args):
-		pass
+	# TODO add proper agument handling here
+	def __init__(self, enh: bool = False, *args, **kw_args):
+		assert isinstance(enh, bool)
+		self.enh = enh
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
 		'''
@@ -50,6 +52,8 @@ class Extractor:
 		if mode not in {'results', 'all'}:
 			raise AttributeError(f'mode must me results or all, but given: {mode}')
 		densitymap = embedding_local_similarity(X, Y)
+		if self.enh:
+			densitymap = signal_enhancement(densitymap)
 		paths = gather_all_paths(densitymap,
 								 norm=self.NORM,
 								 minlen=self.MIN_SPAN_LEN,
@@ -74,7 +78,7 @@ class Extractor:
 
 
 	def full_compare(self, emb1: np.ndarray, emb2: np.ndarray,
-					 idx: int = 0, file: str = 'source.fasta') -> pd.DataFrame:
+					 qid: int = 0, dbid: int = 0) -> pd.DataFrame:
 		'''
 		Args:
 			emb1: (np.ndarray) sequence embedding [seqlen x embdim]
@@ -87,13 +91,13 @@ class Extractor:
 		res = self.embedding_to_span(emb1, emb2)
 		if len(res) > 0:
 			# add referece index to each hit
-			res['i'] = idx
-			res['dbfile'] = file
+			res['queryid'] = qid
+			res['dbid'] = dbid
 			# filter out redundant hits
 			if self.FILTER_RESULTS:
 				res = filter_result_dataframe(res)
 			return res
-		return []
+		return None
 
 
 	@staticmethod

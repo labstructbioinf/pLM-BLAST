@@ -1,10 +1,43 @@
 '''functions for local density extracting'''
 from typing import List, Union, Tuple, Dict
-import concurrent
+from typing import Generator
+import math
 
-from tqdm import tqdm
 import torch as th
 import torch.nn.functional as F
+
+
+def batch_slice_iterator(listlen: int, batchsize: int) -> Generator[slice, None, None]:
+
+	assert isinstance(listlen, int)
+	assert isinstance(batchsize, int)
+	assert listlen > 0
+	assert batchsize > 0
+	# clip if needed
+	batchsize = listlen if listlen < batchsize else batchsize
+	num_batches: int = math.ceil(listlen / batchsize)
+	for b in range(num_batches):
+		bstart = b*batchsize
+		bstop = min((b + 1)*batchsize, listlen)
+		sl = slice(bstart, bstop)
+		yield sl
+
+
+def batch_slice_iterator_script(listlen: int, batchsize: int) -> List[Tuple[int, int]]:
+
+	assert isinstance(listlen, int)
+	assert isinstance(batchsize, int)
+	assert listlen > 0
+	assert batchsize > 0
+	# clip if needed
+	batchsize = listlen if listlen < batchsize else batchsize
+	batches: List[Tuple[int, int]] = list()
+	num_batches: int = math.ceil(listlen / batchsize)
+	for b in range(num_batches):
+		bstart = b*batchsize
+		bstop = min((b + 1)*batchsize, listlen)
+		batches.append((bstart, bstop))
+	return batches
 
 
 def last_pad(a: th.Tensor, dim: int, pad: Tuple[int, int]) -> th.Tensor:
@@ -114,6 +147,7 @@ def calc_density(protein: th.Tensor, filters: th.Tensor,
 				 stride : int = 1, with_padding: bool = True) -> th.Tensor:
 	'''
 	convolve `protein` with set of `filters`
+	* warning output is unsqueezed
 	params:
 		protein: (seqlen, emb_size)
 		filters: (num_filters, 1, kernel_size, emb_size)
@@ -138,8 +172,7 @@ def calc_density(protein: th.Tensor, filters: th.Tensor,
 		protein = last_pad(protein, dim=-2, pad=(paddingh, paddingw))
 	density = F.conv2d(protein, filters, stride = stride)
 	#output density
-	density2d = density.squeeze()
-	return density2d
+	return density
 
 
 def norm_image(arr: th.Tensor, kernel_size : int):
@@ -195,6 +228,7 @@ def get_fast_density(X, Y, kernel_size : int):
 	density = calc_density(as_image, as_filters)
 	return density
 
+
 def get_multires_density(X: th.Tensor,
 						 Y: th.Tensor,
 						 kernels: Union[List[int], int] = 1,
@@ -242,69 +276,55 @@ def get_multires_density(X: th.Tensor,
 	return result
 
 
-def chunk_cosine_similarity(query : th.FloatTensor,
-							targets : List[th.FloatTensor],
+def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
+							targets : List[th.Tensor],
 							quantile: float, dataset_files : List[str],
-							stride: int = 3, kernel_size: int = 30) -> Dict[int, str]:
+							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
 	# soft type check
 	assert isinstance(targets, list)
-	assert query.ndim == 2
+	if isinstance(query, th.Tensor):
+		assert query.ndim == 2
+	elif isinstance(query, list):
+		assert len(query) > 0
+		assert isinstance(query[0], th.Tensor)
 	assert isinstance(quantile, float)
-	assert 0 < quantile < 1
+	assert 0 <= quantile <= 1
 	assert isinstance(dataset_files, list)
 	assert isinstance(kernel_size, int)
 	
 	# type checks
 	kernel_size = int(kernel_size)
 	num_targets = len(targets)
+	if isinstance(query, th.Tensor):
+		query = [query]
 	scorestack = th.zeros(num_targets)
-	seqlens: List[int] = [emb.shape[0] for emb in targets]
+	seqlens: List[int] = [emb.shape[0] for emb in targets] + [q.shape[0] for q in query]
 	# change kernel size if the shortest sequence in targets is smaller then kernel size
 	min_seqlen = min(seqlens)
 	if kernel_size > min_seqlen:
-		kernel_size = min_seqlen 
+		kernel_size = min_seqlen
 	assert len(targets) == len(dataset_files), f'{len(targets)} != {len(dataset_files)}'
-	scorestack = chunk_score(query, targets=targets, stride=stride, kernel_size=kernel_size)
-	quantile_threshold = th.quantile(scorestack, quantile)
+	# scorestack: [num_targets, num_queries]
+	scorestack = chunk_score_batch(query, targets=targets, stride=stride, kernel_size=kernel_size)
+	quantile_threshold = th.quantile(scorestack, quantile, dim=0)
 	scoremask = (scorestack >= quantile_threshold)
 	# convert mask to indices
-	filedict: Dict[int, str] = {
-		i : file for i, (file, condition) in enumerate(zip(dataset_files, scoremask)) if condition
-		}
-	return filedict
+	results = list()
+	for qnb in range(scorestack.shape[1]):
+		q_scoremask = scoremask[:, qnb].view(-1)
+		filedict: Dict[int, str] = {
+			i : file for i, (file, condition) in enumerate(zip(dataset_files, q_scoremask)) if condition
+			}
+		results.append(filedict)
+	return results
 
-
-def chunk_score_mp(query, targets, stride: int , kernel_size: int, num_workers: int=6) -> th.FloatTensor:
-	'''
-	perform chunk cosine similarity screening
-	'''
-	num_targets = len(targets)
-	scorestack = th.zeros(num_targets)
-	embdim = query.shape[1]
-	batch_size = 500*num_workers
-	query_kernels = sequence_to_filters(query, kernel_size=kernel_size,
-										norm=True, with_padding=False)
-	with tqdm(total=num_targets, desc='Scoring embeddings') as pbar:
-		with concurrent.futures.ProcessPoolExecutor(max_workers = num_workers) as executor:
-			for batch_start in range(0, len(targets), batch_size):
-				batch_end = min(batch_start + batch_size, num_targets)
-				job_stack = {}
-				for i in range(batch_start, batch_end):
-					job = executor.submit(single_process, query_kernels, targets[i], stride, kernel_size, embdim)
-					job_stack[job] = i
-				for job in concurrent.futures.as_completed(job_stack):
-					i = job_stack[job]
-					scorestack[i] = job.result()
-					if i % 100 == 0:
-						pbar.update(100)
-	if scorestack.shape[0] != num_targets:
-		raise ValueError(f'''cosine sim screening result different
-		  number of embeddings than db {scorestack.shape[0]} - {num_targets}'''
-						 )
-	return scorestack
 
 @th.jit.script
 def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
+	'''
+	Returns:
+		torch.Tensor: [?]
+	'''
 	# hard type params
 	unfold_kernel: List[int] = [kernel_size, embdim]
 	stride_kernel: List[int] = [stride, 1]
@@ -315,15 +335,49 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	target_norm = target_norm.pow(2).sum(0).sqrt()
 	return target_norm
 
-@th.jit.script
-def single_process(query_kernels, target, stride: int):
 
+@th.jit.script
+def unfold_targets(targets: List[th.Tensor], kernel_size: int, stride: int, embdim: int):
+	'''
+	[kernel_size*embdim, num_folds]
+	'''
+	tgt_flat: List[th.Tensor] = list()
+	tgt_folds: List[int] = list()
+	num_folds: int = 0
+	unfold_kernel: List[int] = [kernel_size, embdim]
+	stride_kernel: List[int] = [stride, 1]
+	for tgt in targets:
+		# target: [1, kernel_size*embdim, num_folds]
+		target = th.nn.functional.unfold(tgt.unsqueeze(0).unsqueeze(0), kernel_size=unfold_kernel, stride=stride_kernel)
+		#print(target.shape)
+		num_tgt_folds = target.shape[2]
+		tgt_folds.append(num_tgt_folds)
+		tgt_flat.append(target)
+		num_folds += num_tgt_folds
+	#tgt_flat_t = th.empty((1, kernel_size*embdim, num_folds))
+	tgt_flat_t = th.cat(tgt_flat, dim=2)
+	tgt_flat_t_norm = tgt_flat_t
+	tgt_flat_t_norm = tgt_flat_t.pow(2).sum(1, keepdim=True).sqrt()
+	tgt_flat_t /= tgt_flat_t_norm
+	return tgt_flat_t.swapdims(0, 2).squeeze(-1), tgt_folds
+
+
+
+@th.jit.script
+def single_process(query_kernels: th.Tensor, target: th.Tensor, stride: int):
+	'''
+	Args:
+		query_kernels: (torch.Tensor) []
+	Returns:
+		torch.Tensor: [query_kernels, target_kernels]
+	'''
 	embdim : int = int(target.shape[-1])
 	kernel_size: int = int(query_kernels.shape[-2])
-	density = calc_density(target, query_kernels, stride=stride, with_padding=False)
-	target_norm = norm_chunk(target=target, kernel_size=kernel_size, embdim=embdim, stride=stride)
-	density_chunk = density/target_norm
-	return density_chunk
+	density = calc_density(target, query_kernels, stride=stride, with_padding=False).squeeze()
+	density /= norm_chunk(target=target, kernel_size=kernel_size, embdim=embdim, stride=stride)
+	if density.ndim == 1:
+		density = density.unsqueeze(0)
+	return density
 
 
 @th.jit.script
@@ -336,7 +390,7 @@ def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
 		stride: (int)
 		kernel_size: (int)
 	Returns:
-		scorestack: (torch.FloatTensor)
+		scorestack: (torch.FloatTensor) [num_targets, 1]
 	'''
 	num_targets: int = len(targets)
 	scorestack: List[float] = list()
@@ -353,6 +407,74 @@ def chunk_score(query, targets: List[th.Tensor], stride: int, kernel_size: int):
 	if scorestack_t.shape[0] != num_targets:
 		raise ValueError(f'''cosine sim screening result different
 		  number of embeddings than db {scorestack_t.shape[0]} - {num_targets}''')
+	return scorestack_t.unsqueeze(1)
+
+
+def unfold_large_db(targets, kernel_size: int, stride: int, embdim: int):
+
+	num_targets = len(targets)
+	targets_unfold: List[th.Tensor] = list()
+	unfold_size: List[int] = list()
+	for bstart, bstop in batch_slice_iterator_script(num_targets, batchsize=12800):
+		# shape: [target_folds, query_folds]()
+		batch_targets, unfold_size = unfold_targets(targets[bstart:bstop],
+											   kernel_size=kernel_size,
+												stride=stride, embdim=embdim)
+		targets_unfold.append(targets_unfold)
+		unfold_size.extend(unfold_size)
+	targets_unfold = th.cat(targets_unfold, dim=0)
+	return targets_unfold, unfold_size
+
+
+@th.jit.script
+def chunk_score_batch(queries: List[th.Tensor], targets: List[th.Tensor], stride: int, kernel_size: int):
+	'''
+	perform chunk cosine similarity screening
+
+	Args:
+		queries (List[torch.FloatTensor]):
+		targets (List[torch.FloatTensor]): embeddings to compare
+		stride (int):
+		kernel_size (int):
+	Returns:
+		(torch.FloatTensor): [num_targets, num_queries]
+	'''
+	num_targets: int = len(targets)
+	num_queries: int = len(queries)
+	embdim: int = queries[0].shape[-1]
+	kernels: List[th.Tensor] = list()
+	kernel_splits: List[int] = list()
+	unfolds: List[int] = list()
+	result_stack: List[th.Tensor] = list()
+	kernels, kernel_splits = unfold_targets(queries, kernel_size=kernel_size, stride=stride, embdim=embdim)
+	kernels = kernels.swapdims(0, 1)
+
+	for bstart, bstop in batch_slice_iterator_script(num_targets, batchsize=12800):
+		# shape: [target_folds, query_folds]()
+		batch_targets, unfold_size = unfold_targets(targets[bstart:bstop],
+											   kernel_size=kernel_size,
+												stride=stride, embdim=embdim)
+		#print(batch_targets.shape, kernels.shape)
+		results = th.matmul(batch_targets, kernels)
+		result_stack.append(results)
+		unfolds.extend(unfold_size)
+	result_stack = th.cat(result_stack, dim=0)
+	scorestack_t = th.empty((num_targets, num_queries), dtype=th.float32)
+	# split over queries
+	for qid, qsplit in enumerate(result_stack.split(kernel_splits, dim=1)):
+		qsplit, _ = qsplit.max(1)
+		# split over targets
+		for tid, tqslit in enumerate(qsplit.split(unfolds, dim=0)):
+			scorestack_t[tid, qid] = tqslit.max()
+	assert (~th.isnan(scorestack_t)).all(), f"nans found {th.isnan(scorestack_t).sum()}%"
 	return scorestack_t
 
 
+@th.jit.script
+def calculate_pool_embs(embs: List[th.Tensor]) -> List[th.Tensor]:
+    """
+    convert embeddings to torch.float32 and [seqlen, 64]
+    """
+    if len(embs) == 0:
+        raise ValueError('target database is empty')
+    return [F.avg_pool1d(emb.float().unsqueeze(0), 16).squeeze() for emb in embs]
