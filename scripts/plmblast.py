@@ -32,7 +32,6 @@ colors = {
 	'reset': '\033[0m'  # Reset to default color
 	}
 
-
 if __name__ == "__main__":
 
 	time_start = datetime.datetime.now()
