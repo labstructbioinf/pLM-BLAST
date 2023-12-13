@@ -179,6 +179,7 @@ def prepare_dataframe(df: pd.DataFrame,
 		df['seqlens'] = df['sequence'].apply(len)
 		df['sequence'] = df.apply(lambda row: \
 					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
+		df['sequence'] = df['sequence'].str.upper()
 		# update size
 		df['seqlens'] = df['sequence'].apply(len)
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
