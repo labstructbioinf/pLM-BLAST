@@ -69,7 +69,7 @@ The use of `--gpu` is highly recommended for large datasets. To run `embeddings.
 ```bash
 python scripts/dbtofile.py database 
 ```
-A new file `emb.64` will appear in the database directory. Otherwise it will be created on fly, when `-cosine_percentile_cutoff` < 1. 
+A new file `emb.64` will appear in the database directory. **Otherwise it will be created on fly, when `-cosine_percentile_cutoff` < 100. **
 The database is now ready for use.
 
 ### Checkpointing feature
@@ -94,6 +94,13 @@ Then the `plmblast.py` script can be used to search the database:
 ```bash
 python ./scripts/plmblast.py database query output.csv --use_chunks
 ```
+You can also perform all vs all search typing
+```bash
+python ./scripts/plmblast.py database database output.csv --use_chunks -cosine_percentile_cutoff 90
+```
+We recommend adding `-cosine_percentile_cutoff X` argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity (with `--use_chunkcs`) described in paper, to avoid comparision of embeddings with low similarity. 
+
+
 to load results in python type
 ```python
 import pandas as pd
