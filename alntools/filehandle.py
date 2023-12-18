@@ -98,9 +98,9 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		# convert fasta file to dataframe
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
-		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
+		data = [[record.id, record.description, str(record.seq).upper()] for record in data]
 		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
-		df.set_index('description', inplace=True)
+		# df.set_index('description', inplace=True)
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
