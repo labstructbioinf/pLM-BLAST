@@ -118,7 +118,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
-	if 'id' not in df.columns or not df["id"].isuinque():
+	if 'id' not in df.columns or not df["id"].is_unique:
 		df["id"] = list(range(0, df.shape[0]))
 		warnings.warn("Id column is not unique, using index as id")
 	return df
