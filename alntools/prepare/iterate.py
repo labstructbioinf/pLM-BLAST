@@ -89,7 +89,10 @@ def search_paths(submatrix: np.ndarray,
 				# to short alignment
 				if alnlen < min_span:
 					continue
-				y1, x1 = y[start:stop-1], x[start:stop-1]
+				if globalmode:
+					y1, x1 = y[start:stop], x[start:stop]
+				else:
+					y1, x1 = y[start:stop-1], x[start:stop-1]
 				ylen = y1[-1] - y1[0]
 				# to short alignment
 				if ylen < min_span:
