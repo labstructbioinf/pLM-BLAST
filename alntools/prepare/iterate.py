@@ -86,10 +86,12 @@ def search_paths(submatrix: np.ndarray,
 		if len(spans) > 0:
 			for idx, (start, stop) in enumerate(spans):
 				alnlen = stop - start
+				# to short alignment
 				if alnlen < min_span:
 					continue
 				y1, x1 = y[start:stop-1], x[start:stop-1]
 				ylen = y1[-1] - y1[0]
+				# to short alignment
 				if ylen < min_span:
 					continue
 				arr_values = submatrix[y1, x1]

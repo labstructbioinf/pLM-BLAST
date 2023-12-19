@@ -278,20 +278,16 @@ def gather_all_paths(array: np.ndarray,
 	if norm:
 		array = (array - array.mean())/(array.std() + 1e-3)
 	# set local or global alignment mode
-	if bfactor == 'global':
-		mode = 'global'
-	else:
-		mode = 'local'
+	mode = 'global' if bfactor == "global" else "local"
 	# get all edge indices for left and bottom
 	# score_matrix shape = array.shape + 1
 	score_matrix = fill_score_matrix(array, gap_penalty=gap_opening, mode=mode)
-
 	# local alignment mode
 	if isinstance(bfactor, int):
 		indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
 	# global alignment mode
 	elif isinstance(bfactor, str) and bfactor == 'global':
-		indices = [(array.shape[0], score_matrix.shape[1])]
+		indices = [(array.shape[0], array.shape[1])]
 	paths = list()
 	for ind in indices:
 		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening)
