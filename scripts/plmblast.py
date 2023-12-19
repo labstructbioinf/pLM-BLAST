@@ -116,8 +116,8 @@ if __name__ == "__main__":
 	if len(results) == 0:
 		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
 		sys.exit(0)
-	
 	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
+	os.makedirs(os.path.dirname(args.output), exist_ok=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):
