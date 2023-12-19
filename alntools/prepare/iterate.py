@@ -28,7 +28,7 @@ def mask_like(densitymap: np.array,
 
 
 def search_paths(submatrix: np.ndarray,
-		 paths: Tuple[list, list],
+		 paths: List[np.ndarray],
 		 window: int = 10,
 		 min_span: int = 20,
 		 sigma_factor: float = 1.0,
@@ -44,7 +44,7 @@ def search_paths(submatrix: np.ndarray,
 		sigma_factor: (float) standard deviation threshold
 		as_df: (bool) when True, instead of dictionary dataframe is returned
 	Returns:
-		record: (dict) alignment paths
+		(dict): alignment paths
 	'''
 	assert isinstance(submatrix, np.ndarray)
 	assert isinstance(paths, list)
@@ -54,23 +54,22 @@ def search_paths(submatrix: np.ndarray,
 	assert mode in {"local", "global"}
 	assert isinstance(as_df, bool)
 
+	globalmode = True if mode == "global" else False
 	min_span = max(min_span, window)
 	if not np.issubsctype(submatrix, np.float32):
 		submatrix = submatrix.astype(np.float32)
-	arr_sigma = submatrix.std()
 	# force sigma to be not greater then average std of embeddings
 	# also not too small
-	arr_sigma = max(arr_sigma, AVG_EMBEDDING_STD)
-	path_threshold = sigma_factor*arr_sigma
+	path_threshold = sigma_factor*AVG_EMBEDDING_STD
 	spans_locations = dict()
 	# iterate over all paths
 	for ipath, path in enumerate(paths):
-		# remove one index push
-		diag_ind = path - 1
-		if diag_ind.size < min_span:
+		if path.size < min_span:
 			continue
+		# remove one index push
+		path -= 1
 		# revert indices and and split them into x, y
-		y, x = diag_ind[::-1, 0].ravel(), diag_ind[::-1, 1].ravel()
+		y, x = path[::-1, 0].ravel(), path[::-1, 1].ravel()
 		pathvals = submatrix[y, x].ravel()
 		if mode == 'local':
 			# smooth values in local mode
@@ -84,7 +83,7 @@ def search_paths(submatrix: np.ndarray,
 		else:
 			spans = [(0, len(path))]
 		# check if there is non empty alignment
-		if any(spans):
+		if len(spans) > 0:
 			for idx, (start, stop) in enumerate(spans):
 				alnlen = stop - start
 				if alnlen < min_span:

@@ -270,30 +270,28 @@ def gather_all_paths(array: np.ndarray,
 	
 	if not isinstance(array, np.ndarray):
 		array = array.numpy().astype(np.float32)
-	if not isinstance(norm, (str, bool)):
+	if not isinstance(norm, bool):
 		raise ValueError(f'norm_rows arg should be bool type, but given: {norm}')
 	if not isinstance(bfactor, (str, int)):
 		raise TypeError(f'bfactor should be int/str but given: {type(bfactor)}')
 	# standarize embedding
-	if isinstance(norm, bool):
-		if norm:
-			arraynorm = (array - array.mean())/(array.std() + 1e-3)
-		else:
-			arraynorm = array.copy()
+	if norm:
+		array = (array - array.mean())/(array.std() + 1e-3)
 	# set local or global alignment mode
 	if bfactor == 'global':
 		mode = 'global'
 	else:
 		mode = 'local'
-	score_matrix = fill_score_matrix(arraynorm, gap_penalty=gap_opening, mode=mode)
 	# get all edge indices for left and bottom
-	# score_matrix shape array.shape + 1
+	# score_matrix shape = array.shape + 1
+	score_matrix = fill_score_matrix(array, gap_penalty=gap_opening, mode=mode)
+
 	# local alignment mode
 	if isinstance(bfactor, int):
 		indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
 	# global alignment mode
 	elif isinstance(bfactor, str) and bfactor == 'global':
-		indices = [(score_matrix.shape[0] - 1, score_matrix.shape[1] - 1)]
+		indices = [(array.shape[0], score_matrix.shape[1])]
 	paths = list()
 	for ind in indices:
 		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening)

@@ -12,9 +12,8 @@ embedding file `examples/data/output/rossmannsdb.pt` which content should be a p
 Another way is to create a directory `examples/data/output/rossmanndb` in which each sequence representation is stored as separate embedding with name conevention
 `[0-num_sequences].pt`
 
-Create `emb.64` file to speed up quering. Make sure that both embeddings and `.fas` file are in the same directory
+Make sure that both embeddings and `.fas` file are in the same directory
 ```bash
-python scripts/dbtofile.py examples/data/output/rossmannsdb
 cp examples/data/input/rossmannsdb examples/data/output/rossmannsdb
 ```
 

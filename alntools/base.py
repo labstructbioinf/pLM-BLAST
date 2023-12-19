@@ -18,19 +18,22 @@ class Extractor:
 	'''
 	MIN_SPAN_LEN: int = 20
 	WINDOW_SIZE: int = 20
-	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
-	NORM: Union[bool, str] = True
 	BFACTOR: int = 1
 	SIGMA_FACTOR: float = 1
 	GAP_OPEN: float = 0.0
 	GAP_EXT: float = 0.0
 	FILTER_RESULTS: bool = False
+	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
+	norm: bool = False
 	enh: bool = False
 
 	# TODO add proper agument handling here
-	def __init__(self, enh: bool = False, *args, **kw_args):
+	def __init__(self, enh: bool = False, norm: bool = False, *args, **kw_args):
 		assert isinstance(enh, bool)
+		assert isinstance(norm, bool)
+
 		self.enh = enh
+		self.norm = norm
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
 		'''
@@ -55,7 +58,7 @@ class Extractor:
 		if self.enh:
 			densitymap = signal_enhancement(densitymap)
 		paths = gather_all_paths(densitymap,
-								 norm=self.NORM,
+								 norm=self.norm,
 								 minlen=self.MIN_SPAN_LEN,
 								 bfactor=self.BFACTOR,
 								 gap_opening=self.GAP_OPEN,

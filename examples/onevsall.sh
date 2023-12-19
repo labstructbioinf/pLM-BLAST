@@ -9,12 +9,11 @@ OUTDIR="./data/output"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
+DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod30db_20220902"
 
 # Return hits with scores >=0.3
 ALIGNMENT_CUTOFF="0.3"
 COSINE_CUTOFF=90
-SIGMA=2
 
 # Customize according to your system specifications
 NUM_WORKERS=6

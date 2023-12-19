@@ -206,7 +206,8 @@ def make_iterator(seqlens: List[int], batch_size: int, res_per_batch: int) -> Li
 	'''
 	iterator: List[slice]
 	seqnum = len(seqlens)
-	# fixed batch size
+	# fixed batch size only available for more then one sequence
+	batch_size = batch_size if len(seqlens) != 1 else 1
 	if batch_size != 0:
 		startbatch = list(range(0, seqnum, batch_size))
 		startbatch.append(seqnum)
