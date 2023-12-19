@@ -10,7 +10,8 @@ __pycache__/
 **.pt
 **.pth
 **.emb
-**.emb.*
+**.emb.64
+emb.64
 **.emb*
 
 # temp logs
