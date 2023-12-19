@@ -58,7 +58,7 @@ def get_parser() -> argparse.Namespace:
 	# cosine similarity scan
 	parser.add_argument('-cosine_percentile_cutoff', help=\
 					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
-						type=range0100, default=0, dest='COS_PER_CUT')	
+						type=range0100, default=70, dest='COS_PER_CUT')	
 	parser.add_argument('--use_chunks', help=\
 					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=False)
@@ -67,7 +67,7 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
 						type=range01, default=0.3)						
 	parser.add_argument('-win', help='Window length (default: %(default)s)',
-						type=int, default=10, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
+						type=int, default=15, choices=range(50), metavar="[1-50]", dest='WINDOW_SIZE')	
 	parser.add_argument('-span', help='Minimal alignment length (default: %(default)s). Must be greater than or equal to the window length',
 						type=int, default=25, choices=range(50), metavar="[1-50]", dest='min_spanlen')
 	parser.add_argument('--global_aln', help='Use global pLM-BLAST alignment. (default: %(default)s)',
@@ -88,7 +88,7 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s) set 0 to use all available cores or num of cores set in slurm session',
 						type=int, default=0, dest='workers')
 	parser.add_argument('-sigma_factor', help='The Sigma factor defines the greediness of the local alignment search procedure (default: %(default)s)',
-						type=float, default=2, dest='SIGMA_FACTOR')	
+						type=float, default=2.5, dest='SIGMA_FACTOR')	
 	args = parser.parse_args()
 	
 	# validate provided parameters

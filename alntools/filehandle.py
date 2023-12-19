@@ -3,6 +3,7 @@ import math
 from typing import List, Dict, Tuple, Union
 from collections import namedtuple
 import itertools
+import warnings
 
 import numpy as np
 from Bio import SeqIO
@@ -98,18 +99,17 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		# convert fasta file to dataframe
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
-		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
+		data = [[record.id, record.description, str(record.seq).upper()] for record in data]
 		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
-		df.set_index('description', inplace=True)
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
 		raise FileNotFoundError(f'''
-                          could not find input query or database file with name `{file}`
-                          expecting one of the extensions .csv, .p, .pkl, .fas or .fasta
-                          make sure that both embeddings storage and sequence files are
-                          in the same catalog with the same names
-                          ''')
+						could not find input query or database file with name `{file}`
+						expecting one of the extensions .csv, .p, .pkl, .fas or .fasta
+						make sure that both embeddings storage and sequence files are
+						in the same catalog with the same names
+						''')
 	
 	if cname != '' and not (file.endswith('.fas') or file.endswith('.fasta')):
 		if cname not in df.columns:
@@ -118,6 +118,9 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
+	if 'id' not in df.columns or not df["id"].isuinque():
+		df["id"] = list(range(0, df.shape[0]))
+		warnings.warn("Id column is not unique, using index as id")
 	return df
 
 
