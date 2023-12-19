@@ -22,8 +22,8 @@ ALIGNMENT_CUTOFF="0.3"
 COSINE_CUTOFF=0
 # Run plm-blast
 python ../scripts/plmblast.py \
-	$INPUT \
-	$INPUT \
+	$DBDIR \
+	$DBDIR \
 	$RESULTS \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
 	-workers $NUM_WORKERS \
