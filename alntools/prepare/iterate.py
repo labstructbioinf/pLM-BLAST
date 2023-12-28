@@ -5,26 +5,7 @@ import numpy as np
 import pandas as pd
 
 from .. numeric import move_mean, find_alignment_span
-
-AVG_EMBEDDING_STD = 0.1
-
-
-def mask_like(densitymap: np.array,
-				paths: Union[List[List[int]], List[Tuple[int, int]]]) -> np.ndarray:
-	'''
-	create densitymap mask for visualization
-	Args:
-		densitymap: (np.ndarray)
-		paths: (list of paths)
-	Returns:
-		mask: (np.ndarray) binary mask
-	'''
-	mask = np.zeros_like(densitymap)
-	for path in paths:
-		for (y, x) in path:
-			assert x >= 0 and y >= 0
-			mask[y, x] = 1
-	return mask
+from .. settings import AVG_EMBEDDING_STD
 
 
 def search_paths(submatrix: np.ndarray,
@@ -32,7 +13,7 @@ def search_paths(submatrix: np.ndarray,
 		 window: int = 10,
 		 min_span: int = 20,
 		 sigma_factor: float = 1.0,
-		 mode: str = 'local',
+		 globalmode: bool = False,
 		 as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
 	'''
 	iterate over all paths and search for routes matching alignmnet criteria
@@ -42,6 +23,7 @@ def search_paths(submatrix: np.ndarray,
 		window: (int) size of moving average window
 		min_span: (int) minimal length of alignment to collect
 		sigma_factor: (float) standard deviation threshold
+		globalmode: (bool) if True global alignemnt is extrted instead of local
 		as_df: (bool) when True, instead of dictionary dataframe is returned
 	Returns:
 		(dict): alignment paths
@@ -51,10 +33,10 @@ def search_paths(submatrix: np.ndarray,
 	assert isinstance(window, int) and window > 0
 	assert isinstance(min_span, int) and min_span > 0
 	assert isinstance(sigma_factor, (int, float))
-	assert mode in {"local", "global"}
+	assert isinstance(globalmode, bool)
 	assert isinstance(as_df, bool)
 
-	globalmode = True if mode == "global" else False
+	mode = "global" if globalmode else "local"
 	min_span = max(min_span, window)
 	if not np.issubsctype(submatrix, np.float32):
 		submatrix = submatrix.astype(np.float32)
@@ -71,7 +53,7 @@ def search_paths(submatrix: np.ndarray,
 		# revert indices and and split them into x, y
 		y, x = path[::-1, 0].ravel(), path[::-1, 1].ravel()
 		pathvals = submatrix[y, x].ravel()
-		if mode == 'local':
+		if not globalmode:
 			# smooth values in local mode
 			if window != 1:
 				line_mean = move_mean(pathvals, window)

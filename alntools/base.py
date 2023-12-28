@@ -12,30 +12,54 @@ from .prepare import search_paths
 from .postprocess import filter_result_dataframe
 
 
+class PlmBlastParamError(Exception):
+	pass
+
+
 class Extractor:
 	'''
 	main class for handling alignment extaction
 	'''
 	MIN_SPAN_LEN: int = 20
 	WINDOW_SIZE: int = 20
-	BFACTOR: int = 1
-	SIGMA_FACTOR: float = 1
-	GAP_OPEN: float = 0.0
-	GAP_EXT: float = 0.0
 	FILTER_RESULTS: bool = False
 	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
 	norm: bool = False
 	enh: bool = False
+	globalmode: bool = False
+	sigma_factor: Union[int, float] = 2
+	bfactor: int = 2
 
 	# TODO add proper agument handling here
-	def __init__(self, enh: bool = False, norm: bool = False, *args, **kw_args):
+	def __init__(self, enh: bool = False,
+			   norm: bool = False,
+				bfactor: Union[str, bool] = 2,
+				sigma_factor: Union[int, float] = 2,
+				gap_penalty: float = 0.0):
+		
+		# validate arguments
 		assert isinstance(enh, bool)
 		assert isinstance(norm, bool)
+		if isinstance(bfactor, str):
+			if bfactor != "global":
+				raise PlmBlastParamError(f'invalid bfactor value: {bfactor}')
+		elif isinstance(bfactor, int):
+			if bfactor <= 0:
+				raise PlmBlastParamError(f'invalid bfactor value: {bfactor} should be > 0 or str: global')
+		else:
+			raise PlmBlastParamError(f'invalid bfactor type: {type(bfactor)}')
+		if not isinstance(sigma_factor, (float, int)) or sigma_factor <= 0:
+			raise PlmBlastParamError(f'sigma factor must be positive valued number, not: {type(sigma_factor)} with value: {sigma_factor}')
 
 		self.enh = enh
 		self.norm = norm
+		self.globalmode = True if bfactor == 'global' else False
+		self.bfactor = bfactor
+		self.sigma_factor = sigma_factor
+		self.gap_penalty = gap_penalty
 
-	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results' ) -> pd.DataFrame:
+
+	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode: str = 'results' ) -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
 		Args:
@@ -52,17 +76,16 @@ class Extractor:
 			X = X.astype(np.float32)
 		if not np.issubdtype(Y.dtype, np.float32):
 			Y = Y.astype(np.float32)
-		if mode not in {'results', 'all'}:
-			raise AttributeError(f'mode must me results or all, but given: {mode}')
+		if not isinstance(mode, str) or mode not in {'results', 'all'}:
+			raise PlmBlastParamError(f'mode must me results or all, but given: {mode}')
 		densitymap = embedding_local_similarity(X, Y)
 		if self.enh:
 			densitymap = signal_enhancement(densitymap)
 		paths = gather_all_paths(densitymap,
 								 norm=self.norm,
 								 minlen=self.MIN_SPAN_LEN,
-								 bfactor=self.BFACTOR,
-								 gap_opening=self.GAP_OPEN,
-								 gap_extension=self.GAP_EXT,
+								 bfactor=self.bfactor,
+								 gap_penalty=self.gap_penalty,
 								 with_scores = True if mode == 'all' else False)
 		if mode == 'all':
 			scorematrix = paths[1]
@@ -71,8 +94,8 @@ class Extractor:
 							   paths=paths,
 							   window=self.WINDOW_SIZE,
 							   min_span=self.MIN_SPAN_LEN,
-							   sigma_factor=self.SIGMA_FACTOR,
-							   mode='global' if isinstance(self.BFACTOR, str) else 'local',
+							   sigma_factor=self.sigma_factor,
+							   globalmode=self.globalmode,
 							   as_df=True)
 		if mode == 'all':
 			return (results, densitymap, paths, scorematrix)

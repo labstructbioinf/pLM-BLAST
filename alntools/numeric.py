@@ -1,7 +1,6 @@
 '''numerical array calculations powered by numba'''
 
 from typing import Tuple, List, Union
-import logging;
 
 import numpy as np
 import numba
@@ -11,6 +10,68 @@ from numba import types
 from numba.core.errors import NumbaDeprecationWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+
+
+@numba.njit(fastmath=True, cache=True)
+def max_value_over_line_gaps(arr: np.ndarray, ystart: int, ystop: int,
+						xstart: int, xstop: int, gap_pentalty: float = 0) -> float:
+	'''
+	fix max value in row or column. When xstart == xstop - max
+	value is calculated over other dimension
+	and vice versa
+	Args:
+		arr (np.ndarray):
+		ystart (int):
+		ystop (int):
+		xstart (int):
+		xstop (int):
+	Returns:
+		float:
+	'''
+	max_value: float = -1
+	score_with_gap: float = 0
+	if xstart == xstop:
+		# iterate over array y array (1st dimension) slice
+		for gaplen, yidx in enumerate(range(ystart, ystop), 1):
+			score_with_gap = arr[yidx, xstart] - gap_pentalty*gaplen 
+			if max_value > score_with_gap:
+				max_value = score_with_gap
+	else:
+		for gaplen, xidx in enumerate(range(xstart, xstop), 1):
+			score_with_gap = arr[ystart, xidx] - gap_pentalty*gaplen 
+			if max_value > score_with_gap:
+				max_value = score_with_gap
+	return max_value
+
+
+
+@numba.njit(fastmath=True, cache=True)
+def max_value_over_line_old(arr: np.ndarray, ystart: int, ystop: int,
+						xstart: int, xstop: int) -> float:
+	'''
+	fix max value in row or column. When xstart == xstop - max
+	value is calculated over other dimension
+	and vice versa
+	Args:
+		arr (np.ndarray):
+		ystart (int):
+		ystop (int):
+		xstart (int):
+		xstop (int):
+	Returns:
+		float:
+	'''
+	max_value: float = -1
+	if xstart == xstop:
+		# iterate over array y array (1st dimension) slice
+		for yidx in range(ystart, ystop):
+			if max_value > arr[yidx, xstart]:
+				max_value = arr[yidx, xstart]
+	else:
+		for xidx in range(xstart, xstop):
+			if max_value > arr[ystart, xidx]:
+				max_value = arr[ystart, xidx]
+	return max_value
 
 
 @numba.njit(fastmath=True, cache=True)
@@ -44,12 +105,13 @@ def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
 
 
 @numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
-def fill_matrix_local(a: np.ndarray, gap_penalty: float):
+def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 	'''
-	fill score matrix
-	Params:
-		a: (np.array)
-		gap_penalty (float)
+	fill score matrix with Smith-Waterman fashion
+
+	Args:
+		a: (np.array) 2D substitution matrix
+		gap_penalty: (float)
 	Return:
 		b: (np.array)
 	'''
@@ -59,14 +121,13 @@ def fill_matrix_local(a: np.ndarray, gap_penalty: float):
 	h_tmp: np.ndarray = np.zeros(4, dtype=np.float32)
 	for i in range(1, nrows):
 		for j in range(1, ncols):
-			# gap = abs(i - j)*gap_penalty
+			# no gap penalty for diagonal move
 			h_tmp[0] = H[i-1, j-1] + a[i-1, j-1]
-			#h_tmp[1] = H[i-1, j] - gap_penalty
-			#h_tmp[2] = H[i, j-1] - gap_penalty
 			# max over first dimension - y
-			h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
+			# max_{k >= 1} H_{i-k, j}
+			h_tmp[1] = max_value_over_line_gaps(H, 1, i+1, j, j, gap_pentalty=gap_penalty)
 			# max over second dimension - x
-			h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
+			h_tmp[2] = max_value_over_line_gaps(H, i, i, 1, j+1, gap_pentalty=gap_penalty)
 			H[i, j] = np.max(h_tmp)
 	return H
 
@@ -97,7 +158,7 @@ def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 
 def fill_score_matrix(sub_matrix: np.ndarray,
 					  gap_penalty: Union[int, float] = 0.0,
-					  mode: str = 'local') -> np.ndarray:
+					  globalmode: bool = False) -> np.ndarray:
 	'''
 	use substitution matrix to create score matrix
 	set mode = local for Smith-Waterman like procedure (many local alignments)
@@ -111,17 +172,16 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 		score_matrix: (np.array)
 	'''
 	assert gap_penalty >= 0, 'gap penalty must be positive'
-	assert isinstance(mode, str)
-	assert mode in {"global", "local"}
+	assert isinstance(globalmode, bool)
 	assert isinstance(gap_penalty, (int, float, np.float32))
 	assert isinstance(sub_matrix, np.ndarray), \
 		'substitution matrix must be numpy array'
 	# func fill_matrix require np.float32 array as input
 	if not np.issubsctype(sub_matrix, np.float32):
 		sub_matrix = sub_matrix.astype(np.float32)
-	if mode == 'local':
-		score_matrix = fill_matrix_local(sub_matrix, gap_penalty=gap_penalty)
-	elif mode == 'global':
+	if not globalmode:
+		score_matrix = fill_scorematrix_local(sub_matrix, gap_penalty=gap_penalty)
+	else:
 		score_matrix = fill_matrix_global(sub_matrix, gap_penalty=gap_penalty)
 	return score_matrix
 

@@ -132,4 +132,6 @@ def prepare_output(resdf: pd.DataFrame,
                 if col in querydf.columns:
                     querydf.drop(columns=col, inplace=True)
         querydf.index.name = 'index'
+    # round alignment values
+    querydf['score'] = querydf['score'].round(3)
     return querydf[COLUMNS_TO_SAVE]

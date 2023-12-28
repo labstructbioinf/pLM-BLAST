@@ -37,15 +37,18 @@ if __name__ == "__main__":
 	time_start = datetime.datetime.now()
 
 	args = get_parser()
-	module = aln.base.Extractor(enhance_signal=args.enh)
+	module = aln.Extractor( \
+					enh=args.enh,
+					norm=False, # legacy arg always false
+					bfactor='global' if args.global_aln else args.bfactor,
+					sigma_factor=args.sigma_factor,
+					gap_penalty=args.gap_penalty)
+	# other params
 	module.FILTER_RESULTS = True
-	module.WINDOW_SIZE = args.WINDOW_SIZE
-	module.GAP_EXT = args.GAP_EXT
-	module.SIGMA_FACTOR = args.SIGMA_FACTOR
-	module.BFACTOR = 'global' if args.global_aln else args.bfactor
+	module.MIN_SPAN_LEN = args.min_spanlen
+	module.WINDOW_SIZE = args.window_size
 	print("num cores: ", args.workers)
-	module.GAP_EXT = args.GAP_EXT
-	module.NORM = False
+
 	#module.show_config()
 	# Load database index file
 	dbdata = DataObject.from_dir(args.db, objtype="database")
