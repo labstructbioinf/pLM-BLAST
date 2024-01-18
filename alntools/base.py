@@ -58,6 +58,13 @@ class Extractor:
 		self.sigma_factor = sigma_factor
 		self.gap_penalty = gap_penalty
 
+	# TODO implement this
+	def submatrix_to_span(self, densitymap, mode: str = 'results') -> pd.DataFrame:
+		'''
+		run plmblast flow from substitution matrix
+		func should return same results as embedding_to_span
+		'''
+		pass
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode: str = 'results' ) -> pd.DataFrame:
 		'''
