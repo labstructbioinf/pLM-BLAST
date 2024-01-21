@@ -405,12 +405,11 @@ def embedding_local_similarity_gpu(X, Y, enh):
 	assert X.ndim == 2 and Y.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
 	assert X.shape[1] == Y.shape[1], f'embedding size is different for X, Y - {X.shape[1]} and {Y.shape[1]}'
 
-
 	X = torch.tensor(X, dtype=torch.float32).cuda()
 	Y = torch.tensor(Y, dtype=torch.float32).cuda()
 
 	#normalize
-	emb1_normed = X / X_.pow(2).sum(1, keepdim=True).sqrt()
+	emb1_normed = X / X.pow(2).sum(1, keepdim=True).sqrt()
 	emb2_normed = Y / Y.pow(2).sum(1, keepdim=True).sqrt()
 	
 	density = torch.matmul(emb1_normed, emb2_normed.T).T
