@@ -42,7 +42,8 @@ if __name__ == "__main__":
 					norm=False, # legacy arg always false
 					bfactor='global' if args.global_aln else args.bfactor,
 					sigma_factor=args.sigma_factor,
-					gap_penalty=args.gap_penalty)
+					gap_penalty=args.gap_penalty,
+					gpu=args.gpu)
 	# other params
 	module.FILTER_RESULTS = True
 	module.MIN_SPAN_LEN = args.min_spanlen

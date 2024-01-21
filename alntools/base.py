@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 import numpy as np
 import torch
 
-from .numeric import embedding_local_similarity, signal_enhancement
+from .numeric import embedding_local_similarity, signal_enhancement, embedding_local_similarity_gpu
 from .alignment import gather_all_paths
 from .prepare import search_paths
 from .postprocess import filter_result_dataframe
@@ -29,13 +29,16 @@ class Extractor:
 	globalmode: bool = False
 	sigma_factor: Union[int, float] = 2
 	bfactor: int = 2
+	gpu: bool = False
+
 
 	# TODO add proper agument handling here
 	def __init__(self, enh: bool = False,
 			   norm: bool = False,
 				bfactor: Union[str, bool] = 2,
 				sigma_factor: Union[int, float] = 2,
-				gap_penalty: float = 0.0):
+				gap_penalty: float = 0.0,
+				gpu: bool = False):
 		
 		# validate arguments
 		assert isinstance(enh, bool)
@@ -57,14 +60,56 @@ class Extractor:
 		self.bfactor = bfactor
 		self.sigma_factor = sigma_factor
 		self.gap_penalty = gap_penalty
+		self.gpu = gpu
 
-	# TODO implement this
-	def submatrix_to_span(self, densitymap, mode: str = 'results') -> pd.DataFrame:
-		'''
-		run plmblast flow from substitution matrix
-		func should return same results as embedding_to_span
-		'''
-		pass
+	# # TODO implement this
+	# def submatrix_to_span(self, densitymap, mode: str = 'results') -> pd.DataFrame:
+	# 	'''
+	# 	run plmblast flow from substitution matrix
+	# 	func should return same results as embedding_to_span
+	# 	'''
+	# 	pass
+	# 	'''
+	# 	convert embeddings of given X and Y tensors into dataframe
+	# 	Args:
+	# 		X: (np.ndarray)
+	# 		Y: (np.ndarray)
+	# 		mode: (str) if set to `all` densitymap and alignment paths are returned
+	# 	Returns:
+	# 		results: (pd.DataFrame) alignment hits frame
+	# 		densitymap: (np.ndarray)
+	# 		paths: (list[np.array])
+	# 		scorematrix: (np.ndarray)
+	# 	'''
+	# 	if not np.issubdtype(X.dtype, np.float32):
+	# 		X = X.astype(np.float32)
+	# 	if not np.issubdtype(Y.dtype, np.float32):
+	# 		Y = Y.astype(np.float32)
+	# 	if not isinstance(mode, str) or mode not in {'results', 'all'}:
+	# 		raise PlmBlastParamError(f'mode must me results or all, but given: {mode}')
+	# 	densitymap = embedding_local_similarity_gpu(X, Y, self.enh)
+
+	# 	paths = gather_all_paths(densitymap,
+	# 							 norm=self.norm,
+	# 							 minlen=self.MIN_SPAN_LEN,
+	# 							 bfactor=self.bfactor,
+	# 							 gap_penalty=self.gap_penalty,
+	# 							 with_scores = True if mode == 'all' else False)
+	# 	if mode == 'all':
+	# 		scorematrix = paths[1]
+	# 		paths = paths[0]
+	# 	results = search_paths(densitymap,
+	# 						   paths=paths,
+	# 						   window=self.WINDOW_SIZE,
+	# 						   min_span=self.MIN_SPAN_LEN,
+	# 						   sigma_factor=self.sigma_factor,
+	# 						   globalmode=self.globalmode,
+	# 						   as_df=True)
+	# 	if mode == 'all':
+	# 		return (results, densitymap, paths, scorematrix)
+	# 	else:
+	# 		return results
+		
 
 	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode: str = 'results' ) -> pd.DataFrame:
 		'''
@@ -85,9 +130,14 @@ class Extractor:
 			Y = Y.astype(np.float32)
 		if not isinstance(mode, str) or mode not in {'results', 'all'}:
 			raise PlmBlastParamError(f'mode must me results or all, but given: {mode}')
-		densitymap = embedding_local_similarity(X, Y)
-		if self.enh:
-			densitymap = signal_enhancement(densitymap)
+		
+		if self.gpu:
+			densitymap = embedding_local_similarity_gpu(X, Y, self.enh)
+		else:
+			densitymap = embedding_local_similarity(X, Y)
+			if self.enh:
+				densitymap = signal_enhancement(densitymap)
+		
 		paths = gather_all_paths(densitymap,
 								 norm=self.norm,
 								 minlen=self.MIN_SPAN_LEN,

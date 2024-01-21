@@ -62,6 +62,9 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('--use_chunks', help=\
 					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=False)
+	parser.add_argument('--gpu', help=\
+					 'Use gpu in cosine similarity screening',
+			 action='store_true', default=False)
 	
 	# plmblast
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',

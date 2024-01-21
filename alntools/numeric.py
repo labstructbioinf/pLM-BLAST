@@ -5,6 +5,7 @@ from typing import Tuple, List, Union
 import numpy as np
 import numba
 from numba import types
+import torch
 
 # suppress numba deprecated warning
 from numba.core.errors import NumbaDeprecationWarning
@@ -388,6 +389,39 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	emb1_normed = X / emb1_norm
 	emb2_normed = Y / emb2_norm
 	density = (emb1_normed @ emb2_normed.T).T
+	return density
+
+
+def embedding_local_similarity_gpu(X, Y, enh):
+	'''
+	compute X, Y similarity by matrix multiplication
+	result shape [num X residues, num Y residues]
+	Args:
+		X, Y - (np.ndarray 2D) protein embeddings as 2D tensors
+		  [num residues, embedding size]
+	Returns:
+		density (torch.Tensor)
+	'''
+	assert X.ndim == 2 and Y.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
+	assert X.shape[1] == Y.shape[1], f'embedding size is different for X, Y - {X.shape[1]} and {Y.shape[1]}'
+
+
+	X = torch.tensor(X, dtype=torch.float32).cuda()
+	Y = torch.tensor(Y, dtype=torch.float32).cuda()
+
+	#normalize
+	emb1_normed = X / X_.pow(2).sum(1, keepdim=True).sqrt()
+	emb2_normed = Y / Y.pow(2).sum(1, keepdim=True).sqrt()
+	
+	density = torch.matmul(emb1_normed, emb2_normed.T).T
+
+	if enh:
+		density_left = (density - density.mean(0, keepdims=True))/density.std(0, keepdims=True)
+		density_right = (density - density.mean(1, keepdims=True))/density.std(1, keepdims=True)
+		density = (density_left + density_right)/2
+	
+	density = density.cpu().numpy().astype(np.float32)
+	
 	return density
 
 
