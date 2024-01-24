@@ -2,13 +2,14 @@ import os
 import argparse
 from typing import List, Dict, Optional
 from typing import Union
+import pprint
 
 from tqdm import tqdm
 import torch
 from torch.nn.functional import avg_pool1d
 
 from ..filehandle import DataObject
-from ..density.local import chunk_cosine_similarity, calculate_pool_embs
+from ..density.local import chunk_cosine_similarity, calculate_pool_embs, reduce_duplicates_query_filedict
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density import batch_slice_iterator
@@ -115,4 +116,8 @@ def apply_database_screening(args: argparse.Namespace,
         print("Pre-screening skipped")
         filedict = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
         query_filedict = {queryid : filedict for queryid in range(num_queries)}
+
+    if args.reduce_duplicates:
+        reduce_duplicates_query_filedict(query_filedict)
+
     return query_filedict
