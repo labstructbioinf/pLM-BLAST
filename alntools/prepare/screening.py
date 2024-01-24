@@ -2,7 +2,6 @@ import os
 import argparse
 from typing import List, Dict, Optional
 from typing import Union
-import pprint
 
 from tqdm import tqdm
 import torch
@@ -115,7 +114,7 @@ def apply_database_screening(args: argparse.Namespace,
         # no screening case
         print("Pre-screening skipped")
         filedict = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
-        query_filedict = {queryid : filedict for queryid in range(num_queries)}
+        query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
 
     if args.reduce_duplicates:
         reduce_duplicates_query_filedict(query_filedict)
