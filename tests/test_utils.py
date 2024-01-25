@@ -8,7 +8,7 @@ from alntools.density.local import reduce_duplicates_query_filedict
 @pytest.mark.parametrize("size", [10, 50, 100])
 def test_remove_duplicates(size):
     '''
-    test if function properly filter redundant hits eg. a-b, a-b, a-c func should exclude b-a
+    test if function properly filter redundant hits eg. a-b, b-a, a-c func should exclude b-a
     '''
     
     filedict = {k: v for k, v in zip(range(size), range(size))}
