@@ -15,6 +15,7 @@ from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from alntools.parser import get_parser
 from alntools.prepare.screening import apply_database_screening
+from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
 import alntools as aln
 
@@ -119,6 +120,8 @@ if __name__ == "__main__":
 	if len(results) == 0:
 		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
 		sys.exit(0)
+	if args.reduce_duplicates:
+		results = add_duplicates(results)
 	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
 	# create output directory if needed
 	if os.path.dirname(args.output) != "":

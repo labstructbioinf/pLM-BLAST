@@ -49,6 +49,19 @@ def calc_identity(s1: List[str], s2: List[str]) -> float:
     '''
     res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
     return round(sum(res)/len(res), 2)
+
+
+def add_duplicates(resdf):
+    for q, s in zip(resdf["qid"].tolist(), resdf["sid"].tolist()):
+        row_to_check = resdf.loc[(resdf['qid'] == s) & (resdf['sid'] == q)]
+        if row_to_check.empty:
+
+            rows = resdf.loc[(resdf['qid'] == q) & (resdf['sid'] == s)]
+            for _, row in rows.iterrows():
+                row_to_modify = row[['sid', 'score', 'ident', 'similarity', 'qid', 'tstart', 'tend', 'tseq', 'con', 'qseq', 'qstart', 'qend', 'qlen', 'tlen', 'match_len']].values
+                resdf.loc[len(resdf)] = row_to_modify
+    resdf = resdf.drop_duplicates()
+    return resdf
 	
 
 def prepare_output(resdf: pd.DataFrame,
