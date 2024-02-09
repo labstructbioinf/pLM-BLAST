@@ -22,7 +22,7 @@ def test_remove_duplicates(size):
     assert actual_size == expected_size
 
 
-@pytest.mark.parametrize("size", [10, 50, 100])
+@pytest.mark.parametrize("size", [10, 50, 101])
 def test_remove_duplicates_cos_cut(size):
     '''
     test if function properly filter redundant hits eg. a-b, b-a, a-c func should exclude b-a
@@ -35,7 +35,6 @@ def test_remove_duplicates_cos_cut(size):
         for j in range(0, size, 2):
             del data[i][j]
             number_od_del += 1   
-    print(number_od_del)
     # func
     data = reduce_duplicates_query_filedict(data)
     expected_size = size*(size - 1)/2 + size 
