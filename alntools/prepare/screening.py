@@ -8,11 +8,12 @@ import torch
 from torch.nn.functional import avg_pool1d
 
 from ..filehandle import DataObject
-from ..density.local import chunk_cosine_similarity, calculate_pool_embs, reduce_duplicates_query_filedict
+from ..density.local import chunk_cosine_similarity, calculate_pool_embs
 from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density import batch_slice_iterator
 from ..settings import EMB64_EXT, SCR_BATCH_SIZE
+from .reduce_duplicates import reduce_duplicates_query_filedict
 
 
 def apply_database_screening(args: argparse.Namespace,
@@ -117,6 +118,6 @@ def apply_database_screening(args: argparse.Namespace,
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
 
     if args.reduce_duplicates:
-        reduce_duplicates_query_filedict(query_filedict)
+        query_filedict = reduce_duplicates_query_filedict(query_filedict)
 
     return query_filedict

@@ -60,7 +60,7 @@ def add_duplicates(resdf):
             for _, row in rows.iterrows():
                 row_to_modify = row[['sid', 'score', 'ident', 'similarity', 'qid', 'tstart', 'tend', 'tseq', 'con', 'qseq', 'qstart', 'qend', 'qlen', 'tlen', 'match_len']].values
                 resdf.loc[len(resdf)] = row_to_modify
-    resdf = resdf.drop_duplicates()
+    # resdf = resdf.drop_duplicates()
     return resdf
 	
 
