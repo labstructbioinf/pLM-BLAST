@@ -22,9 +22,12 @@ def test_remove_duplicates(size):
     assert actual_size == expected_size
 
 
-
 @pytest.mark.parametrize("size", [10, 50, 100])
 def test_remove_duplicates_cos_cut(size):
+    '''
+    test if function properly filter redundant hits eg. a-b, b-a, a-c func should exclude b-a
+    symulate cosine similarity cutoff
+    '''
     filedict = {k: v for k, v in zip(range(size), range(size))}
     data = {idx: filedict.copy() for idx in range(size)}
     number_od_del = 0
@@ -39,5 +42,3 @@ def test_remove_duplicates_cos_cut(size):
     actual_size = sum([len(v) for v in data.values()]) + (number_od_del/size)*(number_od_del/size)
 
     assert actual_size == expected_size
-
-
