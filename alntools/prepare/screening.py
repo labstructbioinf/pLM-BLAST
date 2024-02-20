@@ -1,11 +1,10 @@
 import os
+import gc
 import argparse
 from typing import List, Dict, Optional
-from typing import Union
 
 from tqdm import tqdm
 import torch
-from torch.nn.functional import avg_pool1d
 
 from ..filehandle import DataObject
 from ..density.local import chunk_cosine_similarity, calculate_pool_embs
@@ -23,9 +22,9 @@ def apply_database_screening(args: argparse.Namespace,
     '''
     apply pre-screening for database search
     Args:
-        args (namespace):
-        query_embs (list[torch.Tensor]) query embeddings
-        dbsize (int) size of database - number of sequences
+        args: (namespace)
+        query_embs: (list[torch.Tensor]) query embeddings
+        dbsize: (int) size of database - number of sequences
     Returns:
         (dict) each key is query_id, and values are embeddings above threshold
     '''
@@ -37,11 +36,10 @@ def apply_database_screening(args: argparse.Namespace,
     if 0 < args.COS_PER_CUT < 100 and dbdata.size > 10:
         print(f"Pre-screening with {args.COS_PER_CUT} quantile")
         query_filedict = dict()
-        dbpath = os.path.join(args.db, EMB64_EXT)
         querypath = os.path.join(args.query, EMB64_EXT)
-        if not os.path.isfile(dbpath):
+        if not os.path.isfile(dbdata.poolpath):
             print(
-                f'''missing pooled embedding file {dbpath} for given database, it will be generated on fly,
+                f'''missing pooled embedding file {dbdata.poolpath} for given database, it will be generated on fly,
                 and saved. Depending on run specification this may decrease performence of the first run,
                 especially for larger databases. It can be created manually by scripts/dbtofile.py''')
             # load regular database and pool
@@ -59,16 +57,16 @@ def apply_database_screening(args: argparse.Namespace,
                     db_embs.extend(calculate_pool_embs(embs))
             # try to write emb.64 file
             try:
-                torch.save(db_embs, dbpath)
+                torch.save(db_embs, dbdata.poolpath)
             except Exception as e:
-                print(f'cannot write {dbpath} due to: {e}')
+                print(f'cannot write {dbdata.poolpath} due to: {e}')
         else:
-            db_embs: List[torch.Tensor] = torch.load(dbpath)
+            db_embs: List[torch.Tensor] = torch.load(dbdata.poolpath)
         if args.use_chunks:
             if args.verbose:
                 print('Loading database for chunk cosine similarity screening...')
             # look for pooled emb file
-            if not os.path.isfile(querypath):
+            if not os.path.isfile(querydata.poolpath):
                 if querydata.datatype == "dir":
                     query_embs_chunkcs = list()
                     for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
@@ -94,6 +92,7 @@ def apply_database_screening(args: argparse.Namespace,
                         query_filedict[index] = filedict
                         index += 1
                         pbar.update(1)
+                    gc.collect()
             avg_hits = [len(v) for v in query_filedict.values()]
             avg_hits = int(sum(avg_hits)/len(avg_hits))
             print(f"{avg_hits} alignment candidates per query")
@@ -114,10 +113,10 @@ def apply_database_screening(args: argparse.Namespace,
     else:
         # no screening case
         print("Pre-screening skipped")
-        filedict = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
+        filedict: Dict[int, int] = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
-
+    # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:
+        print("remove duplicate entires")
         query_filedict = reduce_duplicates_query_filedict(query_filedict)
-
     return query_filedict
