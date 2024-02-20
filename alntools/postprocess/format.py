@@ -52,6 +52,9 @@ def calc_identity(s1: List[str], s2: List[str]) -> float:
 
 
 def add_duplicates(resdf):
+    '''
+    The function is used to restore the results of b vs a comparisons.
+    '''
     for q, s in zip(resdf["qid"].tolist(), resdf["sid"].tolist()):
         row_to_check = resdf.loc[(resdf['qid'] == s) & (resdf['sid'] == q)]
         if row_to_check.empty:
@@ -60,7 +63,7 @@ def add_duplicates(resdf):
             for _, row in rows.iterrows():
                 row_to_modify = row[['sid', 'score', 'ident', 'similarity', 'qid', 'tstart', 'tend', 'tseq', 'con', 'qseq', 'qstart', 'qend', 'qlen', 'tlen', 'match_len']].values
                 resdf.loc[len(resdf)] = row_to_modify
-    resdf = resdf.drop_duplicates()
+
     return resdf
 	
 

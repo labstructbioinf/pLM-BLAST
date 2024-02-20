@@ -76,8 +76,9 @@ def search_paths(submatrix: np.ndarray,
 				else:
 					y1, x1 = y[start:stop-1], x[start:stop-1]
 				ylen = y1[-1] - y1[0]
+				xlen = x1[-1] - x1[0]
 				# to short alignment
-				if ylen < min_span:
+				if min(ylen, xlen) < min_span:
 					continue
 				arr_values = submatrix[y1, x1]
 				arr_indices = np.stack([y1, x1], axis=1)
