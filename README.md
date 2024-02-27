@@ -164,3 +164,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 27/10/2023 added `examples` directory with end to end usages
 * 26/11/2023 added parallelism to cosine prescreening - which gives huge performence boost especially for multiple query sequences
 * 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
+* 22/02/2024 improved RAM consumption in prescreening process - additionally whole procedure will be faster now

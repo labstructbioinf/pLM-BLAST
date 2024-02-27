@@ -74,7 +74,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 		return len(self.embedding_files)
 
 	def __getitem__(self, idx):
-		embedding = torch.load(self.embedding_files[idx])
+		embedding = torch.load(self.embedding_files[idx]).float()
 		if self.flatten:
 			embedding = embedding.sum(0)
 		return embedding

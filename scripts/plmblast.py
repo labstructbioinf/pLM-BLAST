@@ -119,7 +119,7 @@ if __name__ == "__main__":
 	results = pd.concat(results, axis=0)
 	if len(results) == 0:
 		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
-		sys.exit(0)
+		sys.exit(1)
 	if args.reduce_duplicates:
 		results = results.reset_index(drop=True)
 		results = add_duplicates(results)

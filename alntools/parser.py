@@ -56,7 +56,7 @@ def get_parser() -> argparse.Namespace:
 			 			action='store_true', default=False)
 	
 	# cosine similarity scan
-	parser.add_argument('-cosine_percentile_cutoff', help=\
+	parser.add_argument('-cosine_percentile_cutoff', '-cpc', help=\
 					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=70, dest='COS_PER_CUT')	
 	parser.add_argument('--use_chunks', help=\

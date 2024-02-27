@@ -1,7 +1,7 @@
 
 from typing import Dict
 
-def reduce_duplicates_query_filedict(query_filedict: Dict[int, Dict[int, int]]) -> dict:
+def reduce_duplicates_query_filedict(query_filedict: Dict[int, Dict[int, int]]) -> Dict[int, Dict[int, int]]:
     '''
     The function is used to simplify searching.
     The function skips the b vs a pairs, keeping only a vs b.

@@ -11,8 +11,9 @@ import pandas as pd
 import torch
 
 from .settings import EMB64_EXT
+from .settings import EXTENSIONS
 
-extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
+
 record = namedtuple('record', ['qid', 'qdbids' , 'dbfiles'])
 
 
@@ -25,6 +26,7 @@ class DataObject:
      indexdata: pd.DataFrame
      datatype: str = "dir"
      embeddingpath: str = ""
+     # none if not exists
      poolpath: Optional[str] = None
      pathdata: str
      ext: str = ".emb"
@@ -82,7 +84,7 @@ def find_file_extention(infile: str) -> str:
     '''search for extension for query or index files'''
     assert isinstance(infile, str)
     infile_with_ext = infile
-    for ext in extensions:
+    for ext in EXTENSIONS:
         if os.path.isfile(infile + ext):
             infile_with_ext = infile + ext
             break

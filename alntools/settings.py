@@ -11,3 +11,6 @@ RESIDUE_GROUPMAP = {resgroup : i for i, resgroup in enumerate(RESIDUE_GROUPS)}
 
 # changed from ".emb.64"
 EMB64_EXT: str = "emb.64"
+
+# available index file extensions
+EXTENSIONS = ['.csv', '.p', '.pkl', '.fas', '.fasta']
