@@ -129,6 +129,6 @@ def apply_database_screening(args: argparse.Namespace,
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
     # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:
-        print("remove duplicate entires")
+        print("removing duplicated entires")
         query_filedict = reduce_duplicates_query_filedict(query_filedict)
     return query_filedict
