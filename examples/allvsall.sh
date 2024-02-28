@@ -26,5 +26,4 @@ python ../scripts/plmblast.py \
 	$DBDIR \
 	$RESULTS \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
-	-workers $NUM_WORKERS \
-	--use_chunks
+	-workers $NUM_WORKERS
