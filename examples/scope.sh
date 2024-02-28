@@ -16,5 +16,4 @@ python ../scripts/plmblast.py \
 	$RESULTS \
 	-cosine_percentile_cutoff $COSINE_CUTOFF \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
-	-workers $NUM_WORKERS \
-	--use_chunks
+	-workers $NUM_WORKERS
