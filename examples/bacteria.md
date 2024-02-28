@@ -20,7 +20,7 @@ For the analysis of the proteome of Nostoc punctiforme PCC 73102, we collected a
     ```
 4. The fasta files will be used to calculate embeddings. To do this, you should utilize the 'embeddings.py' script.
     ```console
-    python embeddings.py start examples/data/input/protein_split_1.fas -embedder pt --gpu -bs 1 -t 6000
+    python embeddings.py start examples/data/input/protein_split_1.fas examples/data/output/protein_split_1.pt -embedder pt --gpu -bs 1 -t 6000
     ```
     The utilized flags are as follows:
     * `-embedder` -> This flag specifies which model to use for creation

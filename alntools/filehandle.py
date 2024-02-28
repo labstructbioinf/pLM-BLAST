@@ -1,6 +1,6 @@
 import os
 import math
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union, Optional
 from collections import namedtuple
 import itertools
 import warnings
@@ -10,8 +10,10 @@ from Bio import SeqIO
 import pandas as pd
 import torch
 
+from .settings import EMB64_EXT
+from .settings import EXTENSIONS
 
-extensions = ['.csv', '.p', '.pkl', '.fas', '.fasta']
+
 record = namedtuple('record', ['qid', 'qdbids' , 'dbfiles'])
 
 
@@ -24,6 +26,8 @@ class DataObject:
      indexdata: pd.DataFrame
      datatype: str = "dir"
      embeddingpath: str = ""
+     # none if not exists
+     poolpath: Optional[str] = None
      pathdata: str
      ext: str = ".emb"
      objtype: str = "query"
@@ -48,10 +52,15 @@ class DataObject:
         return cls(indexdata=indexfile, pathdata=pathdata, objtype=objtype)
      
      def _find_datatype(self):
-          
+        """
+        determine dir or file
+        """
         self.embeddingpath = self.pathdata
         if os.path.isdir(self.pathdata):
             self.datatype = 'dir'
+            # only present in dir mode
+            poolpath = os.path.join(self.pathdata, EMB64_EXT)
+            self.poolpath = poolpath
         elif os.path.isfile(self.pathdata + ".pt"):
             self.datatype = 'file'
             self.embeddingpath += ".pt"
@@ -75,7 +84,7 @@ def find_file_extention(infile: str) -> str:
     '''search for extension for query or index files'''
     assert isinstance(infile, str)
     infile_with_ext = infile
-    for ext in extensions:
+    for ext in EXTENSIONS:
         if os.path.isfile(infile + ext):
             infile_with_ext = infile + ext
             break

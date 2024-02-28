@@ -16,12 +16,13 @@ from embedders.schema import BatchIterator
 
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
-EMBEDDING_DATA: os.PathLike = os.path.join(DIR, "test_data/seq.p")
-EMBEDDING_FASTA: os.PathLike = os.path.join(DIR, "test_data/seq.fasta")
-EMBEDDING_OUTPUT: os.PathLike = os.path.join(DIR, "test_data/output/seq.emb")
-EMBEDDING_OUTPUT_DIR: os.PathLike = os.path.join(DIR, 'test_data', 'output')
+EMBEDDING_DATA: str = os.path.join(DIR, "test_data/seq.p")
+EMBEDDING_FASTA: str = os.path.join(DIR, "test_data/seq.fasta")
+EMBEDDING_OUTPUT: str = os.path.join(DIR, "test_data/output/seq.emb")
+EMBEDDING_OUTPUT_DIR: str = os.path.join(DIR, 'test_data', 'output')
 NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
 DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
+
 
 @pytest.fixture(autouse=True)
 def remove_outputs():

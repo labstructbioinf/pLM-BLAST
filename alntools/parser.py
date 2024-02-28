@@ -56,13 +56,15 @@ def get_parser() -> argparse.Namespace:
 			 			action='store_true', default=False)
 	
 	# cosine similarity scan
-	parser.add_argument('-cosine_percentile_cutoff', help=\
+	parser.add_argument('-cosine_percentile_cutoff', '-cpc', help=\
 					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
 						type=range0100, default=70, dest='COS_PER_CUT')	
 	parser.add_argument('--use_chunks', help=\
 					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
 			 action='store_true', default=False)
-	
+	parser.add_argument('--reduce_duplicates', help=\
+					 'filter redundant hits eg. a-b, a-b, a-c works only when query is the same as db, typically all vs all',
+					  action='store_true', default=False)	
 	# plmblast
 	parser.add_argument('-alignment_cutoff', help='pLM-BLAST alignment score cut-off (default: %(default)s)',
 						type=range01, default=0.3)						
@@ -94,6 +96,9 @@ def get_parser() -> argparse.Namespace:
 	# validate provided parameters
 	assert args.workers >= 0
 	assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'
+	if args.reduce_duplicates and not args.enh:
+		print('-reduce_duplicates flag is on but --enh is disabled, it will be turned on')
+		args.enh = True
 	# get available cores
 	if args.workers == 0:
 		args.workers = get_available_cores()

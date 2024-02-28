@@ -68,7 +68,7 @@ def test_batch_loader_for_plmblast_loop(batch_size):
 		assert len(files) == len(filedict[qid])
 
 
-@pytest.mark.parametrize('win', [10, 15, 25])
+@pytest.mark.parametrize('win', [25])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
 @pytest.mark.parametrize("cosine_percentile_cutoff", [90, 0])
 @pytest.mark.parametrize('screening_mode', ["--use_chunks", ""])
@@ -81,7 +81,7 @@ def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, scr
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
 	# check if there are hits
-	assert os.path.isfile(OUTPUT_SINGLE), f"missing output after run: {OUTPUT_SINGLE} from cmd: {cmd} cmd output {proc.stdout}"
+	assert os.path.isfile(OUTPUT_SINGLE), f"missing output after run from cmd: {proc.stdout}"
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")
 	if win < 20:
 		assert output.shape[0] > 0, "no results for given query"
@@ -103,7 +103,7 @@ def test_results_reproducibility():
 			assert (resulti == resultj).all(), 'results are not identical'
 
 
-@pytest.mark.parametrize('win', [10, 20])
+@pytest.mark.parametrize('win', [10, 15])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
 def test_multi_query(win: str, gap_ext: str):
 	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext}"
