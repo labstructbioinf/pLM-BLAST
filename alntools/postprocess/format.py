@@ -51,19 +51,22 @@ def calc_identity(s1: List[str], s2: List[str]) -> float:
     return round(sum(res)/len(res), 2)
 
 
-def add_duplicates(resdf):
+def add_duplicates(resdf: pd.DataFrame) -> pd.DataFrame:
     '''
     The function is used to restore the results of b vs a comparisons.
     '''
+    # duplicates = list()
     for q, s in zip(resdf["qid"].tolist(), resdf["sid"].tolist()):
         row_to_check = resdf.loc[(resdf['qid'] == s) & (resdf['sid'] == q)]
         if row_to_check.empty:
-
             rows = resdf.loc[(resdf['qid'] == q) & (resdf['sid'] == s)]
             for _, row in rows.iterrows():
+                # duplicates.append(row)
                 row_to_modify = row[['sid', 'score', 'ident', 'similarity', 'qid', 'tstart', 'tend', 'tseq', 'con', 'qseq', 'qstart', 'qend', 'qlen', 'tlen', 'match_len']].values
-                resdf.loc[len(resdf)] = row_to_modify
-
+                resdf.loc[resdf.shape[0]] = row_to_modify
+    # dupilcatesdf = pd.concat(duplicates, axis=0)
+    # resuls = pd.concat((resdf, duplicatesdf), axis=?, ignore_index=True)
+    resdf['score'] = resdf['score'].round(2)
     return resdf
 	
 

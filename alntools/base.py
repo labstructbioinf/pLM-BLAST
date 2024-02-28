@@ -1,10 +1,8 @@
 '''module merging all extraction steps into user friendly functions'''
-import itertools
+from typing import List, Union
 
 import pandas as pd
-from typing import List, Tuple, Union
 import numpy as np
-import torch
 
 from .numeric import embedding_local_similarity, signal_enhancement
 from .alignment import gather_all_paths
@@ -32,7 +30,7 @@ class Extractor:
 
 	# TODO add proper agument handling here
 	def __init__(self, enh: bool = False,
-			   norm: bool = False,
+			    norm: bool = False,
 				bfactor: Union[str, bool] = 2,
 				sigma_factor: Union[int, float] = 2,
 				gap_penalty: float = 0.0):
@@ -59,14 +57,17 @@ class Extractor:
 		self.gap_penalty = gap_penalty
 
 	# TODO implement this
-	def submatrix_to_span(self, densitymap, mode: str = 'results') -> pd.DataFrame:
+	def submatrix_to_span(self, densitymap: np.ndarray, mode: str = 'results') -> pd.DataFrame:
 		'''
 		run plmblast flow from substitution matrix
 		func should return same results as embedding_to_span
 		'''
 		pass
 
-	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode: str = 'results' ) -> pd.DataFrame:
+	def embedding_to_span(self,
+					    X: np.ndarray,
+						Y: np.ndarray,
+						mode: str = 'results') -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
 		Args:

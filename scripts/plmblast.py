@@ -60,17 +60,15 @@ if __name__ == "__main__":
 	# 								filtering								 #
 	##########################################################################
 	batch_size = 30*args.workers
-	query_filedict = apply_database_screening(args,
-													   	querydata=querydata,
-														dbdata=dbdata)
+	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
-										    dbdata=dbdata,
-											filedict=query_filedict,
-											batch_size=batch_size)
+										      dbdata=dbdata,
+											  filedict=query_filedict,
+											  batch_size=batch_size)
 	if len(query_filedict) == 0:
 		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
-		sys.exit(0)
+		sys.exit(1)
 	##########################################################################
 	# 								plm-blast								 #
 	##########################################################################
@@ -79,13 +77,12 @@ if __name__ == "__main__":
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
 	for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
-		iter_id = 0
 		job_stack = list()
 		with ProcessPoolExecutor(max_workers = args.workers) as executor:
 			for (idx, emb) in zip(embedding_index, embedding_list):
 				job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
 				job_stack.append(job)
-			time.sleep(0.1)
+			time.sleep(0.05)
 			for job in as_completed(job_stack):
 				try:
 					res = job.result()
@@ -94,19 +91,17 @@ if __name__ == "__main__":
 				except Exception as e:
 					raise AssertionError('job not done', e)	
 		gc.collect()
-
 	if len(result_stack) > 0: 
 		result_df = pd.concat(result_stack)
 		print(f'hit candidates, {result_df.shape[0]}')
 	else:
 		print(f'No valid hits given pLM-BLAST parameters!')
 		sys.exit(0)
-
 	# Invalid plmblast score encountered
 	# only valid when signal ehancement is off
 	if result_df.score.max() > 1.01 and not args.enh:
 		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', result_df.score.min(), result_df.score.max())
-		sys.exit(0)
+		sys.exit(1)
 	print('merging results')
 	# run postprocessing
 	results: List[pd.DataFrame] = list()
