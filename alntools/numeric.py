@@ -125,9 +125,10 @@ def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 			h_tmp[0] = H[i-1, j-1] + a[i-1, j-1]
 			# max over first dimension - y
 			# max_{k >= 1} H_{i-k, j}
-			h_tmp[1] = max_value_over_line_gaps(H, 1, i+1, j, j, gap_pentalty=gap_penalty)
+			#h_tmp[1] = max_value_over_line_gaps(H, 1, i+1, j, j, gap_pentalty=gap_penalty)
+			h_tmp[1] = max_value_over_line_old(H, 1, i+1, j, j) - gap_penalty
 			# max over second dimension - x
-			h_tmp[2] = max_value_over_line_gaps(H, i, i, 1, j+1, gap_pentalty=gap_penalty)
+			h_tmp[2] = max_value_over_line_old(H, i, i, 1, j+1) - gap_penalty
 			H[i, j] = np.max(h_tmp)
 	return H
 
@@ -395,3 +396,40 @@ def signal_enhancement(arr: np.ndarray):
 	arr_left = (arr - arr.mean(0, keepdims=True))/arr.std(0, keepdims=True)
 	arr_right = (arr - arr.mean(1, keepdims=True))/arr.std(1, keepdims=True)
 	return (arr_left + arr_right)/2
+
+
+# TODO add numba based mean/std ops
+'''
+@numba.njit('f4[:](f4[:,:], i8)', nogil=True, fastmath=True, cache=True)
+def mean_over_axis(arr: np.ndarray, axis: int):
+
+	axis0: int = arr.shape[0]
+	axis1: int = arr.shape[1]
+	arrnorm: np.float32 = 0
+	arrsum = np.sum(arr, axis=axis, keepdims=True)
+	if axis == 0:
+		#arrcount = np.ones((1, axis1), dtype=np.float32) * (1 / float(axis0))
+		arrnorm = (1.0 / float(axis0))
+	else:
+		#arrcount = np.ones((axis0, 1), dtype=np.float32) * (1 / float(axis1))
+		arrnorm = (1.0 / float(axis1))
+	arrmean = arrsum * arrnorm
+	return arrmean
+
+def std_over_axis(arr: np.ndarray, arrmean: np.ndarray, axis: int):
+
+	axisn = arr.shape[axis]
+	arr_res = arr - arrmean
+	arr_res = np.power(arr_res, 2)
+	arr_res = np.sum(arr_res, axis=axis, keepdims=True)
+	arr_res = np.sqrt(arr_res) * (1 / float(axisn))
+	return arr_res
+
+
+def sig_enh_nb(arr: np.ndarray):
+	arr_leftm =  mean_over_axis(arr, axis=0)
+	arr_rightm = mean_over_axis(arr, axis=1)
+	arr_left = (arr - arr_leftm)/std_over_axis(arr, arr_leftm, axis=0)
+	arr_right = (arr - arr_rightm)/std_over_axis(arr, arr_rightm, axis=1)
+	return (arr_left + arr_right)/2
+'''

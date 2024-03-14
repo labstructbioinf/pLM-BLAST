@@ -61,67 +61,53 @@ def apply_database_screening(args: argparse.Namespace,
                 print(f'cannot write {dbdata.poolpath} due to: {e}')
         else:
             db_embs: List[torch.Tensor] = torch.load(dbdata.poolpath)
-        if args.use_chunks:
-            if args.verbose:
-                print('Loading database for chunk cosine similarity screening...')
-            # look for pooled emb file
-            if querydata.poolpath is None:
-                if querydata.datatype == "dir":
-                    query_embs_chunkcs = list()
-                    for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
-                                                                   num_records=querydata.size,
-                                                                   num_workers=0):
-                        query_embs_chunkcs.extend(calculate_pool_embs(embs))
-                # file mode - pool file is not available
-                else:
-                    query_embs_chunkcs = torch.load(querydata.embeddingpath)
-                    query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
-            # file exists
+    
+        if args.verbose:
+            print('Loading database for chunk cosine similarity screening...')
+        # look for pooled emb file
+        if querydata.poolpath is None:
+            if querydata.datatype == "dir":
+                query_embs_chunkcs = list()
+                for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
+                                                                num_records=querydata.size,
+                                                                num_workers=0):
+                    query_embs_chunkcs.extend(calculate_pool_embs(embs))
+            # file mode - pool file is not available
             else:
-                query_embs_chunkcs = torch.load(querydata.poolpath)
-            # loop over all query embeddings
-            index = 0
-            seqlen_query = [q.shape[0] for q in query_embs_chunkcs]
-            seqlen_db = [q.shape[0] for q in db_embs]
-            # change kernel size if the shortest sequence in targets is smaller then kernel size
-            kernel_size = min(min(seqlen_query + seqlen_db), kernel_size)
-            # create unfolded db once per run - this will increase performence when dealing
-            # with multiquery mode
-            batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=stride, embdim=64)
-            del db_embs
-            print(f'kernel set to: {kernel_size}')
-            with tqdm(total=num_queries, desc='screening seqences') as pbar:
-                for embslice in slice_iterator_with_seqlen(seqlen_query):
-                    filedict_batch = chunk_cosine_similarity(
-                                                        query=query_embs_chunkcs[embslice],
-                                                        targets=batchdb,
-                                                        quantile=percentile_factor,
-                                                        dataset_files=dbdata.dirfiles,
-                                                        stride=stride)
-                    for filedict in filedict_batch:
-                        query_filedict[index] = filedict
-                        index += 1
-                        pbar.update(1)
-                    gc.collect()
-            avg_hits = [len(v) for v in query_filedict.values()]
-            avg_hits = int(sum(avg_hits)/len(avg_hits))
-            print(f"{avg_hits} alignment candidates per query")
-            del batchdb
-            del query_embs_chunkcs
+                query_embs_chunkcs = torch.load(querydata.embeddingpath)
+                query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
+        # file exists
         else:
-            if args.verbose:
-                print('Using regular cosine similarity screening...')
-            # TODO make sure that regular screening works
-            for i, emb in tqdm(enumerate(load_embeddings_parallel_generator(querydata.embeddingpath,
-                                                                             num_records=querydata.size,
-                                                                             num_workers=0)),
-                                                                               total=num_queries, desc='screening seqences'):
-                filedict = load_and_score_database(emb,
-                                                    dbpath=dbdata.embeddingpath,
-                                                    num_records=dbdata.size,
+            query_embs_chunkcs = torch.load(querydata.poolpath)
+        # loop over all query embeddings
+        index = 0
+        seqlen_query = [q.shape[0] for q in query_embs_chunkcs]
+        seqlen_db = [q.shape[0] for q in db_embs]
+        # change kernel size if the shortest sequence in targets is smaller then kernel size
+        kernel_size = min(min(seqlen_query + seqlen_db), kernel_size)
+        # create unfolded db once per run - this will increase performence when dealing
+        # with multiquery mode
+        batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=stride, embdim=64)
+        del db_embs
+        print(f'kernel set to: {kernel_size}')
+        with tqdm(total=num_queries, desc='screening seqences') as pbar:
+            for embslice in slice_iterator_with_seqlen(seqlen_query):
+                filedict_batch = chunk_cosine_similarity(
+                                                    query=query_embs_chunkcs[embslice],
+                                                    targets=batchdb,
                                                     quantile=percentile_factor,
-                                                    num_workers=2)
-                query_filedict[i] = filedict
+                                                    dataset_files=dbdata.dirfiles,
+                                                    stride=stride)
+                for filedict in filedict_batch:
+                    query_filedict[index] = filedict
+                    index += 1
+                    pbar.update(1)
+                gc.collect()
+        avg_hits = [len(v) for v in query_filedict.values()]
+        avg_hits = int(sum(avg_hits)/len(avg_hits))
+        print(f"{avg_hits} alignment candidates per query")
+        del batchdb
+        del query_embs_chunkcs
     else:
         # no screening case
         print("Pre-screening skipped")

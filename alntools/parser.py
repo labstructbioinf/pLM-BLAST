@@ -17,7 +17,6 @@ def get_available_cores() -> int:
 	return num_cores
 
 
-
 def range_limited_float_type(arg, MIN, MAX):
 	""" Type function for argparse - a float within some predefined bounds """
 	try:
@@ -57,11 +56,13 @@ def get_parser() -> argparse.Namespace:
 	
 	# cosine similarity scan
 	parser.add_argument('-cosine_percentile_cutoff', '-cpc', help=\
-					 'Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST',
+					 '''Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s).
+					   The lower the value, the more sequences will be passed through the pre-screening procedure
+						and then aligned with the more accurate but slower pLM-BLAST. Setting it to 0 will turn off this''',
 						type=range0100, default=70, dest='COS_PER_CUT')	
-	parser.add_argument('--use_chunks', help=\
-					 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
-			 action='store_true', default=False)
+	#parser.add_argument('--use_chunks', help=\
+	#				 'Use fast chunk cosine similarity screening instead of regular cosine similarity screening. (default: %(default)s)',
+	#		 action='store_true', default=False)
 	parser.add_argument('--reduce_duplicates', help=\
 					 'filter redundant hits eg. a-b, a-b, a-c works only when query is the same as db, typically all vs all',
 					  action='store_true', default=False)	
