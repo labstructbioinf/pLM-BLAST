@@ -64,12 +64,12 @@ The batch size (number of sequences per batch) is set with the `-bs` option. Set
 
 The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
-**The last step is optional and recommended when dealing with large databases**. Create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+**The last step is optional and recommended when dealing with large databases and will be automatically done after first run**. Create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
 ```bash
 python scripts/dbtofile.py database 
 ```
-A new file `emb.64` will appear in the database directory. **Otherwise it will be created on fly, when `-cosine_percentile_cutoff` < 100. **
+A new file `emb.64` will appear in the database directory. **Otherwise it will be created on fly, when `-cosine_percentile_cutoff` < 100.
 The database is now ready for use.
 
 ### Checkpointing feature
@@ -92,13 +92,13 @@ python embeddings.py start query.fas query.pt
 Then the `plmblast.py` script can be used to search the database:
 
 ```bash
-python ./scripts/plmblast.py database query output.csv --use_chunks
+python ./scripts/plmblast.py database query output.csv
 ```
 You can also perform all vs all search typing
 ```bash
-python ./scripts/plmblast.py database database output.csv --use_chunks -cosine_percentile_cutoff 90
+python ./scripts/plmblast.py database database output.csv -cosine_percentile_cutoff 90
 ```
-We recommend adding `-cosine_percentile_cutoff X` argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity (with `--use_chunkcs`) described in paper, to avoid comparision of embeddings with low similarity. 
+We recommend adding `-cosine_percentile_cutoff X` or `-cpc X` argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity described in paper, to avoid comparision of embeddings with low similarity. 
 
 
 to load results in python type
@@ -106,7 +106,7 @@ to load results in python type
 import pandas as pd
 results = pd.read_csv("output.csv", sep=";")
 ```
-Note that only the base filename should be specified for the query (extensions are automatically added). The `--use_chunks` option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
+Note that only the base filename should be specified for the query (extensions are automatically added). The `-cpc X` wtih `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
 

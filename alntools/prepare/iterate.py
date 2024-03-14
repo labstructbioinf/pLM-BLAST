@@ -42,7 +42,7 @@ def search_paths(submatrix: np.ndarray,
 		submatrix = submatrix.astype(np.float32)
 	# force sigma to be not greater then average std of embeddings
 	# also not too small
-	path_threshold = sigma_factor*AVG_EMBEDDING_STD
+	path_threshold = sigma_factor*max(submatrix.std(), AVG_EMBEDDING_STD)
 	spans_locations = dict()
 	# iterate over all paths
 	for ipath, path in enumerate(paths):
