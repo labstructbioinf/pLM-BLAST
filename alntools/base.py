@@ -18,8 +18,8 @@ class Extractor:
 	'''
 	main class for handling alignment extaction
 	'''
-	MIN_SPAN_LEN: int = 20
-	WINDOW_SIZE: int = 20
+	min_spanlen: int = 20
+	window_size: int = 20
 	FILTER_RESULTS: bool = False
 	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
 	norm: bool = False
@@ -33,11 +33,22 @@ class Extractor:
 			    norm: bool = False,
 				bfactor: Union[str, bool] = 2,
 				sigma_factor: Union[int, float] = 2,
-				gap_penalty: float = 0.0):
-		
+				gap_penalty: float = 0.0,
+				min_spanlen: int = 20,
+				window_size: int = 20):
+		"""
+		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
+		Args:
+			enh: (bool) if true use signal enhancement
+			min_spanlen: (int) shortest alignment len to capture, measrued in number of residues within
+			window_size: (int) size of average window, bigger values may produce wider but more gapish alignment
+			sigma_factor: (float, int): higher values will result in more conservative aligments
+		"""
 		# validate arguments
 		assert isinstance(enh, bool)
 		assert isinstance(norm, bool)
+		if not isinstance(min_spanlen, int) or min_spanlen < 1:
+			raise PlmBlastParamError(f'min_spanlen must be positive integer, instead of {type(min_spanlen)}: {min_spanlen}')
 		if isinstance(bfactor, str):
 			if bfactor != "global":
 				raise PlmBlastParamError(f'invalid bfactor value: {bfactor}')
@@ -55,6 +66,8 @@ class Extractor:
 		self.bfactor = bfactor
 		self.sigma_factor = sigma_factor
 		self.gap_penalty = gap_penalty
+		self.min_spanlen = min_spanlen
+		self.window_size = window_size
 
 	# TODO implement this
 	def submatrix_to_span(self, densitymap: np.ndarray, mode: str = 'results') -> pd.DataFrame:
@@ -91,7 +104,7 @@ class Extractor:
 			densitymap = signal_enhancement(densitymap)
 		paths = gather_all_paths(densitymap,
 								 norm=self.norm,
-								 minlen=self.MIN_SPAN_LEN,
+								 minlen=self.min_spanlen,
 								 bfactor=self.bfactor,
 								 gap_penalty=self.gap_penalty,
 								 with_scores = True if mode == 'all' else False)
@@ -100,8 +113,8 @@ class Extractor:
 			paths = paths[0]
 		results = search_paths(densitymap,
 							   paths=paths,
-							   window=self.WINDOW_SIZE,
-							   min_span=self.MIN_SPAN_LEN,
+							   window=self.window_size,
+							   min_span=self.min_spanlen,
 							   sigma_factor=self.sigma_factor,
 							   globalmode=self.globalmode,
 							   as_df=True)

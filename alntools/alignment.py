@@ -316,7 +316,7 @@ def gather_all_paths(array: np.ndarray,
 		indices = [(array.shape[0], array.shape[1])]
 	paths = list()
 	for ind in indices:
-		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=0)
+		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_penalty)
 		paths.append(path)
 	if with_scores:
 		return (paths, score_matrix)

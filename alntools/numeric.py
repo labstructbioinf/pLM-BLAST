@@ -61,14 +61,16 @@ def max_value_over_line_old(arr: np.ndarray, ystart: int, ystop: int,
 	Returns:
 		float:
 	'''
-	max_value: float = -1
+	max_value: float = 0
 	if xstart == xstop:
 		# iterate over array y array (1st dimension) slice
-		for yidx in range(ystart, ystop):
+		max_value = arr[ystart, xstart]
+		for yidx in range(ystart+1, ystop):
 			if max_value > arr[yidx, xstart]:
 				max_value = arr[yidx, xstart]
 	else:
-		for xidx in range(xstart, xstop):
+		max_value = arr[ystart, xstart]
+		for xidx in range(xstart+1, xstop):
 			if max_value > arr[ystart, xidx]:
 				max_value = arr[ystart, xidx]
 	return max_value
@@ -126,9 +128,9 @@ def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 			# max over first dimension - y
 			# max_{k >= 1} H_{i-k, j}
 			#h_tmp[1] = max_value_over_line_gaps(H, 1, i+1, j, j, gap_pentalty=gap_penalty)
-			h_tmp[1] = max_value_over_line_old(H, 1, i+1, j, j) - gap_penalty
+			h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
 			# max over second dimension - x
-			h_tmp[2] = max_value_over_line_old(H, i, i, 1, j+1) - gap_penalty
+			h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
 			H[i, j] = np.max(h_tmp)
 	return H
 
@@ -261,7 +263,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	f_left: float = 0.0
 	f_diag: int = 0
 	fi_max: int = 0
-	gap_penalty: float = 0
+	gap_penalty: float = 0.0
 	# assume that the first move through alignment is diagonal
 	fi_argmax: int = 2
 	y_size: int = scoremx.shape[0]
@@ -366,10 +368,10 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	compute X, Y similarity by matrix multiplication
 	result shape [num X residues, num Y residues]
 	Args:
-		X, Y - (np.ndarray 2D) protein embeddings as 2D tensors
+		X, Y: - (np.ndarray 2D) protein embeddings as 2D tensors
 		  [num residues, embedding size]
 	Returns:
-		density (torch.Tensor)
+		density (np.ndarray)
 	'''
 	assert X.ndim == 2 and Y.ndim == 2
 	assert X.shape[1] == Y.shape[1]

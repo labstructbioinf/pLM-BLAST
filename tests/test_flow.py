@@ -33,7 +33,7 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
 		embedding_list.append(tmp)
 	module = Extractor()
 	module.SIGMA_FACTOR = SIGMA_FACTOR
-	module.WINDOW_SIZE = WINDOW_SIZE
+	module.window_size = WINDOW_SIZE
 	module.GAP_OPEN = GAP_OPEN
 	module.GAP_EXT = GAP_EXT
 	module.BFACTOR = BFACTOR
@@ -68,7 +68,7 @@ def test_result_symmetry(WINDOW_SIZE):
 	embs = torch.load(file)
 	X, Y = embs[0].numpy(), embs[1].numpy()
 	module = Extractor()
-	module.WINDOW_SIZE = WINDOW_SIZE
+	module.window_size = WINDOW_SIZE
 	res12, density12, _, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
 	res21, density21, _, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
 	# draw path masks for both
