@@ -13,6 +13,7 @@ import pandas as pd
 from tqdm import tqdm
 
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import alntools.settings as cfg
 from alntools.parser import get_parser
 from alntools.prepare.screening import apply_database_screening
 from alntools.postprocess.format import add_duplicates
@@ -20,22 +21,9 @@ from alntools.filehandle import DataObject
 import alntools as aln
 
 
-# ANSI escape sequences for colors
-colors = {
-	'black': '\033[30m',
-	'red': '\033[31m',
-	'green': '\033[32m',
-	'yellow': '\033[33m',
-	'blue': '\033[34m',
-	'magenta': '\033[35m',
-	'cyan': '\033[36m',
-	'white': '\033[37m',
-	'reset': '\033[0m'  # Reset to default color
-	}
-
 if __name__ == "__main__":
 
-	time_start = datetime.datetime.now()
+	start_time = datetime.datetime.now()
 
 	args = get_parser()
 	module = aln.Extractor( \
@@ -43,11 +31,11 @@ if __name__ == "__main__":
 					norm=False, # legacy arg always false
 					bfactor='global' if args.global_aln else args.bfactor,
 					sigma_factor=args.sigma_factor,
-					gap_penalty=args.gap_penalty)
+					gap_penalty=args.gap_penalty,
+					min_spanlen=args.min_spanlen,
+					window_size=args.window_size)
 	# other params
 	module.FILTER_RESULTS = True
-	module.MIN_SPAN_LEN = args.min_spanlen
-	module.WINDOW_SIZE = args.window_size
 	print("num cores: ", args.workers)
 
 	#module.show_config()
@@ -57,9 +45,9 @@ if __name__ == "__main__":
 	querydata = DataObject.from_dir(args.query, objtype="query")
 	# add id column if not present already
 	##########################################################################
-	# 								filtering								 #
+	# 						filtering (reduce search space)					 #
 	##########################################################################
-	batch_size = 30*args.workers
+	batch_size = cfg.jobs_per_process*args.workers
 	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
@@ -67,10 +55,10 @@ if __name__ == "__main__":
 											  filedict=query_filedict,
 											  batch_size=batch_size)
 	if len(query_filedict) == 0:
-		print(f'{colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{colors["reset"]}')
+		print(f'{cfg.colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{cfg.colors["reset"]}')
 		sys.exit(1)
 	##########################################################################
-	# 								plm-blast								 #
+	# 						main   plm-blast loop							 #
 	##########################################################################
 	result_stack: List[pd.DataFrame] = list()
 	# limit threads for concurrent
@@ -95,12 +83,12 @@ if __name__ == "__main__":
 		result_df = pd.concat(result_stack)
 		print(f'hit candidates, {result_df.shape[0]}')
 	else:
-		print(f'No valid hits given pLM-BLAST parameters!')
+		print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
 		sys.exit(0)
 	# Invalid plmblast score encountered
 	# only valid when signal ehancement is off
 	if result_df.score.max() > 1.01 and not args.enh:
-		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', result_df.score.min(), result_df.score.max())
+		print(f'{cfg.colors["red"]}Error: score is greater then one{cfg.colors["reset"]}', result_df.score.min(), result_df.score.max())
 		sys.exit(1)
 	print('merging results')
 	# run postprocessing
@@ -130,7 +118,7 @@ if __name__ == "__main__":
 		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
 		results.to_csv(output_name, sep=';', index=False)
 
-	time_end = datetime.datetime.now()
+	script_time = datetime.datetime.now() - start_time
 	print('total hits found: ', results.shape[0])
-	print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
+	print(f'{cfg.colors["green"]}Done!{cfg.colors["reset"]}\nTime {script_time}')
 	# stats

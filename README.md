@@ -96,7 +96,7 @@ python ./scripts/plmblast.py database query output.csv
 ```
 You can also perform all vs all search typing
 ```bash
-python ./scripts/plmblast.py database database output.csv -cosine_percentile_cutoff 90
+python ./scripts/plmblast.py database database output.csv -cpc 90
 ```
 We recommend adding `-cosine_percentile_cutoff X` or `-cpc X` argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity described in paper, to avoid comparision of embeddings with low similarity. 
 
@@ -106,7 +106,9 @@ to load results in python type
 import pandas as pd
 results = pd.read_csv("output.csv", sep=";")
 ```
-Note that only the base filename should be specified for the query (extensions are automatically added). The `-cpc X` wtih `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
+:sun_with_face: Note that only the base filename should be specified for the query (extensions are automatically added). :sun_with_face: 
+
+The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
 
 ## Use in Python
 

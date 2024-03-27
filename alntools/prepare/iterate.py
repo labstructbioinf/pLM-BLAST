@@ -42,7 +42,7 @@ def search_paths(submatrix: np.ndarray,
 		submatrix = submatrix.astype(np.float32)
 	# force sigma to be not greater then average std of embeddings
 	# also not too small
-	path_threshold = sigma_factor*max(submatrix.std(), AVG_EMBEDDING_STD)
+	path_threshold = sigma_factor*AVG_EMBEDDING_STD
 	spans_locations = dict()
 	# iterate over all paths
 	for ipath, path in enumerate(paths):
@@ -65,7 +65,7 @@ def search_paths(submatrix: np.ndarray,
 		else:
 			spans = [(0, len(path))]
 		# check if there is non empty alignment
-		if len(spans) > 0:
+		if any(spans):
 			for idx, (start, stop) in enumerate(spans):
 				alnlen = stop - start
 				# to short alignment
@@ -78,7 +78,7 @@ def search_paths(submatrix: np.ndarray,
 				ylen = y1[-1] - y1[0]
 				xlen = x1[-1] - x1[0]
 				# to short alignment
-				if min(ylen, xlen) < min_span:
+				if min(ylen, xlen) <= min_span:
 					continue
 				arr_values = submatrix[y1, x1]
 				arr_indices = np.stack([y1, x1], axis=1)
