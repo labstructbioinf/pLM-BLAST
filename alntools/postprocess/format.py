@@ -15,7 +15,7 @@ COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 # columns to save in output
 COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
                 'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
-                'match_len']
+                'match_len', 'sdesc']
 
 def calc_con(s1, s2):
 	res = list()
