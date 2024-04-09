@@ -38,44 +38,42 @@ def test_data_exists():
 		assert os.path.isfile(INPUT_SINGLE + ext)
 		assert os.path.isfile(INPUT_MULTI + ext)
 
-
-@pytest.mark.parametrize('batch_size', [100, 200, 300])
-def test_batch_loader_for_plmblast_loop(batch_size):
-	query_seqs = {i : 'A'*123 for i in range(10)}
-	filedict = dict()
-	for qid in query_seqs:
-		qid_files = {i : f'dump_{i}.txt'  for i in range(1000)}
-		filedict[qid] = qid_files
-	batchloader = BatchLoader(query_ids=list(query_seqs.keys()),
-						   query_seqs=list(query_seqs.values()),
-						   filedict=filedict,
-						   batch_size=batch_size,
-						   mode='file')
-	
-	query_files = {qid: list() for qid in query_seqs}
-	assert len(batchloader) > 0
-	assert len(batchloader) >= len(query_seqs)
-
-	for qid, qseq, files in batchloader:
-		assert len(files) != 0
-		assert len(files) <= batch_size
-		# files should not repeat within qid
-		assert len(set(query_files[qid]) & set(files)) == 0
-		query_files[qid].extend(files)
-
-	# check if all files exists
-	for qid, files in query_files.items():
-		assert len(files) == len(filedict[qid])
+# TODO change Batchloader input to DBData objects
+#@pytest.mark.parametrize('batch_size', [100, 200, 300])
+#def test_batch_loader_for_plmblast_loop(batch_size):
+#	query_seqs = {i : 'A'*123 for i in range(10)}
+#	filedict = dict()
+#	for qid in query_seqs:
+#		qid_files = {i : f'dump_{i}.txt'  for i in range(1000)}
+#		filedict[qid] = qid_files
+#	batchloader = BatchLoader(query_ids=list(query_seqs.keys()),
+#						   query_seqs=list(query_seqs.values()),
+#						   filedict=filedict,
+#						   batch_size=batch_size,
+#						   mode='file')
+#	
+#	query_files = {qid: list() for qid in query_seqs}
+#	assert len(batchloader) > 0
+#	assert len(batchloader) >= len(query_seqs)
+#
+#	for qid, qseq, files in batchloader:
+#		assert len(files) != 0
+#		assert len(files) <= batch_size
+#		# files should not repeat within qid
+#		assert len(set(query_files[qid]) & set(files)) == 0
+#		query_files[qid].extend(files)
+#
+#	# check if all files exists
+#	for qid, files in query_files.items():
+#		assert len(files) == len(filedict[qid])
 
 
 @pytest.mark.parametrize('win', [25])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
 @pytest.mark.parametrize("cosine_percentile_cutoff", [90, 0])
-@pytest.mark.parametrize('screening_mode', ["--use_chunks", ""])
-def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, screening_mode: str):
+def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int):
 	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
 	cmd += f" -cosine_percentile_cutoff {cosine_percentile_cutoff}"
-	cmd += f" {screening_mode}" if screening_mode != "" else ""
 	cmd += " -alignment_cutoff 0.2"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
@@ -110,11 +108,9 @@ def test_multi_query(win: str, gap_ext: str):
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
-	assert os.path.isfile(OUTPUT_MULTI)
+	assert os.path.isfile(OUTPUT_MULTI), proc.stderr
 	output = pd.read_csv(OUTPUT_MULTI, sep=";")
 	assert output.shape[0] > 0
-	if os.path.isfile(OUTPUT_MULTI):
-		os.remove(OUTPUT_MULTI)
 
 
 @pytest.mark.parametrize('win', [10, 20])

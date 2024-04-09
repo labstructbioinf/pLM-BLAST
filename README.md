@@ -19,12 +19,9 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 
 Create a conda environment:
 ```bash
-conda create --name plmblast python=3.9
+conda create --name plmblast python=3.10
 conda activate plmblast
-```
-
-Install pip in the environment:
-```bash
+# Install pip in the environment
 conda install pip
 ```
 
@@ -36,9 +33,9 @@ pip install -r requirements.txt
 # Usage
 ## Databases
 
-Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. 
+Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. pLM-BLAST can use any kind of embeddings, which are in form of `(seqlen, embdim)`.
 
-The `embeddings.py` script can be used to create a custom database from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
+The `embeddings.py` script can be used to create a custom database (`T5` based model such as `prott5` or `esm`-family ) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -98,7 +95,7 @@ You can also perform all vs all search typing
 ```bash
 python ./scripts/plmblast.py database database output.csv -cpc 90
 ```
-We recommend adding `-cosine_percentile_cutoff X` or `-cpc X` argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity described in paper, to avoid comparision of embeddings with low similarity. 
+We recommend adding `-cosine_percentile_cutoff X` (same as `-cpc X`) argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity described in paper, to avoid comparision of embeddings with low similarity. 
 
 
 to load results in python type
@@ -135,7 +132,7 @@ results = extr.full_compare(seq1_emb, seq2_emb)
 print(results)
 
 # Create a single global alignment
-extr.BFACTOR = 'global'
+extr.bfactor = 'global'
 # one alignment per protein pair
 results = extr.embedding_to_span(seq1_emb, seq2_emb)
 
