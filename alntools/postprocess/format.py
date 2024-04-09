@@ -112,7 +112,9 @@ def prepare_output(resdf: pd.DataFrame,
         dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
         assert dbdf_matches.shape[0] == querydf.shape[0]
-
+        # add description to target if exists
+        if "description" in dbdf_matches.columns:
+             querydf['sdesc'] = dbdf_matches['description'].values
         querydf['sid'] = dbdf_matches['id'].values
         querydf['tlen'] = dbdf_matches['sequence'].apply(len).values.astype(int)
         querydf['qlen'] = querydf['sequence'].apply(len).values.astype(int)
