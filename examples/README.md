@@ -3,7 +3,7 @@
 List of pLM-BLAST usage scenarios:
 
 - Searching the [ECOD](https://www.rcsb.org/docs/search-and-browse/browse-options/ecod) domain database with a single query sequence: [link](onevsall.sh)
-- Custom searches in Python scripts: [link](allvsall.md)
+- Custom searches in Python scripts: [link](stepbystep_in_python.md)
 
 <!-- 
 
