@@ -78,6 +78,8 @@ where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
+![](/examples/data/figures/search.png=250x)
+
 To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
 
 ```bash
