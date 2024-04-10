@@ -7,7 +7,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 * [ Usage ](#Usage)
     + [Databases](#databases)
     + [Searching a database](#searching-a-database)
-    + [Advanced example usage](examples/README.md)
+    + [Usage example](examples/README.md)
 * [ Remarks ](#Remarks)
     + [How to cite](#how-to-cite)
     + [Funding](#funding)
@@ -78,7 +78,9 @@ where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
-![](/examples/data/figures/search.png=250x)
+<p align="center">
+  <img src="/examples/data/figures/search.png" alt="Figure 1" width="400">
+</p>
 
 To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
 
@@ -98,7 +100,7 @@ python ./scripts/plmblast.py database database output.csv -cpc 70
 
 :sun_with_face: Note that only the base filename should be specified for the query and database (extensions are added automatically) :sun_with_face: 
 
-The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
+The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast.py -h` for more options. 
 
 # Remarks
 
