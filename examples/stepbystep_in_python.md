@@ -1,51 +1,68 @@
-
-### cupredoxin self-similarity
-Advanced example:
-
 ```python
+import sys
+import os
+
 import torch
-import alntools as aln
-import pandas as pd
 from Bio import SeqIO
 
-# Get embeddings of cupredoxin sequence
-# you can generate it via embeddings.py or any other method
-emb_file = 'data/output/cupredoxin.pt'
-embs = torch.load(emb_file).float().numpy()
-# A self-comparison is performed
-emb1, emb2 = embs[0], embs[0]
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import alntools as aln
 
-seq = list(SeqIO.parse('./scripts/input/cupredoxin.fas', format='fasta'))
-seq = str(seq[0].seq)
-seq1, seq2 = seq, seq
+def compare(emb1, emb2, win, span, gap, bfactor, sigma):
+    """
+    Compares two embeddings emb1 and emb2 using the provided parameters and 
+    returns detailed results.
+    """
+    module = aln.Extractor( 
+                    enh=False,
+                    norm=False, 
+                    bfactor=bfactor,
+                    sigma_factor=sigma,
+                    gap_penalty=gap,
+                    min_spanlen=span,
+                    window_size=win
+    )
 
-# Parameters
-bfactor = 1 # local alignment set bfactor = 'global' for global alignemnt mode
-sigma_factor = 2 
-window = 10 # scan window length
-min_span = 25 # minimum alignment length
-gap_opening = 0 # Gap opening penalty
-column = 'score' # Another option is "len" column used to sort results
+    module.FILTER_RESULTS = True
+    
+    results, densitymap, paths, scorematrix = module.embedding_to_span(emb1, emb2, mode='all')
 
-# calculate per residue substitution matrix
-substitution_matrix = aln.base.embedding_local_similarity(emb1, emb2)
-# gather paths from scoring matrix
-paths = aln.alignment.gather_all_paths(substitution_matrix, gap_opening=gap_opening, bfactor=bfactor)
-# seach paths for possible alignment
-spans_locations = aln.prepare.search_paths(sub_matrix,
-                                             paths=paths,
-                                             window=window,
-                                             sigma_factor=sigma_factor,
-                                             mode='local' if bfactor==1 else 'global',
-                                             min_span=min_span)
-                                             						
-results = pd.DataFrame(spans_locations.values())
-# remove redundant hits
-results['i'] = 0
-results = aln.postprocess.filter_result_dataframe(results, column='score')
+    if module.FILTER_RESULTS:
+        results = aln.postprocess.filter_result_dataframe(results)
+    
+    return results, densitymap, paths, scorematrix
 
-# Print best alignment
-row = results.iloc[0]
-aln = aln.alignment.draw_alignment(row.indices, seq1, seq2, output='str')
-print(aln)
+
+if __name__ == '__main__':
+
+	# read embeddings and sequences
+	emb_file1 = 'data/output/cupredoxin.pt'
+	emb_file2 = 'data/output/immunoglobulin.pt'
+	
+	emb1 = torch.load(emb_file1)[0].numpy()
+	emb2 = torch.load(emb_file2)[0].numpy()
+	
+	seq = list(SeqIO.parse('data/input/cupredoxin.fas', format='fasta'))
+	seq1 = str(seq[0].seq)
+
+	seq = list(SeqIO.parse('data/input/immunoglobulin.fas', format='fasta'))
+	seq2 = str(seq[0].seq)
+
+	# define parameters for local alignment
+	params = 15, 25, 0.5, 2, 2.5 # win, span, gap, bfactor, sigma, enh
+
+	# run comparision
+	results, densitymap, paths, scorematrix = compare(emb1, emb2, *params)
+	
+	# results contains all the detected alignments
+	print(results)
+	
+	# pick best hit
+	row = results.iloc[results.score.argmax()]
+	
+	# print alignment
+	aln = aln.draw_alignment(row.indices, seq2, seq1, output='str')
+								
+	print(aln)
+	
 ```

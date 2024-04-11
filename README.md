@@ -7,8 +7,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 * [ Usage ](#Usage)
     + [Databases](#databases)
     + [Searching a database](#searching-a-database)
-    + [Use in Python](#use-in-python)
-    + [Example usage](examples/README.md)
+    + [Usage example](examples/README.md)
 * [ Remarks ](#Remarks)
     + [How to cite](#how-to-cite)
     + [Funding](#funding)
@@ -33,7 +32,7 @@ pip install -r requirements.txt
 # Usage
 ## Databases
 
-Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. pLM-BLAST can use any kind of embeddings, which are in form of `(seqlen, embdim)`.
+Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. pLM-BLAST can use any kind of embeddings, which are in the form of `(seqlen, embdim)`.
 
 The `embeddings.py` script can be used to create a custom database (`T5` based model such as `prott5` or `esm`-family ) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
@@ -61,13 +60,12 @@ The batch size (number of sequences per batch) is set with the `-bs` option. Set
 
 The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
-**The last step is optional and recommended when dealing with large databases and will be automatically done after first run**. Create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+Create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
 ```bash
 python scripts/dbtofile.py database 
 ```
-A new file `emb.64` will appear in the database directory. **Otherwise it will be created on fly, when `-cosine_percentile_cutoff` < 100.
-The database is now ready for use.
+A new file `emb.64` will appear in the database directory. The database is now ready for use.
 
 ### Checkpointing feature
 
@@ -80,6 +78,10 @@ where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
+<p align="center">
+  <img src="/examples/data/figures/search.png" alt="Figure 1" width="400">
+</p>
+
 To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
 
 ```bash
@@ -89,55 +91,16 @@ python embeddings.py start query.fas query.pt
 Then the `plmblast.py` script can be used to search the database:
 
 ```bash
-python ./scripts/plmblast.py database query output.csv
+python ./scripts/plmblast.py database query output.csv -cpc 70
 ```
-You can also perform all vs all search typing
+You can also perform an all vs. all search by typing:
 ```bash
-python ./scripts/plmblast.py database database output.csv -cpc 90
+python ./scripts/plmblast.py database database output.csv -cpc 70
 ```
-We recommend adding `-cosine_percentile_cutoff X` (same as `-cpc X`) argument for pre-screening for large queries and databases. The `X` denote percentile of database for which acutal alignment search will be applied. Samples will be choosen based on per protein cosine similarity of chunk cosine similarity described in paper, to avoid comparision of embeddings with low similarity. 
 
+:sun_with_face: Note that only the base filename should be specified for the query and database (extensions are added automatically) :sun_with_face: 
 
-to load results in python type
-```python
-import pandas as pd
-results = pd.read_csv("output.csv", sep=";")
-```
-:sun_with_face: Note that only the base filename should be specified for the query (extensions are automatically added). :sun_with_face: 
-
-The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow `scripts/example.sh` for more examples and run `plmblast.py -h` for more options. 
-
-## Use in Python
-
-pLM-BLAST can also be used in Python scripts. 
-
-Simple example:
-
-```python
-import torch
-from alntools.base import Extractor
-import os
-
-emb_file = './scripts/output/cupredoxin.pt'
-embs = torch.load(emb_file)
-
-# A self-comparison is performed
-seq1_emb, seq2_emb = embs[0].numpy(), embs[0].numpy()
-
-# Create multiple local alignments
-extr = Extractor()
-extr.FILTER_RESULTS = True # Removes redundant paths
-results = extr.full_compare(seq1_emb, seq2_emb)
-
-print(results)
-
-# Create a single global alignment
-extr.bfactor = 'global'
-# one alignment per protein pair
-results = extr.embedding_to_span(seq1_emb, seq2_emb)
-
-print(results)
-```
+The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast.py -h` for more options. 
 
 # Remarks
 
@@ -146,7 +109,7 @@ If you find the `pLM-BLAST` useful, please cite:
 
 "*pLM-BLAST – distant homology detection based on direct comparison of sequence representations from protein language models*" \
 Kamil Kaminski, Jan Ludwiczak, Kamil Pawlicki, Vikram Alva, and Stanislaw Dunin-Horkawicz \
-bioinformatics https://doi.org/10.1093/bioinformatics/btad579
+[Link](https://doi.org/10.1093/bioinformatics/btad579)
 
 ## Contact
 If you have any questions, problems, or suggestions, please contact [us](https://ibe.biol.uw.edu.pl/en/835-2/research-groups/laboratory-of-structural-bioinformatics/).
@@ -156,11 +119,11 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 
 # Changelog
 
-* 26/09/2023 improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.
-* 26/09/2023 improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance and `-res_per_batch` options have been added.
-* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for `run_plmblast.py` script.
+* 26/09/2023 Improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.
+* 26/09/2023 Improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance, and `-res_per_batch` options have been added.
+* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for the `run_plmblast.py` script.
 * 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.
-* 27/10/2023 added `examples` directory with end to end usages
-* 26/11/2023 added parallelism to cosine prescreening - which gives huge performence boost especially for multiple query sequences
+* 27/10/2023 added `examples` directory with end-to-end usages
+* 26/11/2023 added parallelism to cosine prescreening - which gives a huge performance boost, especially for multiple query sequences
 * 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
-* 22/02/2024 improved RAM consumption in prescreening process - additionally whole procedure will be faster now
+* 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
