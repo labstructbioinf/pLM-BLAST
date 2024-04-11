@@ -32,6 +32,7 @@ def apply_database_screening(args: argparse.Namespace,
     num_workers_loader = 0
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
+    embdim: int = 64
     torch.set_num_threads(args.workers)
     if 0 < args.COS_PER_CUT < 100 and dbdata.size > 10:
         print(f"Pre-screening with {args.COS_PER_CUT} quantile")
@@ -83,11 +84,17 @@ def apply_database_screening(args: argparse.Namespace,
         index = 0
         seqlen_query = [q.shape[0] for q in query_embs_chunkcs]
         seqlen_db = [q.shape[0] for q in db_embs]
+        # check if embdim is same
+        seq_embdim = [q.shape[1] for q in db_embs]
+        if len(set(seq_embdim)) > 1:
+            raise ValueError(f'db embedding has multiple sizes of embdim {set(seq_embdim)}')
+        embdim = embdim if embdim < seq_embdim[0] else seq_embdim[0]
         # change kernel size if the shortest sequence in targets is smaller then kernel size
         kernel_size = min(min(seqlen_query + seqlen_db), kernel_size)
         # create unfolded db once per run - this will increase performence when dealing
         # with multiquery mode
-        batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=stride, embdim=64)
+
+        batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=stride, embdim=embdim)
         del db_embs
         print(f'kernel set to: {kernel_size}')
         with tqdm(total=num_queries, desc='screening seqences') as pbar:

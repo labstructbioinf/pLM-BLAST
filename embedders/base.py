@@ -123,10 +123,12 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 				args.output += ".pt"
 		if (args.embedder == 'pt') or args.embedder.lower().find('prot') !=- 1 :
 			pass
-		elif args.embedder.startswith('esm') or args.embedder.startswith('prost'):
+		elif args.embedder.startswith('esm') or \
+			 args.embedder.startswith('prost') or \
+			 args.embedder.startswith('ankh'):
 			pass
 		else:
-			raise EmbedderError("invalid embedder name", args.embedder)
+			raise EmbedderError("invalid embedder name, supported models: prot5, esm - family, and ankh", args.embedder)
 		
 		if args.truncate < 1:
 			raise EmbedderError('truncate must be greater then zero')

@@ -27,3 +27,11 @@ colors = {
 	'white': '\033[37m',
 	'reset': '\033[0m'  # Reset to default color
 	}
+
+
+# columns to save in output file
+COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
+                'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
+                'match_len']
+
+COLUMNS_TO_SAVE_OPTIONAL = ['sdesc']

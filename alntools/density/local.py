@@ -117,7 +117,8 @@ def unfold_large_db(targets: List[th.tensor], kernel_size: int, stride: int, emb
 		  are unfolded embeddings with their sizes
 	'''
 	assert isinstance(targets, list)
-	assert targets[0].shape[1] == embdim
+	if targets[0].shape[1] != embdim:
+		raise ValueError(f'miss-shape between target and embdim {targets[0].shape} and {embdim}')
 	num_targets = len(targets)
 	
 	unfold_size: List[int] = list()

@@ -6,16 +6,15 @@ from Bio.Align import substitution_matrices
 
 from ..alignment import draw_alignment
 from ..settings import (RESIDUES,
-                        RESIDUE_GROUPMAP)
+                        RESIDUE_GROUPMAP,
+                        COLUMNS_TO_SAVE,
+                        COLUMNS_TO_SAVE_OPTIONAL)
 
 blosum62 = substitution_matrices.load("BLOSUM62")
 
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
-# columns to save in output
-COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
-                'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
-                'match_len', 'sdesc']
+
 
 def calc_con(s1, s2):
 	res = list()
@@ -155,4 +154,4 @@ def prepare_output(resdf: pd.DataFrame,
         querydf.index.name = 'index'
     # round alignment values
     querydf['score'] = querydf['score'].round(3)
-    return querydf[COLUMNS_TO_SAVE]
+    return querydf[COLUMNS_TO_SAVE + COLUMNS_TO_SAVE_OPTIONAL]

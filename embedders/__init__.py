@@ -4,4 +4,5 @@ from .base import prepare_dataframe
 
 from .esm import main_esm
 from .prottrans import main_prottrans
+from .ankh import main_ankh
 from .checkpoint import capture_checkpoint, checkpoint_from_json
