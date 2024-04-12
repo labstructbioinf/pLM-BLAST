@@ -15,8 +15,11 @@ parser.add_argument('csv', help='CSV file with hits',
 parser.add_argument('new_csv', help='CSV file merged hits',
 					type=str)
 
-parser.add_argument('-score', help='score cut-off',
+parser.add_argument('-score', help='pLM-BLAST score cut-off (use 0 for no cut-off)',
 					type=float, default=0)
+					
+parser.add_argument('-max_hits', help='The number of best matches to return (use 0 for no limit)',
+					type=int, default=0)
 
 				
 args = parser.parse_args()
@@ -108,8 +111,12 @@ for gidx, g in hits_df.groupby('sid'):
 print('Preparing output...')			
 mhits_df = pd.DataFrame(res, columns=hits_df.columns)
 mhits_df = mhits_df.sort_values(by='score', ascending=False)
-mhits_df.drop(columns=['index'], inplace=True)
+#mhits_df.drop(columns=['index'], inplace=True)
 mhits_df.index = np.arange(1,len(mhits_df)+1)
 mhits_df.index.name = 'index'
+
+if args.max_hits > 0:
+	mhits_df = mhits_df.head(args.max_hits)
+
 mhits_df.to_csv(args.new_csv, sep=';')
 
