@@ -104,7 +104,8 @@ def apply_database_screening(args: argparse.Namespace,
                                                     targets=batchdb,
                                                     quantile=percentile_factor,
                                                     dataset_files=dbdata.dirfiles,
-                                                    stride=stride)
+                                                    stride=stride,
+                                                    kernel_size=kernel_size)
                 for filedict in filedict_batch:
                     query_filedict[index] = filedict
                     index += 1
