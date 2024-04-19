@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description =
 parser.add_argument('csv', help='CSV file with hits',
 					type=str)
 			
-parser.add_argument('query', help='query CSV file',
+parser.add_argument('query', help='query file',
 					type=str)
 			
 parser.add_argument('output', help='output PNG plot',
@@ -32,7 +32,7 @@ parser.add_argument('-maxseqs', help='the maximal number of sequences to plot (0
 					type=int, default=0)
 				
 parser.add_argument('-mode', help='plot mode',
-					type=str, default='qend', choices=('score', 'qstart', 'qend'))
+					type=str, default='qend', choices=('score', 'qend'))
 
 parser.add_argument('-ecod', help='parse ECOD headers', action='store_true')
 		
@@ -184,6 +184,12 @@ for qid, hits_df_ in hits_df_all.groupby('qid'):
 
 	for row in rows:
 		ax.plot([row[0][0], row[0][1]], [row[1][0], row[1][1]], lw=bar_size, **row[2], solid_capstyle='round')
+		
+		# debug
+		#print(
+		#	[row[0][0], row[0][1]], [row[1][0], row[1][1]]
+		#)
+		
 		#ax.annotate(row[3], xy=(row[0][0], row[1][0]), va='center', weight='bold', fontsize = bar_text_size,
 		#		color='white')
 
@@ -191,7 +197,7 @@ for qid, hits_df_ in hits_df_all.groupby('qid'):
 	ax.spines.left.set_visible(False)
 	ax.spines.right.set_visible(False)
 
-	if args.mode in ['qend', 'qstart', 'score']:	
+	if args.mode in ['qend', 'score']:	
 		ax.invert_yaxis()
 
 	ax.set_xlim(0, len(query_seq)+1)

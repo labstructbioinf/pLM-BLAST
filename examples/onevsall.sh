@@ -2,7 +2,7 @@
 set -e
 
 # Query is a cupredoxin sequence (see the manuscript for the details)
-case='histone'
+case='cupredoxin'
 
 # data paths
 INDIR="./data/input"
@@ -14,8 +14,8 @@ OUTFILE="$OUTDIR/${case}.hits.csv"
 DB_PATH="/home/users/sdunin/db/plmblast/data/ecod30db_20231201"
 
 # Return hits with scores >=0.3 (max score is 1)
-ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=70
+ALIGNMENT_CUTOFF="0.35"
+COSINE_CUTOFF=90
 
 # Customize according to your system specifications
 NUM_WORKERS=10

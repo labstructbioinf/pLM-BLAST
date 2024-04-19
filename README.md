@@ -7,6 +7,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
 * [ Usage ](#Usage)
     + [Databases](#databases)
     + [Searching a database](#searching-a-database)
+    + [Results visualisation](#results-visualisation)
     + [Usage example](examples/README.md)
 * [ Remarks ](#Remarks)
     + [How to cite](#how-to-cite)
@@ -45,7 +46,7 @@ The `embeddings.py` script can be used to create a custom database (`T5` based m
 
 If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
-It is recommended to sort the input sequences by length.
+It is recommended to sort the input sequences by length before running `embeddings.py`.
 
 ```bash
 # CSV input
@@ -60,7 +61,7 @@ The batch size (number of sequences per batch) is set with the `-bs` option. Set
 
 The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
-Create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
+Finally, create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
 
 ```bash
 python scripts/dbtofile.py database 
@@ -74,15 +75,10 @@ When dealing with large databases, it may be helpful to resume previously stoppe
 ```bash
 python embeddings.py resume database
 ``` 
-where `database` is the output directory for interrupted calculations.
 
 ## Searching a database
 
-<p align="center">
-  <img src="/examples/data/figures/search.png" alt="Figure 1" width="400">
-</p>
-
-To search the database `database` with a FASTA sequence in `query.fas`, we first need to calculate the embedding:
+To search a database `database` with a FASTA sequence in `query.fas`, we first need to compute the embedding:
 
 ```bash
 python embeddings.py start query.fas query.pt
@@ -101,6 +97,32 @@ python ./scripts/plmblast.py database database output.csv -cpc 70
 :sun_with_face: Note that only the base filename should be specified for the query and database (extensions are added automatically) :sun_with_face: 
 
 The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast.py -h` for more options. 
+
+
+## Results visualisation
+
+The results of searching a database with a single query sequence can be visualized using the `plot.py` script. For example:
+
+```bash
+python ./scripts/plot.py results.csv query.fas plot.png -mode score -ecod
+```
+
+Where `results.csv` are the results of the `plmblast.py` script, `query.fas` is the query sequence in FASTA format, and `plot.png` is the plot file that will be generated.
+
+The `-mode` option is used to specify the order of the hits in the plot. `score` causes the hits to be sorted by score, while `qend` (default) causes the hits to be sorted by the end position of the match in the query. In both modes, the bars corresponding to each hit are colored according to the score.
+
+The additional flag `-ecod` can be used to color the hits according to the [ECOD](https://www.rcsb.org/docs/search-and-browse/browse-options/ecod) classification. When this flag is used, an additional legend plot will be generated (`.legend.png` extension).
+
+An example of generating the images below can be found in [onevsall.sh](examples/onevsall.sh). 
+
+<div style="display: flex; justify-content: center;">
+  <div style="flex: 1; text-align: center;">
+    <img src="cupredoxin.hits_score_ecod.legend.png" alt="Figure 1" width="400">
+  </div>
+  <div style="flex: 1; text-align: center;">
+    <img src="cupredoxin.hits_score_ecod.png" alt="Figure 2" width="400">
+  </div>
+</div>
 
 # Remarks
 
