@@ -123,10 +123,10 @@ def prepare_output(resdf: pd.DataFrame,
         querydf['tend'] = [aln[-1][0] for aln in aligmentlist]
         
         # `match_len` calculated with respect to the query
-        #querydf['match_len'] = (querydf['qend'].values - querydf['qstart'].values + 1).astype(int)
+        querydf['match_len'] = (querydf['qend'].values - querydf['qstart'].values + 1).astype(int)
         
         # `match_len` calculated with respect to the target
-        querydf['match_len'] = (querydf['tend'].values - querydf['tstart'].values + 1).astype(int)        
+        #querydf['match_len'] = (querydf['tend'].values - querydf['tstart'].values + 1).astype(int)        
         
         # check if alignment is not exeeding sequence lenght
         assert (querydf['qstart'] <= querydf['qlen']).all()
