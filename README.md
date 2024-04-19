@@ -117,10 +117,10 @@ An example of generating the images below can be found in [onevsall.sh](examples
 
 <div style="display: flex; justify-content: center;">
   <div style="flex: 1; text-align: center;">
-    <img src="cupredoxin.hits_score_ecod.legend.png" alt="Figure 1" width="400">
+    <img src="examples/data/figures/cupredoxin.hits_score_ecod.legend.png" width="400">
   </div>
   <div style="flex: 1; text-align: center;">
-    <img src="cupredoxin.hits_score_ecod.png" alt="Figure 2" width="400">
+    <img src="examples/data/figures/cupredoxin.hits_score_ecod.png" width="400">
   </div>
 </div>
 
