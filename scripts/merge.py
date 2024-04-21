@@ -42,27 +42,26 @@ def merge(current_subg):
 
 	print(f'merging {len(current_subg)} hits to {first_subg.sid}')
 
-	# score;ident;similarity;sid;sdesc;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len
-
-	new_subg = np.array([0,
-				np.round(np.mean([i.score for i in current_subg]), 2),
-				np.round(np.mean([i.ident for i in current_subg]), 2),
-				np.round(np.mean([i.similarity for i in current_subg]), 2),
-				first_subg.sid,
-				first_subg.sdesc,
-				first_subg.qstart,
-				last_subg.qend,
-				seq_spacer.join([i.qseq for i in current_subg]),
-				(" "*len(seq_spacer)).join([i.con for i in current_subg]),
-				seq_spacer.join([i.tseq for i in current_subg]),
-				first_subg.tstart,
-				last_subg.tend,
-				first_subg.tlen,
-				first_subg.qlen,
-				last_subg.qend - first_subg.qstart + 1
-				
-				
-						], dtype=object)
+	# qid;score;ident;similarity;sid;qstart;qend;qseq;con;tseq;tstart;tend;tlen;qlen;match_len;sdesc
+	
+	new_subg = np.array([
+				first_subg.qid, # qid
+				np.round(np.mean([i.score for i in current_subg]), 2), # mean score
+				np.round(np.mean([i.ident for i in current_subg]), 2), # mean ident
+				np.round(np.mean([i.similarity for i in current_subg]), 2), # mean similarity
+				first_subg.sid, # sid
+				first_subg.qstart, # query start
+				last_subg.qend, # query end
+				seq_spacer.join([i.qseq for i in current_subg]), # merged query sequences
+				(" "*len(seq_spacer)).join([i.con for i in current_subg]), # merged consensus
+				seq_spacer.join([i.tseq for i in current_subg]), # merged subject sequences
+				first_subg.tstart, # subjet start
+				last_subg.tend, # subject end
+				first_subg.tlen, # subject length
+				first_subg.qlen, # query length
+				last_subg.qend - first_subg.qstart + 1, # match length relative to the query
+				first_subg.sdesc, # subject description
+				], dtype=object)
 						
 	return new_subg
 
