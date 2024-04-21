@@ -98,7 +98,6 @@ python ./scripts/plmblast.py database database output.csv -cpc 70
 
 The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast.py -h` for more options. 
 
-
 ## Results visualisation
 
 The results of searching a database with a single query sequence can be visualized using the `plot.py` script. For example:
@@ -113,16 +112,13 @@ The `-mode` option is used to specify the order of the hits in the plot. `score`
 
 The additional flag `-ecod` can be used to color the hits according to the [ECOD](https://www.rcsb.org/docs/search-and-browse/browse-options/ecod) classification. When this flag is used, an additional legend plot will be generated (`.legend.png` extension).
 
-An example of generating the images below can be found in [onevsall.sh](examples/onevsall.sh). 
+A visualization of the results of searching the ECOD30 database with the sequence of the cupredoxin domain of the [glycogen debranching protein](https://www.uniprot.org/uniprotkb/Q6FSK0/entry). See [onevsall.sh](examples/onevsall.sh) for details. 
 
-<div style="display: flex; justify-content: center;">
-  <div style="flex: 1; text-align: center;">
-    <img src="cupredoxin.hits_score_ecod.legend.png" alt="Figure 1" width="400">
-  </div>
-  <div style="flex: 1; text-align: center;">
-    <img src="cupredoxin.hits_score_ecod.png" alt="Figure 2" width="400">
-  </div>
+<div style="text-align: center;">
+    <img src="examples/data/figures/cupredoxin.hits_score_ecod.png" style="width: 45%; display: inline-block;" /> 
+    <img src="examples/data/figures/cupredoxin.hits_score_ecod.legend.png" style="width: 45%; display: inline-block;" />
 </div>
+
 
 # Remarks
 
