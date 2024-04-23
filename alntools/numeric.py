@@ -77,7 +77,7 @@ def max_value_over_line_old(arr: np.ndarray, ystart: int, ystop: int,
 
 
 @numba.njit(fastmath=True, cache=True)
-def max_value_over_line(arr: np.ndarray, ystart: int, ystop: int,
+def max_value_over_line_kaiyu(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int):
 	'''
 	fix max value in row or column. When xstart == xstop - max
@@ -128,9 +128,9 @@ def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 			# max over first dimension - y
 			# max_{k >= 1} H_{i-k, j}
 			#h_tmp[1] = max_value_over_line_gaps(H, 1, i+1, j, j, gap_pentalty=gap_penalty)
-			h_tmp[1] = max_value_over_line(H, 1, i+1, j, j) - gap_penalty
+			h_tmp[1] = max_value_over_line_old(H, 1, i+1, j, j) - gap_penalty
 			# max over second dimension - x
-			h_tmp[2] = max_value_over_line(H, i, i, 1, j+1) - gap_penalty
+			h_tmp[2] = max_value_over_line_old(H, i, i, 1, j+1) - gap_penalty
 			H[i, j] = np.max(h_tmp)
 	return H
 

@@ -31,22 +31,29 @@ class Extractor:
 	# TODO add proper agument handling here
 	def __init__(self, enh: bool = False,
 			    norm: bool = False,
-				bfactor: Union[str, bool] = 2,
+				bfactor: Union[str, int] = 2,
 				sigma_factor: Union[int, float] = 2,
 				gap_penalty: float = 0.0,
 				min_spanlen: int = 20,
-				window_size: int = 20):
+				window_size: int = 20,
+				filter_results: bool = False):
 		"""
 		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
 		Args:
 			enh: (bool) if true use signal enhancement
+			bfactor: (str, int) if integer - density of path search for local aligment, if string ("global")
+				change plmblast mode to global
+			sigma_factor: (float, int): higher values will result in more conservative aligments
+			gap_penalty: (float) gap penalty
 			min_spanlen: (int) shortest alignment len to capture, measrued in number of residues within
 			window_size: (int) size of average window, bigger values may produce wider but more gapish alignment
-			sigma_factor: (float, int): higher values will result in more conservative aligments
+			filter_results: (bool) - apply postprocess filtering to remove redundant hits
+
 		"""
 		# validate arguments
 		assert isinstance(enh, bool)
 		assert isinstance(norm, bool)
+		assert isinstance(filter_results, bool)
 		if not isinstance(min_spanlen, int) or min_spanlen < 1:
 			raise PlmBlastParamError(f'min_spanlen must be positive integer, instead of {type(min_spanlen)}: {min_spanlen}')
 		if isinstance(bfactor, str):
@@ -68,6 +75,7 @@ class Extractor:
 		self.gap_penalty = gap_penalty
 		self.min_spanlen = min_spanlen
 		self.window_size = window_size
+		self.FILTER_RESULTS = filter_results
 
 	# TODO implement this
 	def submatrix_to_span(self, densitymap: np.ndarray, mode: str = 'results') -> pd.DataFrame:
