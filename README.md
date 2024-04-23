@@ -62,13 +62,6 @@ The batch size (number of sequences per batch) is set with the `-bs` option. Set
 
 The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
 
-Finally, create an additional file with flattened embeddings for the chunk cosine similarity scan, a procedure used to speed up database searches. To do this, use the `dbtofile.py` script with the database name as the only parameter:
-
-```bash
-python scripts/dbtofile.py database 
-```
-A new file `emb.64` will appear in the database directory. The database is now ready for use.
-
 ### Checkpointing feature
 
 When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
