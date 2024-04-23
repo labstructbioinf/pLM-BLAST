@@ -58,8 +58,9 @@ def create_parser() -> argparse.Namespace:
 	start_group.add_argument('-embedder', '-e', help=\
 		"""
 		name of the embedder by default `pt` - prot_t5_xl_half_uniref50-enc, `esm`
-		for esm2_t33_650M_UR50D or prost for ProtT5-XL-U50 you can olso specify full
-		embedder name and it should be downloaded automaticaly
+		for esm2_t33_650M_UR50D, `prost` for ProtT5-XL-U50 you can olso specify any model
+		 supported by huggingface `AutoModel` typing `hf:modelname` (eg. `hf:Rostlab/prot_bert` 
+		 for Rostlab/prot_bert, modelname may be also a path to pretrained model)
 		""",
 						dest='embedder', type=str, default='pt')
 	start_group.add_argument('-cname', '-col', help='custom sequence column name',
@@ -88,7 +89,7 @@ def create_parser() -> argparse.Namespace:
 		type=int, dest='truncate')
 	start_group.add_argument('--use_fastt5', action='store_true', help=\
 		"""
-		experimental feature - uses https://github.com/Ki6an/fastT5 for inference speed
+		experimental feature - uses https://github.com/Ki6an/fastT5 for (prott5) inference speed
 		""")
 	start_group.add_argument('-res_per_batch', default=6000, type=int, help=\
 		"""
@@ -116,7 +117,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			if not args.asdir and not os.path.isdir(out_basedir):
 				raise FileNotFoundError(f'output directory is invalid: {out_basedir}')
 			elif args.asdir and not os.path.isdir(args.output):
-				os.mkdir(args.output)
+				os.makedirs(args.output, exist_ok=True)
 		# add .pt extention to file mode
 		if not args.asdir and not args.h5py:
 			if not args.output.endswith(".pt"):
@@ -125,7 +126,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			pass
 		elif args.embedder.startswith('esm') or \
 			 args.embedder.startswith('prost') or \
-			 args.embedder.startswith('ankh'):
+			 args.embedder.startswith('ankh') or \
+			 args.embedder.startswith("hf:"):
 			pass
 		else:
 			raise EmbedderError("invalid embedder name, supported models: prot5, esm - family, and ankh", args.embedder)

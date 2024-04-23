@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. pLM-BLAST can use any kind of embeddings, which are in the form of `(seqlen, embdim)`.
 
-The `embeddings.py` script can be used to create a custom database (`T5` based model such as `prott5` or `esm`-family ) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
+The `embeddings.py` script can be used to create a custom database based on pLM embeddings (`T5` based model such as `prott5`, `esm`-family or any model working with `transformers` `AutoModel` class) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -46,8 +46,9 @@ The `embeddings.py` script can be used to create a custom database (`T5` based m
 
 If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
-It is recommended to sort the input sequences by length before running `embeddings.py`.
-
+It is recommended to sort the input sequences by length before running `embeddings.py`, when dealing with big databases.
+By default `embeddings.py` uses ProtT5 (`-embedder pt` alias for `Rostlab/prot_t5_xl_half_uniref50-enc`), by typing `- embedder hf:modelname_or_path` will download or load locally stored 
+model supported by huggingface `AutoModel` class (same as calling: `AutoModel.from_pretrained(modelname_or_path)`).
 ```bash
 # CSV input
 python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
@@ -145,3 +146,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 26/11/2023 added parallelism to cosine prescreening - which gives a huge performance boost, especially for multiple query sequences
 * 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
 * 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
+* 23/04/2024 added support for transformers `AutoModel`

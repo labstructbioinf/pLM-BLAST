@@ -22,7 +22,7 @@ DEFAULT_EMBEDDER_PROST: str = 'Rostlab/ProstT5'
 DEFAULT_DTYPE = torch.float32
 DEFAULT_WAIT_TIME: float = 0.05
 
-def main_prottrans(df: pd.DataFrame,
+def main_automodel(df: pd.DataFrame,
 				    args: argparse.Namespace,
 					  iterator: BatchIterator,
 					  rank_id: int = 1):
@@ -30,10 +30,11 @@ def main_prottrans(df: pd.DataFrame,
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
 	device = select_device(args)
+	dtype = torch.float32 if device == torch.device('cpu') else torch.float16
 	# select appropriate embedding model
 	embedder_name = args.embedder.replace("hf:", "")
 	tokenizer = AutoTokenizer.from_pretrained(embedder_name, do_lower_case=False)
-	model = AutoModel.from_pretrained(embedder_name, torch_dtype=torch.float16)
+	model = AutoModel.from_pretrained(embedder_name, torch_dtype=dtype)
 	model.to(device)
 	model.eval()
 	print(f'model: {embedder_name} loaded on {device}')
