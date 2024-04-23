@@ -13,12 +13,10 @@ embs = torch.load(emb_file)
 seq1_emb, seq2_emb = embs[0].numpy(), embs[0].numpy()
 
 # Create multiple local alignments
-extr = Extractor()
-extr.FILTER_RESULTS = True # Removes redundant paths
+extr = Extractor(filter_results=True)
 results = extr.full_compare(seq1_emb, seq2_emb)
 
 print(results)
-
 # Create a single global alignment
 extr.BFACTOR = 'global'
 # one alignment per protein pair

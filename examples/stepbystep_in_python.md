@@ -20,11 +20,10 @@ def compare(emb1, emb2, win, span, gap, bfactor, sigma):
                     sigma_factor=sigma,
                     gap_penalty=gap,
                     min_spanlen=span,
-                    window_size=win
+                    window_size=win,
+					filter_results=True
     )
 
-    module.FILTER_RESULTS = True
-    
     results, densitymap, paths, scorematrix = module.embedding_to_span(emb1, emb2, mode='all')
 
     if module.FILTER_RESULTS:

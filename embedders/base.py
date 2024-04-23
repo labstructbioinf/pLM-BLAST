@@ -53,7 +53,7 @@ def create_parser() -> argparse.Namespace:
 	start_group.add_argument('input', help='csv/pickle (.csv or .p) with `seq` column',
 						type=str)
 	start_group.add_argument('output', help=\
-		'''resulting list of embeddings file or directory if `asdir` is True''',
+		'''resulting file with list of embeddings or directory if `--asdir` is specified''',
 						type=str)
 	start_group.add_argument('-embedder', '-e', help=\
 		"""
@@ -186,6 +186,8 @@ def prepare_dataframe(df: pd.DataFrame,
 		df['sequence'] = df['sequence'].str.upper()
 		# update size
 		df['seqlens'] = df['sequence'].apply(len)
+		print(f'saving index file to: {args.output + ".csv"}')
+		df.to_csv(args.output + ".csv")
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
