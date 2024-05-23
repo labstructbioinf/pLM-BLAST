@@ -36,7 +36,8 @@ class Extractor:
 				gap_penalty: float = 0.0,
 				min_spanlen: int = 20,
 				window_size: int = 20,
-				filter_results: bool = False):
+				filter_results: bool = False,
+				gpu_support: bool = False):
 		"""
 		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
 		Args:
@@ -76,6 +77,7 @@ class Extractor:
 		self.min_spanlen = min_spanlen
 		self.window_size = window_size
 		self.FILTER_RESULTS = filter_results
+		self.gpu_support = gpu_support
 
 	# TODO implement this
 	def submatrix_to_span(self, densitymap: np.ndarray, mode: str = 'results') -> pd.DataFrame:
@@ -83,7 +85,26 @@ class Extractor:
 		run plmblast flow from substitution matrix
 		func should return same results as embedding_to_span
 		'''
-		pass
+		paths = gather_all_paths(densitymap,
+								 norm=self.norm,
+								 minlen=self.min_spanlen,
+								 bfactor=self.bfactor,
+								 gap_penalty=self.gap_penalty,
+								 with_scores = True if mode == 'all' else False)
+		if mode == 'all':
+			scorematrix = paths[1]
+			paths = paths[0]
+		results = search_paths(densitymap,
+							   paths=paths,
+							   window=self.window_size,
+							   min_span=self.min_spanlen,
+							   sigma_factor=self.sigma_factor,
+							   globalmode=self.globalmode,
+							   as_df=True)
+		if mode == 'all':
+			return (results, densitymap, paths, scorematrix)
+		else:
+			return results
 
 	def embedding_to_span(self,
 					    X: np.ndarray,
@@ -144,6 +165,26 @@ class Extractor:
 			data: (pd.DataFrame) frame with alignments and their scores
 		'''
 		res = self.embedding_to_span(emb1, emb2)
+		if len(res) > 0:
+			# add referece index to each hit
+			res['queryid'] = qid
+			res['dbid'] = dbid
+			# filter out redundant hits
+			if self.FILTER_RESULTS:
+				res = filter_result_dataframe(res)
+			return res
+		return None
+	
+	def full_compare_gpu(self, qid: int = 0, dbid: int = 0, densitymap = None) -> pd.DataFrame:
+		'''
+		Args:
+			qid: (int) identifier used when multiple function results are concatenated
+			dbid: (int) identifier used when multiple function results are concatenated
+			densitymap: (np.ndarray) densitymap of local similarity
+		Returns:
+			data: (pd.DataFrame) frame with alignments and their scores
+		'''
+		res = self.submatrix_to_span(densitymap)
 		if len(res) > 0:
 			# add referece index to each hit
 			res['queryid'] = qid

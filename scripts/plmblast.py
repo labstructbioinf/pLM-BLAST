@@ -20,10 +20,16 @@ from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
 import alntools as aln
 
+import numpy as np
+
 
 if __name__ == "__main__":
 
 	start_time = datetime.datetime.now()
+
+	####################
+	GPU_SUPP = False
+	####################
 
 	args = get_parser()
 	module = aln.Extractor( \
@@ -33,7 +39,8 @@ if __name__ == "__main__":
 					sigma_factor=args.sigma_factor,
 					gap_penalty=args.gap_penalty,
 					min_spanlen=args.min_spanlen,
-					window_size=args.window_size)
+					window_size=args.window_size,
+					gpu_support=GPU_SUPP)
 	# other params
 	module.FILTER_RESULTS = True
 	print("num cores: ", args.workers)
@@ -53,7 +60,8 @@ if __name__ == "__main__":
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										      dbdata=dbdata,
 											  filedict=query_filedict,
-											  batch_size=batch_size)
+											  batch_size=batch_size,
+											  gpu_support=GPU_SUPP)
 	if len(query_filedict) == 0:
 		print(f'{cfg.colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{cfg.colors["reset"]}')
 		sys.exit(1)
@@ -64,12 +72,68 @@ if __name__ == "__main__":
 	# limit threads for concurrent
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
+
+##############################################
+	def embedding_local_similarity_gpu(X, Y, enh=False):
+		assert X.ndim == 2 and Y.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
+		assert X.shape[1] == Y.shape[1], f'embedding size is different for X, Y - {X.shape[1]} and {Y.shape[1]}'
+
+		# normalize
+		# emb1_normed = X / X.pow(2).sum(1, keepdim=True).sqrt()
+		# emb2_normed = Y / Y.pow(2).sum(1, keepdim=True).sqrt()
+
+		emb1_normed = X / torch.linalg.norm(X, dim=1, keepdim=True)
+		emb2_normed = Y / torch.linalg.norm(Y, dim=1, keepdim=True)
+
+		if emb1_normed.shape[1] != emb2_normed.shape[1]:
+			raise ValueError(f"Shape mismatch: emb1_normed.shape[1] ({emb1_normed.shape[1]}) != emb2_normed.shape[1] ({emb2_normed.shape[1]})")
+
+		density = torch.matmul(emb1_normed, emb2_normed.T).T
+
+		if enh:
+			density_left = (density - density.mean(0, keepdims=True)) / density.std(0, keepdims=True)
+			density_right = (density - density.mean(1, keepdims=True)) / density.std(1, keepdims=True)
+			density = (density_left + density_right) / 2
+
+		density = density.cpu().numpy().astype(np.float32)
+
+		return density
+
+	def compute_densitymaps(query_emb, embedding_list, enh, device):
+		qe = torch.load(query_emb, map_location=device)
+		densitymaps = []
+		for emb in embedding_list:
+			te = torch.load(emb, map_location=device)
+			if qe.shape[1] != te.shape[1]:
+				raise ValueError(f"Shape mismatch: qe.shape[1] ({qe.shape[1]}) != te.shape[1] ({te.shape[1]})")
+			densitymap = embedding_local_similarity_gpu(qe, te, enh)
+			densitymaps.append(densitymap)
+		return densitymaps
+
 	for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
 		job_stack = list()
-		with ProcessPoolExecutor(max_workers = args.workers) as executor:
-			for (idx, emb) in zip(embedding_index, embedding_list):
-				job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
-				job_stack.append(job)
+		with ProcessPoolExecutor(max_workers=args.workers) as executor:
+			# print(query_emb)
+			# xxxx = []
+			if GPU_SUPP:
+				device = torch.device('cuda')
+				# Przetwarzanie map gęstości na zapas
+				# start_time2 = datetime.datetime.now()
+				densitymaps = compute_densitymaps(query_emb, embedding_list, args.enh, device)
+
+				for idx, densitymap in zip(embedding_index, densitymaps):
+					# xxxx.append(module.full_compare_gpu(query_index, idx, densitymap))
+					job = executor.submit(module.full_compare_gpu, query_index, idx, densitymap)
+					job_stack.append(job)
+			else:
+				for idx, emb in zip(embedding_index, embedding_list):
+					# start_time2 = datetime.datetime.now()
+					# xxxx.append(module.full_compare(query_emb, emb, query_index, idx))
+					job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
+					job_stack.append(job)
+			# end_time2 = datetime.datetime.now()
+			# print('full_compare time: ', end_time2 - start_time2)
+			# quit()
 			time.sleep(0.05)
 			for job in as_completed(job_stack):
 				try:
@@ -77,8 +141,26 @@ if __name__ == "__main__":
 					if res is not None:
 						result_stack.append(res)
 				except Exception as e:
-					raise AssertionError('job not done', e)	
+					raise AssertionError('job not done', e)
+
 		gc.collect()
+	
+#######################################################################################################################################
+	# for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
+	# 	job_stack = list()
+	# 	with ProcessPoolExecutor(max_workers = args.workers) as executor:
+	# 		for (idx, emb) in zip(embedding_index, embedding_list):
+	# 			job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
+	# 			job_stack.append(job)
+	# 		time.sleep(0.05)
+	# 		for job in as_completed(job_stack):
+	# 			try:
+	# 				res = job.result()
+	# 				if res is not None:
+	# 					result_stack.append(res)
+	# 			except Exception as e:
+	# 				raise AssertionError('job not done', e)	
+	# 	gc.collect()
 	if len(result_stack) > 0: 
 		result_df = pd.concat(result_stack)
 		print(f'hit candidates, {result_df.shape[0]}')

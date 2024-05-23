@@ -150,13 +150,15 @@ class BatchLoader:
                  dbdata: DataObject, 
                  filedict: Dict[int, Dict[int, str]],
                  batch_size: int = 300,
-                 mode='emb'):
+                 mode='emb',
+                 gpu_support=False):
 
         assert batch_size > 0
         assert isinstance(mode, str)
         assert mode in {"emb", "file"}
         
         self.mode = mode
+        self.gpu_support = gpu_support
         self.query_ids = querydata.indexdata['run_index'].tolist()
         if querydata.datatype == "file":
             self.qasdir = False
@@ -206,13 +208,19 @@ class BatchLoader:
              qdata = self._qdata_record[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
+                if self.gpu_support:
+                     qembedding = self.queryfiles[qdata.qid]
+                else:
+                     qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
              else:
                 qembedding = self.qdata[qdata.qid]
              # return embeddings
              if self.mode == 'emb':
                 if self.dbdata is None:
-                    dbembeddings = self._load_batch(qdata.dbfiles)
+                    if self.gpu_support:
+                        dbembeddings = qdata.dbfiles
+                    else:
+                        dbembeddings = self._load_batch(qdata.dbfiles)
                 else:
                      # if dbdata is single file
                     if len(self.dbdata) == 1:
