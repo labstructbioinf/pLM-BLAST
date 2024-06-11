@@ -3,6 +3,7 @@ import os
 import gc
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import tempfile
 import datetime
 from typing import List, Dict
 
@@ -60,31 +61,37 @@ if __name__ == "__main__":
 	##########################################################################
 	# 						main   plm-blast loop							 #
 	##########################################################################
-	result_stack: List[pd.DataFrame] = list()
 	# limit threads for concurrent
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
-	for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
-		job_stack = list()
-		with ProcessPoolExecutor(max_workers = args.workers) as executor:
-			for (idx, emb) in zip(embedding_index, embedding_list):
-				job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
-				job_stack.append(job)
-			time.sleep(0.05)
-			for job in as_completed(job_stack):
-				try:
-					res = job.result()
-					if res is not None:
-						result_stack.append(res)
-				except Exception as e:
-					raise AssertionError('job not done', e)	
-		gc.collect()
-	if len(result_stack) > 0: 
-		result_df = pd.concat(result_stack)
-		print(f'hit candidates, {result_df.shape[0]}')
-	else:
-		print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
-		sys.exit(0)
+	tmpresults: List[str] = list()
+	with tempfile.TemporaryDirectory() as tmpdir:
+		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(tqdm(batch_loader, desc='searching for alignments')):
+			job_stack = list()
+			result_stack: List[pd.DataFrame] = list()
+			with ProcessPoolExecutor(max_workers = args.workers) as executor:
+				for (idx, emb) in zip(embedding_index, embedding_list):
+					job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
+					job_stack.append(job)
+				time.sleep(0.05)
+				for job in as_completed(job_stack):
+					try:
+						res = job.result()
+						if res is not None:
+							result_stack.append(res)
+					except Exception as e:
+						raise AssertionError('job not done', e)	
+				if len(result_stack) > 0:
+					tmpfile = os.path.join(tmpdir, f"{itr}.p")
+					pd.concat(result_stack).to_pickle(tmpfile)
+					tmpresults.append(tmpfile)
+			gc.collect()
+		if len(tmpresults) > 0: 
+			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
+			print(f'hit candidates, {result_df.shape[0]}')
+		else:
+			print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
+			sys.exit(0)
 	# Invalid plmblast score encountered
 	# only valid when signal ehancement is off
 	if result_df.score.max() > 1.01 and not args.enh:
