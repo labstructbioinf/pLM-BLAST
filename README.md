@@ -140,3 +140,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
 * 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
 * 23/04/2024 added support for transformers `AutoModel`
+* 11/06/2024 improved speed and memory efficiency for long `plmblast.py` runs. Intermediate results are now stored on disk not RAM.
