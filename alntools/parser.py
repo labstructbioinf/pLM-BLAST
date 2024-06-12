@@ -104,6 +104,11 @@ def get_parser() -> argparse.Namespace:
 							Use the additional normalization introduced in the paper https://doi.org/10.1093/bioinformatics/btad786 
 							(feature under development, use with caution).
 						""")
+	parser.add_argument('--gpu', 
+						default=False, action='store_true', 
+						help="""
+							Use GPU for calculations.
+						""")
 	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
