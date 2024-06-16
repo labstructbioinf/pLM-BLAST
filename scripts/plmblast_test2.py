@@ -1,0 +1,245 @@
+import sys
+import os
+import gc
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import tempfile
+import datetime
+from typing import List, Dict
+
+import torch
+import torch.multiprocessing as mp
+import mkl
+import numba
+import pandas as pd
+from tqdm import tqdm
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import alntools.settings as cfg
+from alntools.parser import get_parser
+from alntools.prepare.screening import apply_database_screening
+from alntools.postprocess.format import add_duplicates
+from alntools.filehandle import DataObject
+import alntools as aln
+
+import numpy as np
+
+
+def child_func(send_q, recv_q):
+	my_device = "cuda:0"
+	torch.cuda.set_device(my_device)
+	send_q.put(0)
+	while True:
+		torch.cuda.synchronize()
+		qe_recv, te_recv = recv_q.get()
+		if qe_recv is None and te_recv is None:
+			break
+
+		assert qe_recv.ndim == 2 and te_recv.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
+		assert qe_recv.shape[1] == te_recv.shape[1], f'embedding size is different for qe_recv, te_recv - {qe_recv.shape[1]} and {te_recv.shape[1]}'
+
+		# normalize
+		emb1_normed = qe_recv / torch.linalg.norm(qe_recv, dim=1, keepdim=True)
+		emb2_normed = te_recv / torch.linalg.norm(te_recv, dim=1, keepdim=True)
+
+		if emb1_normed.shape[1] != emb2_normed.shape[1]:
+			raise ValueError(f"Shape mismatch: emb1_normed.shape[1] ({emb1_normed.shape[1]}) != emb2_normed.shape[1] ({emb2_normed.shape[1]})")
+
+		density = torch.matmul(emb1_normed, emb2_normed.T).T
+
+		send_q.put(density)
+
+
+def parent_func(query_index, embedding_index, query_emb, embedding_list, args):
+	job_stack = list()
+	result_stack: List[pd.DataFrame] = list()
+	my_device = "cuda:0"
+	torch.cuda.set_device(my_device)
+	ctx = mp.get_context("spawn")
+	send_q = ctx.SimpleQueue()
+	recv_q = ctx.SimpleQueue()
+	proc = ctx.Process(
+		target=child_func,
+		args=(recv_q, send_q),
+		daemon=True,)
+	
+	proc.start()
+	proc_ready = recv_q.get()
+	assert proc_ready == 0
+
+	qe = torch.load(query_emb, map_location=my_device)
+	with ProcessPoolExecutor(max_workers=args.workers) as executor:
+		for emb, idx in zip(embedding_list, embedding_index):
+			te = torch.load(emb, map_location=my_device)
+			if qe.shape[1] != te.shape[1]:
+				raise ValueError(f"Shape mismatch: qe.shape[1] ({qe.shape[1]}) != te.shape[1] ({te.shape[1]})")
+			send_q.put((qe, te))
+			density = recv_q.get()
+			density = density.float().cpu().numpy()
+
+			job = executor.submit(module.full_compare_gpu, query_index, idx, density)
+			job_stack.append(job)
+
+		
+		# Signal the child process to exit
+		recv_q.put((None, None, None))
+		proc.join()
+
+		for job in as_completed(job_stack):
+			try:
+				res = job.result()
+				if res is not None:
+					result_stack.append(res)
+			except Exception as e:
+				raise AssertionError('job not done', e)
+	gc.collect()
+
+	return result_stack
+
+
+if __name__ == "__main__":
+
+	start_time = datetime.datetime.now()
+
+	args = get_parser()
+	module = aln.Extractor( \
+					enh=args.enh,
+					norm=False, # legacy arg always false
+					bfactor='global' if args.global_aln else args.bfactor,
+					sigma_factor=args.sigma_factor,
+					gap_penalty=args.gap_penalty,
+					min_spanlen=args.min_spanlen,
+					window_size=args.window_size,
+					gpu_support=args.gpu)
+	# other params
+	module.FILTER_RESULTS = True
+	print("num cores: ", args.workers)
+
+	#module.show_config()
+	# Load database index file
+	dbdata = DataObject.from_dir(args.db, objtype="database")
+	# Load query index file
+	querydata = DataObject.from_dir(args.query, objtype="query")
+	# add id column if not present already
+	##########################################################################
+	# 						filtering (reduce search space)					 #
+	##########################################################################
+	batch_size = cfg.jobs_per_process*args.workers
+	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
+	# initialize embedding iterator
+	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
+										      dbdata=dbdata,
+											  filedict=query_filedict,
+											  batch_size=batch_size,
+											  gpu_support=args.gpu)
+	if len(query_filedict) == 0:
+		print(f'{cfg.colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{cfg.colors["reset"]}')
+		sys.exit(1)
+	##########################################################################
+	# 						main   plm-blast loop							 #
+	##########################################################################
+	result_stack: List[pd.DataFrame] = list()
+	# limit threads for concurrent
+	mkl.set_num_threads(1)
+	numba.set_num_threads(1)
+	tmpresults: List[str] = list()
+	my_device = "cuda:0"
+	
+	with tempfile.TemporaryDirectory() as tmpdir:
+		for itr, (query_index, embedding_index, query_emb, embedding_list, next_data) in enumerate(tqdm(batch_loader, desc='searching for alignments')):
+			job_stack = list()
+			result_stack: List[pd.DataFrame] = list()
+
+			qe = torch.load(query_emb, map_location=my_device)
+			with ProcessPoolExecutor(max_workers=args.workers) as executor:
+				for emb, idx in zip(embedding_list, embedding_index):
+					te = torch.load(emb, map_location=my_device)
+					if qe.shape[1] != te.shape[1]:
+						raise ValueError(f"Shape mismatch: qe.shape[1] ({qe.shape[1]}) != te.shape[1] ({te.shape[1]})")
+					
+					assert qe.ndim == 2 and te.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
+					assert qe.shape[1] == te.shape[1], f'embedding size is different for qe, Y - {qe.shape[1]} and {te.shape[1]}'
+
+					# normalize
+					emb1_normed = qe / torch.linalg.norm(qe, dim=1, keepdim=True)
+					emb2_normed = te / torch.linalg.norm(te, dim=1, keepdim=True)
+
+					if emb1_normed.shape[1] != emb2_normed.shape[1]:
+						raise ValueError(f"Shape mismatch: emb1_normed.shape[1] ({emb1_normed.shape[1]}) != emb2_normed.shape[1] ({emb2_normed.shape[1]})")
+
+					density = torch.matmul(emb1_normed, emb2_normed.T).T
+
+					if args.enh:
+						density_mean_0 = torch.mean(density, dim=0, keepdim=True)
+						density_std_0 = torch.std(density, dim=0, keepdim=True)
+						density_left = (density - density_mean_0) / density_std_0
+
+						density_mean_1 = torch.mean(density, dim=1, keepdim=True)
+						density_std_1 = torch.std(density, dim=1, keepdim=True)
+						density_right = (density - density_mean_1) / density_std_1
+
+						density = (density_left + density_right) / 2
+
+					density = density.float().cpu().numpy()
+
+					job = executor.submit(module.full_compare_gpu, query_index, idx, density)
+					job_stack.append(job)
+
+				time.sleep(0.05)
+				for job in as_completed(job_stack):
+					try:
+						res = job.result()
+						if res is not None:
+							result_stack.append(res)
+					except Exception as e:
+						raise AssertionError('job not done', e)
+					
+				if len(result_stack) > 0:
+					tmpfile = os.path.join(tmpdir, f"{itr}.p")
+					pd.concat(result_stack).to_pickle(tmpfile)
+					tmpresults.append(tmpfile)
+
+			gc.collect()
+		if len(tmpresults) > 0: 
+			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
+			print(f'hit candidates, {result_df.shape[0]}')
+		else:
+			print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
+			sys.exit(0)
+	# Invalid plmblast score encountered
+	# only valid when signal ehancement is off
+	if result_df.score.max() > 1.01 and not args.enh:
+		print(f'{cfg.colors["red"]}Error: score is greater then one{cfg.colors["reset"]}', result_df.score.min(), result_df.score.max())
+		sys.exit(1)
+	print('merging results')
+	# run postprocessing
+	results: List[pd.DataFrame] = list()
+	result_df = result_df.merge(
+		querydata.indexdata[['run_index', 'id', 'sequence']].copy(),
+		 left_on="queryid", right_on="run_index", how='left')
+	for qid, rows in result_df.groupby('queryid'):
+		query_result = aln.postprocess.prepare_output(rows, dbdata.indexdata, alignment_cutoff=args.alignment_cutoff)
+		results.append(query_result)
+	results = pd.concat(results, axis=0)
+	if len(results) == 0:
+		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
+		sys.exit(1)
+	if args.reduce_duplicates:
+		results = results.reset_index(drop=True)
+		results = add_duplicates(results)
+	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
+	# create output directory if needed
+	if os.path.dirname(args.output) != "":
+		os.makedirs(os.path.dirname(args.output), exist_ok=True)
+	# save results in desired mode
+	if args.separate:
+		for qid, row in results.groupby('qid'):
+			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';', index=False)
+	else:
+		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
+		results.to_csv(output_name, sep=';', index=False)
+
+	script_time = datetime.datetime.now() - start_time
+	print('total hits found: ', results.shape[0])
+	print(f'{cfg.colors["green"]}Done!{cfg.colors["reset"]}\nTime {script_time}')
+	# stats
