@@ -8,6 +8,7 @@ import datetime
 from typing import List, Dict
 
 import torch
+import torch.multiprocessing as mp
 import mkl
 import numba
 import pandas as pd
@@ -20,8 +21,6 @@ from alntools.prepare.screening import apply_database_screening
 from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
 import alntools as aln
-
-import numpy as np
 
 
 if __name__ == "__main__":
@@ -70,14 +69,47 @@ if __name__ == "__main__":
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
 	tmpresults: List[str] = list()
-##############################################
-	def embedding_local_similarity_gpu(X, Y, enh=False):
-		assert X.ndim == 2 and Y.ndim == 2, 'input tensors must have 2 dims [num residues, embedding dim]'
-		assert X.shape[1] == Y.shape[1], f'embedding size is different for X, Y - {X.shape[1]} and {Y.shape[1]}'
+	my_device = "cuda"
 
-		# normalize
-		emb1_normed = X / torch.linalg.norm(X, dim=1, keepdim=True)
-		emb2_normed = Y / torch.linalg.norm(Y, dim=1, keepdim=True)
+	def process_task(query_index, idx, density):
+		"""
+		Processes a single task by comparing the density matrix using a GPU.
+
+		Parameters:
+		- query_index: Index of the query
+		- idx: Index of the embedding
+		- density: Density matrix to be compared
+
+		Returns:
+		- Result of the comparison
+		"""
+		try:
+			return module.full_compare_gpu(query_index, idx, density)
+		except Exception as e:
+			raise AssertionError('Job not done', e)
+
+
+	def compute_density(qe, te, enh=False):
+		"""
+		Computes the density matrix between two sets of embeddings.
+
+		Parameters:
+		- qe: tensor of shape (num_residues, embedding_dim)
+		- te: tensor of shape (num_residues, embedding_dim)
+		- enhance: boolean flag to indicate if density enhancement should be applied
+
+		Returns:
+		- density: numpy array of the computed density matrix
+		"""
+		if qe.shape[1] != te.shape[1]:
+			raise ValueError(f"Shape mismatch: qe.shape[1] ({qe.shape[1]}) != te.shape[1] ({te.shape[1]})")
+		
+		assert qe.ndim == 2 and te.ndim == 2, 'Input tensors must have 2 dimensions [num residues, embedding dim]'
+		assert qe.shape[1] == te.shape[1], f'Embedding size is different for qe, Y - {qe.shape[1]} and {te.shape[1]}'
+
+		# Normalize the embeddings
+		emb1_normed = qe / torch.linalg.norm(qe, dim=1, keepdim=True)
+		emb2_normed = te / torch.linalg.norm(te, dim=1, keepdim=True)
 
 		if emb1_normed.shape[1] != emb2_normed.shape[1]:
 			raise ValueError(f"Shape mismatch: emb1_normed.shape[1] ({emb1_normed.shape[1]}) != emb2_normed.shape[1] ({emb2_normed.shape[1]})")
@@ -95,68 +127,78 @@ if __name__ == "__main__":
 
 			density = (density_left + density_right) / 2
 
-		density = density.cpu().numpy().astype(np.float32)
+		return density.float().cpu().numpy()
 
-		return density
-
-	def compute_densitymaps(query_emb, embedding_list, enh, device):
-		qe = torch.load(query_emb, map_location=device)
-		densitymaps = []
-		for emb in embedding_list:
-			te = torch.load(emb, map_location=device)
-			if qe.shape[1] != te.shape[1]:
-				raise ValueError(f"Shape mismatch: qe.shape[1] ({qe.shape[1]}) != te.shape[1] ({te.shape[1]})")
-			densitymap = embedding_local_similarity_gpu(qe, te, enh)
-			densitymaps.append(densitymap)
-		return densitymaps
-	
-	next_densitymaps = None
-	device = torch.device('cuda')
 
 	with tempfile.TemporaryDirectory() as tmpdir:
-		for itr, (query_index, embedding_index, query_emb, embedding_list, next_data) in enumerate(tqdm(batch_loader, desc='searching for alignments')):
-			
-			if args.gpu:
-				if next_densitymaps is None:
-					densitymaps = compute_densitymaps(query_emb, embedding_list, args.enh, device)
-				else:
-					densitymaps = next_densitymaps
-					next_densitymaps = None
-			
+		# Iterate through the batch loader to process query and embedding pairs
+		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(tqdm(batch_loader, desc='Searching for alignments')):
 			job_stack = list()
 			result_stack: List[pd.DataFrame] = list()
-			with ProcessPoolExecutor(max_workers=args.workers) as executor:
-				if args.gpu:
-					for idx, densitymap in zip(embedding_index, densitymaps):
-						job = executor.submit(module.full_compare_gpu, query_index, idx, densitymap)
+
+			if args.gpu:
+
+				# Load the query embedding tensor
+				qe = torch.load(query_emb, map_location=my_device)
+				
+				# Use a multiprocessing pool to handle concurrent tasks
+				with mp.Pool(processes=args.workers) as pool:
+					for emb, idx in zip(embedding_list, embedding_index):
+						# Load the target embedding tensor
+						te = torch.load(emb, map_location=my_device)
+						
+						# Compute the density matrix
+						density = compute_density(qe, te, args.enh)
+
+						# Apply the task to the pool
+						job = pool.apply_async(process_task, (query_index, idx, density))
 						job_stack.append(job)
-				else:
-					for idx, emb in zip(embedding_index, embedding_list):
+
+					time.sleep(0.05)
+					
+					# Collect results from the completed jobs
+					for job in job_stack:
+						try:
+							res = job.get()
+							if res is not None:
+								result_stack.append(res)
+						except Exception as e:
+							raise AssertionError('Job not done', e)
+					# Save results to a temporary file if there are any
+					if len(result_stack) > 0:
+						tmpfile = os.path.join(tmpdir, f"{itr}.p")
+						pd.concat(result_stack).to_pickle(tmpfile)
+						tmpresults.append(tmpfile)
+
+				# Collect garbage to free memory
+				gc.collect()
+
+			else:
+				with ProcessPoolExecutor(max_workers = args.workers) as executor:
+					for (idx, emb) in zip(embedding_index, embedding_list):
 						job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
 						job_stack.append(job)
-				time.sleep(0.05)
-				for job in as_completed(job_stack):
+					time.sleep(0.05)
+					for job in as_completed(job_stack):
+						try:
+							res = job.result()
+							if res is not None:
+								result_stack.append(res)
+						except Exception as e:
+							raise AssertionError('job not done', e)	
+					if len(result_stack) > 0:
+						tmpfile = os.path.join(tmpdir, f"{itr}.p")
+						pd.concat(result_stack).to_pickle(tmpfile)
+						tmpresults.append(tmpfile)
+				gc.collect()
+				
 
-					if args.gpu and next_data is not None and next_densitymaps is None:
-						next_query_index, next_embedding_index, next_query_emb, next_embedding_list = next_data
-						next_densitymaps = compute_densitymaps(next_query_emb, next_embedding_list, args.enh, device)
-
-					try:
-						res = job.result()
-						if res is not None:
-							result_stack.append(res)
-					except Exception as e:
-						raise AssertionError('job not done', e)
-				if len(result_stack) > 0:
-					tmpfile = os.path.join(tmpdir, f"{itr}.p")
-					pd.concat(result_stack).to_pickle(tmpfile)
-					tmpresults.append(tmpfile)
-			gc.collect()
-		if len(tmpresults) > 0: 
+		# Combine results from all temporary files if any
+		if len(tmpresults) > 0:
 			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
-			print(f'hit candidates, {result_df.shape[0]}')
+			print(f'Hit candidates, {result_df.shape[0]}')
 		else:
-			print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
+			print(f'No valid alignments for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
 			sys.exit(0)
 	# Invalid plmblast score encountered
 	# only valid when signal ehancement is off

@@ -202,97 +202,38 @@ class BatchLoader:
     def __iter__(self):
         return self
     
-    # def __next__(self) -> Tuple[int, List[int], np.ndarray, List[np.ndarray]]:
-    #     if self.current_iteration < self.num_iterations:
-    #          # get id
-    #          qdata = self._qdata_record[self.current_iteration]
-    #          # load query embeddings
-    #          if self.qdata is None:
-    #             if self.gpu_support:
-    #                  qembedding = self.queryfiles[qdata.qid]
-    #             else:
-    #                  qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
-    #          else:
-    #             qembedding = self.qdata[qdata.qid]
-    #          # return embeddings
-    #          if self.mode == 'emb':
-    #             if self.dbdata is None:
-    #                 if self.gpu_support:
-    #                     dbembeddings = qdata.dbfiles
-    #                 else:
-    #                     dbembeddings = self._load_batch(qdata.dbfiles)
-    #             else:
-    #                  # if dbdata is single file
-    #                 if len(self.dbdata) == 1:
-    #                       dbembeddings = [self.dbdata[qdata.qdbids[0]]]
-    #                 else:
-    #                     dbembeddings = [self.dbdata[qdb] for qdb in qdata.qdbids]
-    #         # return files
-    #          else:
-    #              dbembeddings = qdata.dbfiles
-    #          self.current_iteration += 1
-    #          return qdata.qid, qdata.qdbids, qembedding, dbembeddings
-    #     else:
-    #          raise StopIteration
-
-    def __next__(self) -> Tuple[int, List[int], np.ndarray, List[np.ndarray], Optional[Tuple[int, List[int], np.ndarray, List[np.ndarray]]]]:
+    def __next__(self) -> Tuple[int, List[int], np.ndarray, List[np.ndarray]]:
         if self.current_iteration < self.num_iterations:
-            # Get current data
-            qdata = self._qdata_record[self.current_iteration]
-            if self.qdata is None:
+             # get id
+             qdata = self._qdata_record[self.current_iteration]
+             # load query embeddings
+             if self.qdata is None:
                 if self.gpu_support:
-                    qembedding = self.queryfiles[qdata.qid]
+                     qembedding = self.queryfiles[qdata.qid]
                 else:
-                    qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
-            else:
+                     qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
+             else:
                 qembedding = self.qdata[qdata.qid]
-
-            if self.mode == 'emb':
+             # return embeddings
+             if self.mode == 'emb':
                 if self.dbdata is None:
                     if self.gpu_support:
                         dbembeddings = qdata.dbfiles
                     else:
                         dbembeddings = self._load_batch(qdata.dbfiles)
                 else:
+                     # if dbdata is single file
                     if len(self.dbdata) == 1:
-                        dbembeddings = [self.dbdata[qdata.qdbids[0]]]
+                          dbembeddings = [self.dbdata[qdata.qdbids[0]]]
                     else:
                         dbembeddings = [self.dbdata[qdb] for qdb in qdata.qdbids]
-            else:
-                dbembeddings = qdata.dbfiles
-
-            # Prepare next data
-            if self.current_iteration + 1 < self.num_iterations:
-                next_qdata = self._qdata_record[self.current_iteration + 1]
-                if self.qdata is None:
-                    if self.gpu_support:
-                        next_qembedding = self.queryfiles[next_qdata.qid]
-                    else:
-                        next_qembedding = self._load_single(self.queryfiles[next_qdata.qid]).pop()
-                else:
-                    next_qembedding = self.qdata[next_qdata.qid]
-
-                if self.mode == 'emb':
-                    if self.dbdata is None:
-                        if self.gpu_support:
-                            next_dbembeddings = next_qdata.dbfiles
-                        else:
-                            next_dbembeddings = self._load_batch(next_qdata.dbfiles)
-                    else:
-                        if len(self.dbdata) == 1:
-                            next_dbembeddings = [self.dbdata[next_qdata.qdbids[0]]]
-                        else:
-                            next_dbembeddings = [self.dbdata[qdb] for qdb in next_qdata.qdbids]
-                else:
-                    next_dbembeddings = next_qdata.dbfiles
-                next_data = (next_qdata.qid, next_qdata.qdbids, next_qembedding, next_dbembeddings)
-            else:
-                next_data = None
-
-            self.current_iteration += 1
-            return qdata.qid, qdata.qdbids, qembedding, dbembeddings, next_data
+            # return files
+             else:
+                 dbembeddings = qdata.dbfiles
+             self.current_iteration += 1
+             return qdata.qid, qdata.qdbids, qembedding, dbembeddings
         else:
-            raise StopIteration
+             raise StopIteration
 
     def _query_file_to_slice(self, query_id: int) -> Tuple[List[List[int]], List[List[str]]]:
         '''
