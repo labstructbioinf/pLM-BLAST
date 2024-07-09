@@ -77,6 +77,18 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('--reduce_duplicates', 
 						help='Filter redundant hits (feature under development, use with caution).',
 						action='store_true', default=False)
+	
+	parser.add_argument('--only-scan', '-oc', 
+					 help='run only prescreening, results will be stored in JSON format in path specified by `output` parameter\n'
+					 	  "results format:\n"
+						  'queryid1 : {'
+						  '		targetid1: targetfile1,'
+						  '     targetid2: targetfile2'
+						  '}, queryid2 : {'
+						  '	     targetid1: targetfile1'
+						  '...'
+						  '}',
+					 action='store_true',dest='only_scan', default=False)
 
 	# pLM-BLAST
 
@@ -104,7 +116,6 @@ def get_parser() -> argparse.Namespace:
 							Use the additional normalization introduced in the paper https://doi.org/10.1093/bioinformatics/btad786 
 							(feature under development, use with caution).
 						""")
-	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s) Set to 0 to use all available cores or the number of cores set in a Slurm session.',
@@ -115,7 +126,10 @@ def get_parser() -> argparse.Namespace:
 	
 	# validate provided parameters
 	assert args.workers >= 0
-	assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'
+	if not args.only_scan:
+		assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'
+	else:
+		print('running in pre-screening only mode')
 	if args.reduce_duplicates and not args.enh:
 		print('-reduce_duplicates flag is on but --enh is disabled, it will be turned on')
 		args.enh = True

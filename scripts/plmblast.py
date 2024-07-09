@@ -2,12 +2,12 @@ import sys
 import os
 import gc
 import time
+import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import tempfile
 import datetime
 from typing import List, Dict
 
-import torch
 import mkl
 import numba
 import pandas as pd
@@ -50,6 +50,10 @@ if __name__ == "__main__":
 	##########################################################################
 	batch_size = cfg.jobs_per_process*args.workers
 	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
+	if args.only_scan:
+		with open(args.output, "wt") as fp:
+			json.dump(query_filedict, fp, indent=4)
+		sys.exit(0)
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										      dbdata=dbdata,
