@@ -54,6 +54,14 @@ if __name__ == "__main__":
 		with open(args.output, "wt") as fp:
 			json.dump(query_filedict, fp, indent=4)
 		sys.exit(0)
+	else:
+		# thank you chat gpt for this nested dictionary filtration
+		query_filedict = {
+			queryid: { targetid: value['file']
+				for targetid, value in outer_dict.items() if value["condition"]
+			}
+			for queryid, outer_dict in query_filedict.items()
+		}
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										      dbdata=dbdata,
@@ -69,8 +77,8 @@ if __name__ == "__main__":
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
 	tmpresults: List[str] = list()
-	with tempfile.TemporaryDirectory() as tmpdir:
-		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(tqdm(batch_loader, desc='searching for alignments')):
+	with tempfile.TemporaryDirectory() as tmpdir, tqdm(total=len(batch_loader), desc='searching for alignments') as pbar:
+		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(batch_loader):
 			job_stack = list()
 			result_stack: List[pd.DataFrame] = list()
 			with ProcessPoolExecutor(max_workers = args.workers) as executor:
@@ -84,12 +92,13 @@ if __name__ == "__main__":
 						if res is not None:
 							result_stack.append(res)
 					except Exception as e:
-						raise AssertionError('job not done', e)	
+						raise AssertionError('job failed', e)	
 				if len(result_stack) > 0:
 					tmpfile = os.path.join(tmpdir, f"{itr}.p")
 					pd.concat(result_stack).to_pickle(tmpfile)
 					tmpresults.append(tmpfile)
 			gc.collect()
+			pbar.update(1)
 		if len(tmpresults) > 0: 
 			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
 			print(f'hit candidates, {result_df.shape[0]}')

@@ -111,15 +111,18 @@ def apply_database_screening(args: argparse.Namespace,
                     index += 1
                     pbar.update(1)
                 gc.collect()
-        avg_hits = [len(v) for v in query_filedict.values()]
-        avg_hits = int(sum(avg_hits)/len(avg_hits))
-        print(f"{avg_hits} alignment candidates per query")
+        #avg_hits = [len(v) for v in query_filedict.values()]
+        #avg_hits = int(sum(avg_hits)/len(avg_hits))
+        #print(f"{avg_hits} alignment candidates per query")
         del batchdb
         del query_embs_chunkcs
     else:
         # no screening case
         print("Pre-screening skipped")
-        filedict: Dict[int, int] = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
+        filedict: Dict[int, int] = {
+            dbid: dict(file=file, condition=True, score=1) 
+                for dbid, file in zip(range(dbdata.size), dbdata.dirfiles)
+                }
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
     # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:

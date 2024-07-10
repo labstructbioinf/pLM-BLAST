@@ -82,12 +82,12 @@ def get_parser() -> argparse.Namespace:
 					 help='run only prescreening, results will be stored in JSON format in path specified by `output` parameter\n'
 					 	  "results format:\n"
 						  'queryid1 : {'
-						  '		targetid1: targetfile1,'
-						  '     targetid2: targetfile2'
+						  '		{ file: targetfile1, score: scoreval1, condition: True }'
+						  '     { file: targetfile2, score: scoreval2, condition: False }'
 						  '}, queryid2 : {'
-						  '	     targetid1: targetfile1'
+						  '	     { file: targetfile1, score: scoreval1, condition: True }'
 						  '...'
-						  '}',
+						  '} Where score is a pre-screening value and condition checks whether quantile threshold criteria is met',
 					 action='store_true',dest='only_scan', default=False)
 
 	# pLM-BLAST

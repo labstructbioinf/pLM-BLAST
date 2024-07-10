@@ -55,9 +55,11 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 	scoremask = (scorestack >= quantile_threshold)
 	# convert mask to indices
 	for qnb in range(scorestack.shape[1]):
-		q_scoremask = scoremask[:, qnb].view(-1)
+		q_sm = scoremask[:, qnb].view(-1).tolist()
+		q_st = scorestack[:, qnb].view(-1).tolist()
 		filedict: Dict[int, str] = {
-			i : file for i, (file, condition) in enumerate(zip(dataset_files, q_scoremask)) if condition
+			i : dict(file=file, score=score, condition=condition) 
+				for i, (file, condition, score) in enumerate(zip(dataset_files, q_sm, q_st))
 			}
 		results.append(filedict)
 	del scorestack
