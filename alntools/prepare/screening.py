@@ -28,13 +28,13 @@ def apply_database_screening(args: argparse.Namespace,
     Returns:
         (dict) each key is query_id, and values are embeddings above threshold
     '''
-    kernel_size = 30
+    kernel_size = args.cpc_kernel_size
     num_workers_loader = 0
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
     embdim: int = 64
     torch.set_num_threads(args.workers)
-    if 0 < args.COS_PER_CUT < 100 and dbdata.size > 10:
+    if (0 < args.COS_PER_CUT < 100 and dbdata.size > 10) or args.only_scan:
         print(f"Pre-screening with {args.COS_PER_CUT} quantile")
         query_filedict = dict()
         if not os.path.isfile(dbdata.poolpath):
@@ -124,6 +124,7 @@ def apply_database_screening(args: argparse.Namespace,
                 for dbid, file in zip(range(dbdata.size), dbdata.dirfiles)
                 }
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
+
     # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:
         print("removing duplicated entires")

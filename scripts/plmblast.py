@@ -51,17 +51,23 @@ if __name__ == "__main__":
 	batch_size = cfg.jobs_per_process*args.workers
 	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
 	if args.only_scan:
+		# round float values in json 
+		# https://stackoverflow.com/questions/54370322/how-to-limit-the-number-of-float-digits-jsonencoder-produces
+		class RoundingFloat(float):
+			__repr__ = staticmethod(lambda x: format(x, '.3f'))
+		json.encoder.float = RoundingFloat
 		with open(args.output, "wt") as fp:
-			json.dump(query_filedict, fp, indent=4)
+			json.dump(query_filedict, fp)
 		sys.exit(0)
 	else:
-		# thank you chat gpt for this nested dictionary filtration
+		# remove keys with condition false
+    	# thank you chat gpt for this nested dictionary filtration
 		query_filedict = {
-			queryid: { targetid: value['file']
-				for targetid, value in outer_dict.items() if value["condition"]
-			}
-			for queryid, outer_dict in query_filedict.items()
-		}
+        	queryid: { targetid: value['file']
+            	for targetid, value in outer_dict.items() if value["condition"]
+        	}
+        	for queryid, outer_dict in query_filedict.items()
+    	}
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										      dbdata=dbdata,
