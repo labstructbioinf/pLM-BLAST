@@ -89,7 +89,7 @@ def get_parser() -> argparse.Namespace:
 						  '...'
 						  '} Where score is a pre-screening value and condition checks whether quantile threshold criteria is met',
 					 action='store_true',dest='only_scan', default=False)
-	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30)
+	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30, type=int)
 	# pLM-BLAST
 
 	parser.add_argument('-alignment_cutoff', 
