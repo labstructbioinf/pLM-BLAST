@@ -69,7 +69,7 @@ def get_parser() -> argparse.Namespace:
 	# Cosine Similarity Scan
 
 	parser.add_argument('-cosine_percentile_cutoff', '-cpc', 
-						help='Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). '
+						help='Percentile cutoff (aka cpc) chunk cosine similarity pre-screening (default: %(default)s). '
 							 'The lower the value, the more sequences will be pre-screened and then aligned with pLM-BLAST. '
 							 'Setting the cutoff to 0 disables the pre-screening step.',
 						type=range0100, default=70, dest='COS_PER_CUT')    
@@ -82,14 +82,16 @@ def get_parser() -> argparse.Namespace:
 					 help='run only prescreening, results will be stored in JSON format in path specified by `output` parameter\n'
 					 	  "results format:\n"
 						  'queryid1 : {'
-						  '		{ file: targetfile1, score: scoreval1, condition: True }'
-						  '     { file: targetfile2, score: scoreval2, condition: False }'
+						  '		{ file: targetfile1, score: scoreval1}'
+						  '     { file: targetfile2, score: scoreval2 }'
 						  '}, queryid2 : {'
-						  '	     { file: targetfile1, score: scoreval1, condition: True }'
+						  '	     { file: targetfile1, score: scoreval1 }'
 						  '...'
 						  '} Where score is a pre-screening value and condition checks whether quantile threshold criteria is met',
 					 action='store_true',dest='only_scan', default=False)
 	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30, type=int)
+	parser.add_argument('-cpc-stride', dest='cpc_stride', default=10, type=int,
+					 help='density of cpc sampling, the lower value the more precise search')
 	# pLM-BLAST
 
 	parser.add_argument('-alignment_cutoff', 
@@ -125,6 +127,8 @@ def get_parser() -> argparse.Namespace:
 	args = parser.parse_args()
 	
 	# validate provided parameters
+	assert args.cpc_stride > 0, 'stride must be geater or equal 1'
+	assert args.cpc_kernel_size > 1, 'kernel must be geater of equal 2. We suggest ~20-30'
 	assert args.workers >= 0
 	if not args.only_scan:
 		assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'

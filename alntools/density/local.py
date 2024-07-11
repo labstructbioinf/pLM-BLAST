@@ -58,8 +58,9 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 		q_sm = scoremask[:, qnb].view(-1).tolist()
 		q_st = scorestack[:, qnb].view(-1).tolist()
 		filedict: Dict[int, str] = {
-			i : dict(file=file, score=score, condition=condition) 
+			i : dict(file=file, score=score) 
 				for i, (file, condition, score) in enumerate(zip(dataset_files, q_sm, q_st))
+				if condition
 			}
 		results.append(filedict)
 	del scorestack
@@ -87,6 +88,7 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 def unfold_targets(targets: List[th.Tensor], kernel_size: int, stride: int, embdim: int):
 	'''
 	[kernel_size*embdim, num_folds]
+	each fold is euclidian normalized
 	'''
 	tgt_flat: List[th.Tensor] = list()
 	tgt_folds: List[int] = list()

@@ -60,11 +60,10 @@ if __name__ == "__main__":
 			json.dump(query_filedict, fp)
 		sys.exit(0)
 	else:
-		# remove keys with condition false
-    	# thank you chat gpt for this nested dictionary filtration
+		# simplify dictionary
 		query_filedict = {
         	queryid: { targetid: value['file']
-            	for targetid, value in outer_dict.items() if value["condition"]
+            	for targetid, value in outer_dict.items()
         	}
         	for queryid, outer_dict in query_filedict.items()
     	}
