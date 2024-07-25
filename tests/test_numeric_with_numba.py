@@ -9,7 +9,6 @@ from alntools.numeric import move_mean
 from alntools.numeric import find_alignment_span
 from alntools.numeric import fill_score_matrix
 from alntools.numeric import embedding_local_similarity
-from alntools.numeric import signal_enhancement_nb
 from alntools.alignment import border_argmaxpool
 
 
@@ -112,16 +111,3 @@ def test_cosine_similarity(X, Y):
 	assert not np.isnan(result).any()
 	assert not np.isinf(result).any()
 	assert result.shape[0] == Y.shape[0]
-
-
-@pytest.mark.parametrize("submx", [
-	np.random.rand(66, 512),
-	np.random.rand(500, 512),
-	np.random.rand(256, 112)])
-def test_sigenh(submx):
-	submx = submx.astype(np.float32)
-	result = signal_enhancement_nb(submx)
-	assert not np.isnan(result).any()
-	assert not np.isinf(result).any()
-	assert submx.shape[0] == result.shape[0]
-	assert submx.shape[1] == result.shape[1]

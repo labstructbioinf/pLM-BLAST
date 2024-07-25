@@ -58,7 +58,8 @@ def test_batching(seqlen_list, res_per_batch):
 		assert len(seqlen_batch) % 4 == 0 or len(seqlen_batch) < 4, batch
 		assert batch.stop <= num_seq, batch
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
@@ -131,7 +132,7 @@ def test_batch_spliting():
 		assert seqlen_list[i] == re_seq_len[i], i
 	
 
-
+@pytest.mark.embedding
 def test_h5py_feature():
 	proc = subprocess.run(["python", "embeddings.py", "start",
 	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", "pt", "-bs", "16", "--h5py", "--gpu"],
@@ -146,7 +147,7 @@ def test_h5py_feature():
 		assert emb.shape[0] == len(seqlist[i])
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['0', '16'])
@@ -176,7 +177,7 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 								 {[e.shape[0] for e in embout]} and \n {[len(s) for s in seq_list]}''')
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file',[
 	'test_data/emb_checkpoint_start.json',
 	'test_data/emb_checkpoint_middle.json',
@@ -212,7 +213,7 @@ def test_checkpointing(checkpoint_file: str):
 	assert expected_files == found_files, proc.stdout
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize('embedder',['pt'])
 def test_parallelism(embedder):
 	assert th.cuda.device_count() > 1, 'cannot run test'
@@ -234,6 +235,7 @@ def test_parallelism(embedder):
 	assert len(embout) == embdata.shape[0], proc.stderr
 
 
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])
 @pytest.mark.parametrize('save_mode', ['asdir', 'h5py'])
 def test_parallelism_checkpoint(checkpoint_file: str, save_mode: str):
