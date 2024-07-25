@@ -1,6 +1,6 @@
 [project]
 name = "plm-Blast"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Stanisław Dunin-Horkawicz", email="s.dunin-horkawicz@cent.uw.edu.pl" },
   { name="Kamil Kamiński", email="k.kaminski16@uw.edu.pl"}
@@ -35,6 +35,6 @@ markers = [
 ]
 
 [tool.pytest_env]
-PLMBLAST_TESTDATA="/home/nfs/kkaminski/PLMBLST/test_data"
-PLMBLAST_DB="/home/nfs/kkaminski/PLMBLST/ecod30db_mini"
+PLMBLAST_TESTDATA="/data/test_data"
+PLMBLAST_DB="/data/ecod30db_mini"
 PLMBLAST_WORKERS="4"
