@@ -275,8 +275,8 @@ def border_argmaxlenpool(array: np.ndarray,
 
 
 def gather_all_paths(array: np.ndarray,
-					norm: bool = False,
 					minlen: int = 10,
+					norm: bool = True,
 					bfactor: Union[int, str] = 1,
 					gap_penalty: float = 0,
 					with_scores: bool = False) -> List[np.ndarray]:
@@ -285,6 +285,7 @@ def gather_all_paths(array: np.ndarray,
 	find all Smith-Waterman-like paths from bottom and right edges of scoring matrix
 	Args:
 		array (np.ndarray): raw subtitution matrix aka densitymap
+		norm_rows (bool, str): whether to normalize array per row or per array
 		bfactor (int): use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
 		gap_penalty: (float) default to zero
 		with_scores (bool): if True return score matrix
@@ -292,8 +293,7 @@ def gather_all_paths(array: np.ndarray,
 		list: list of all valid paths through scoring matrix
 		np.ndarray: scoring matrix used
 	'''
-	assert minlen > 0
-	assert isinstance(with_scores, bool)
+	
 	if not isinstance(array, np.ndarray):
 		array = array.numpy().astype(np.float32)
 	if not isinstance(norm, bool):

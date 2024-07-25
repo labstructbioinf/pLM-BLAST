@@ -39,15 +39,16 @@ class Extractor:
 				filter_results: bool = False):
 		"""
 		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
+
 		Args:
-			enh: (bool) if true use signal enhancement
+			enh (bool): if true use signal enhancement
 			bfactor: (str, int) if integer - density of path search for local aligment, if string ("global")
 				change plmblast mode to global
-			sigma_factor: (float, int): higher values will result in more conservative aligments
-			gap_penalty: (float) gap penalty
-			min_spanlen: (int) shortest alignment len to capture, measrued in number of residues within
-			window_size: (int) size of average window, bigger values may produce wider but more gapish alignment
-			filter_results: (bool) - apply postprocess filtering to remove redundant hits
+			sigma_factor (float, int): higher values will result in more conservative aligments
+			gap_penalty (float): gap penalty
+			min_spanlen (int): shortest alignment len to capture, measrued in number of residues within
+			window_size (int): size of average window, bigger values may produce wider but more gapish alignment
+			filter_results (bool): - apply postprocess filtering to remove redundant hits
 
 		"""
 		# validate arguments
@@ -91,16 +92,15 @@ class Extractor:
 						mode: str = 'results') -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
-
 		Args:
-			X (np.ndarray):
-			Y (np.ndarray):
-			mode (str): if set to `all` densitymap and alignment paths are returned
+			X: (np.ndarray)
+			Y: (np.ndarray)
+			mode: (str) if set to `all` densitymap and alignment paths are returned
 		Returns:
-			(pd.DataFrame): alignment hits frame
-			densitymap (np.ndarray):
-			paths (list[np.array]):
-			scorematrix (np.ndarray):
+			results: (pd.DataFrame) alignment hits frame
+			densitymap: (np.ndarray)
+			paths: (list[np.array])
+			scorematrix: (np.ndarray)
 		'''
 		if not np.issubdtype(X.dtype, np.float32):
 			X = X.astype(np.float32)
@@ -120,7 +120,7 @@ class Extractor:
 		if mode == 'all':
 			scorematrix = paths[1]
 			paths = paths[0]
-		results = search_paths(submatrix,
+		results = search_paths(densitymap,
 							   paths=paths,
 							   window=self.window_size,
 							   min_span=self.min_spanlen,
@@ -128,20 +128,19 @@ class Extractor:
 							   globalmode=self.globalmode,
 							   as_df=True)
 		if mode == 'all':
-			return (results, submatrix, paths, scorematrix)
+			return (results, densitymap, paths, scorematrix)
 		else:
 			return results
+
 
 	def full_compare(self, emb1: np.ndarray, emb2: np.ndarray,
 					 qid: int = 0, dbid: int = 0) -> pd.DataFrame:
 		'''
-		perform comparison of two sequence embeddings
-
 		Args:
-			emb1 (np.ndarray): sequence embedding [seqlen, embdim]
-			emb2 (np.ndarray): sequence embedding [seqlen, embdim]
-			dbid (int): typically database protein index, identifier used when multiple function results are concatenated
-			qid (str): query protein index, as above
+			emb1: (np.ndarray) sequence embedding [seqlen x embdim]
+			emb2: (np.ndarray) sequence embedding [seqlen x embdim]
+			idx: (int) identifier used when multiple function results are concatenated
+			file: (str) embedding/sequence source file may be omitted
 		Returns:
 			data: (pd.DataFrame) frame with alignments and their scores
 		'''
@@ -151,13 +150,11 @@ class Extractor:
 			res['queryid'] = qid
 			res['dbid'] = dbid
 			# filter out redundant hits
-			if self.filter_results and not self.global_mode:
+			if self.FILTER_RESULTS:
 				res = filter_result_dataframe(res)
 			return res
 		return None
 
-
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:
 		raise NotImplementedError()
-

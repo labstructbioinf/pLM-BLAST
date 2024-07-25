@@ -11,9 +11,8 @@ from numba.core.errors import NumbaDeprecationWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 
-FASTMATH = True
 
-@numba.njit(fastmath=FASTMATH, cache=True)
+@numba.njit(fastmath=True, cache=True)
 def max_value_over_line_gaps(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int, gap_pentalty: float = 0) -> float:
 	'''
@@ -77,7 +76,7 @@ def max_value_over_line_old(arr: np.ndarray, ystart: int, ystop: int,
 	return max_value
 
 
-@numba.njit(fastmath=FASTMATH, cache=True)
+@numba.njit(fastmath=True, cache=True)
 def max_value_over_line_kaiyu(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int):
 	'''
@@ -107,7 +106,7 @@ def max_value_over_line_kaiyu(arr: np.ndarray, ystart: int, ystop: int,
 	return max_value
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=FASTMATH, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
 def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 	'''
 	fill score matrix with Smith-Waterman fashion
@@ -136,7 +135,7 @@ def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 	return H
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=FASTMATH, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
 def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix in Needleman-Wunch procedure - global alignment
@@ -187,11 +186,10 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 		score_matrix = fill_scorematrix_local(sub_matrix, gap_penalty=gap_penalty)
 	else:
 		score_matrix = fill_matrix_global(sub_matrix, gap_penalty=gap_penalty)
-
 	return score_matrix
 
 
-@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=FASTMATH, cache=True)
+@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=True, cache=True)
 def move_mean(a: np.ndarray, window_width: int):
 	'''
 	Moving average
@@ -233,7 +231,7 @@ def move_mean(a: np.ndarray, window_width: int):
 	return out
 
 
-@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', fastmath=FASTMATH, cache=True)
+@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', cache=True)
 def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 	'''
 	return value and index of biggest values
@@ -247,7 +245,7 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 		return y, 1
 
 
-@numba.jit(fastmath=FASTMATH, cache=True)
+@numba.jit(fastmath=True, cache=True)
 def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 							gap_opening: float = 0, stop_value: float = 1e-3) -> np.ndarray:
 	'''
@@ -325,7 +323,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	return path_arr
 
 
-@numba.njit(fastmath=FASTMATH, cache=True)
+@numba.njit(cache=True)
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
 						mthreshold: float = 0.10) -> List[Tuple[int, int]]:
 	'''
@@ -364,7 +362,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
 	return spans
 
 
-@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=FASTMATH, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=True, cache=True)
 def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	'''
 	compute X, Y similarity by matrix multiplication
@@ -392,52 +390,8 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)
 	emb1_normed = X / emb1_norm
 	emb2_normed = Y / emb2_norm
-	#density = (emb1_normed @ emb2_normed.T).T
-	density = emb2_normed @ emb1_normed.T
+	density = (emb1_normed @ emb2_normed.T).T
 	return density
-
-
-def signal_enhancement(arr: np.ndarray):
-	arr_left = (arr - arr.mean(0, keepdims=True))/arr.std(0, keepdims=True)
-	arr_right = (arr - arr.mean(1, keepdims=True))/arr.std(1, keepdims=True)
-	return (arr_left + arr_right)/2
-
-
-# TODO add numba based mean/std ops
-'''
-@numba.njit('f4[:](f4[:,:], i8)', nogil=True, fastmath=True, cache=True)
-def mean_over_axis(arr: np.ndarray, axis: int):
-
-	axis0: int = arr.shape[0]
-	axis1: int = arr.shape[1]
-	arrnorm: np.float32 = 0
-	arrsum = np.sum(arr, axis=axis, keepdims=True)
-	if axis == 0:
-		#arrcount = np.ones((1, axis1), dtype=np.float32) * (1 / float(axis0))
-		arrnorm = (1.0 / float(axis0))
-	else:
-		#arrcount = np.ones((axis0, 1), dtype=np.float32) * (1 / float(axis1))
-		arrnorm = (1.0 / float(axis1))
-	arrmean = arrsum * arrnorm
-	return arrmean
-
-def std_over_axis(arr: np.ndarray, arrmean: np.ndarray, axis: int):
-
-	axisn = arr.shape[axis]
-	arr_res = arr - arrmean
-	arr_res = np.power(arr_res, 2)
-	arr_res = np.sum(arr_res, axis=axis, keepdims=True)
-	arr_res = np.sqrt(arr_res) * (1 / float(axisn))
-	return arr_res
-
-
-def sig_enh_nb(arr: np.ndarray):
-	arr_leftm =  mean_over_axis(arr, axis=0)
-	arr_rightm = mean_over_axis(arr, axis=1)
-	arr_left = (arr - arr_leftm)/std_over_axis(arr, arr_leftm, axis=0)
-	arr_right = (arr - arr_rightm)/std_over_axis(arr, arr_rightm, axis=1)
-	return (arr_left + arr_right)/2
-'''
 
 
 def signal_enhancement(arr: np.ndarray):

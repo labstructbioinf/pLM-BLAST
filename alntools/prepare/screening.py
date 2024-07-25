@@ -17,7 +17,8 @@ from .reduce_duplicates import reduce_duplicates_query_filedict
 
 def apply_database_screening(args: argparse.Namespace,
                             querydata: DataObject,
-                            dbdata: DataObject) -> Dict[int, List[str]]:
+                            dbdata: DataObject,
+                            stride: int = 10) -> Dict[int, List[str]]:
     '''
     apply pre-screening for database search
     Args:
@@ -27,13 +28,14 @@ def apply_database_screening(args: argparse.Namespace,
     Returns:
         (dict) each key is query_id, and values are embeddings above threshold
     '''
+    kernel_size = 30
     num_workers_loader = 0
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
     embdim: int = 64
     torch.set_num_threads(args.workers)
-    if (0 < args.COS_PER_CUT < 100 and dbdata.size > 10) or args.only_scan:
-        print(f"Pre-screening params: {args.COS_PER_CUT} quantile, kernel size: {args.cpc_kernel_size}, stride: {args.cpc_stride}")
+    if 0 < args.COS_PER_CUT < 100 and dbdata.size > 10:
+        print(f"Pre-screening with {args.COS_PER_CUT} quantile")
         query_filedict = dict()
         if not os.path.isfile(dbdata.poolpath):
             print(
@@ -78,7 +80,8 @@ def apply_database_screening(args: argparse.Namespace,
         # file exists
         else:
             query_embs_chunkcs = torch.load(querydata.poolpath)
-
+        # loop over all query embeddings
+        index = 0
         seqlen_query = [q.shape[0] for q in query_embs_chunkcs]
         seqlen_db = [q.shape[0] for q in db_embs]
         # check if embdim is same
@@ -87,14 +90,13 @@ def apply_database_screening(args: argparse.Namespace,
             raise ValueError(f'db embedding has multiple sizes of embdim {set(seq_embdim)}')
         embdim = embdim if embdim < seq_embdim[0] else seq_embdim[0]
         # change kernel size if the shortest sequence in targets is smaller then kernel size
-        kernel_size = min(min(seqlen_query + seqlen_db), args.cpc_kernel_size)
+        kernel_size = min(min(seqlen_query + seqlen_db), kernel_size)
         # create unfolded db once per run - this will increase performence when dealing
         # with multiquery mode
 
-        batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=args.cpc_stride, embdim=embdim)
+        batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=stride, embdim=embdim)
         del db_embs
-        # loop over all query embeddings
-        curr_index = 0
+        print(f'kernel set to: {kernel_size}')
         with tqdm(total=num_queries, desc='screening seqences') as pbar:
             for embslice in slice_iterator_with_seqlen(seqlen_query):
                 filedict_batch = chunk_cosine_similarity(
@@ -102,27 +104,23 @@ def apply_database_screening(args: argparse.Namespace,
                                                     targets=batchdb,
                                                     quantile=percentile_factor,
                                                     dataset_files=dbdata.dirfiles,
-                                                    stride=args.cpc_stride,
+                                                    stride=stride,
                                                     kernel_size=kernel_size)
-                for index, filedict in enumerate(filedict_batch, curr_index):
+                for filedict in filedict_batch:
                     query_filedict[index] = filedict
-                curr_index = index + 1
-                pbar.update(len(filedict_batch))
+                    index += 1
+                    pbar.update(1)
                 gc.collect()
-        #avg_hits = [len(v) for v in query_filedict.values()]
-        #avg_hits = int(sum(avg_hits)/len(avg_hits))
-        #print(f"{avg_hits} alignment candidates per query")
+        avg_hits = [len(v) for v in query_filedict.values()]
+        avg_hits = int(sum(avg_hits)/len(avg_hits))
+        print(f"{avg_hits} alignment candidates per query")
         del batchdb
         del query_embs_chunkcs
     else:
         # no screening case
         print("Pre-screening skipped")
-        filedict: Dict[int, int] = {
-            dbid: dict(file=file, score=1) 
-                for dbid, file in zip(range(dbdata.size), dbdata.dirfiles)
-                }
+        filedict: Dict[int, int] = {k: v for k, v in zip(range(dbdata.size), dbdata.dirfiles)}
         query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
-
     # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:
         print("removing duplicated entires")

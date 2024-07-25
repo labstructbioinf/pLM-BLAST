@@ -19,7 +19,7 @@ def search_paths(submatrix: np.ndarray,
 	iterate over all paths and search for routes matching alignmnet criteria
 
 	Args:
-		submatrix: (np.ndarray) density matrix
+		submatrix (np.ndarray): density matrix
 		paths: (list) list of paths to scan
 		window: (int) size of moving average window
 		min_span: (int) minimal length of alignment to collect
@@ -83,7 +83,8 @@ def search_paths(submatrix: np.ndarray,
 					continue
 				arr_values = submatrix[y1, x1]
 				arr_indices = np.stack([y1, x1], axis=1)
-				spans_locations[idx] = {
+				keyid = f'{ipath}_{idx}'
+				spans_locations[keyid] = {
 					'pathid': ipath,
 					'spanid': idx,
 					'span_start': start,
@@ -91,7 +92,7 @@ def search_paths(submatrix: np.ndarray,
 					'indices': arr_indices,
 					'score': arr_values.mean(),
 					"len": alnlen,
-					"mode": "global" if global_mode else "local"
+					"mode": mode
 				}
 	if as_df:
 		return pd.DataFrame(spans_locations.values())

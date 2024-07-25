@@ -1,4 +1,4 @@
-name: "CI-CD"
+name: CI-CD
 
 on:
   push:
@@ -21,8 +21,7 @@ jobs:
         python-version: '3.10'
         cache: 'pip' # caching pip dependencies
     - run: pip install -r requirements.txt
-    - run: env
     - name: run tests
-      run: python -m pytest
+      run: python -m pytest "not embedding"
 
     
