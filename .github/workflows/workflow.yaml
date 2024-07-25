@@ -9,15 +9,14 @@ jobs:
     runs-on: self-hosted
     # not ignore bash profile files
     steps:
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.2.0
+    - name: setup env
+      uses: actions/checkout@v4
+      uses: actions/setup-python@v5
       with:
-        miniconda-version: "latest"
-        python-version: 3.10
-    - name: list environments
-      run: conda env list
-    - name: install requirements
+        python-version: '3.10'
+        cache: 'pip' # caching pip dependencies
       run: pip install -r requirements.txt
-    - name: Pytest run
+    - name: run tests
       run: python -m pytest
+
     
