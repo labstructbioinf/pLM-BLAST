@@ -12,7 +12,7 @@ from .schema import BatchIterator
 from .checkpoint import checkpoint_from_json
 
 
-class EmbedderError(BaseException):
+class EmbedderError(Exception):
 	pass
 
 
@@ -53,13 +53,14 @@ def create_parser() -> argparse.Namespace:
 	start_group.add_argument('input', help='csv/pickle (.csv or .p) with `seq` column',
 						type=str)
 	start_group.add_argument('output', help=\
-		'''resulting list of embeddings file or directory if `asdir` is True''',
+		'''resulting file with list of embeddings or directory if `--asdir` is specified''',
 						type=str)
 	start_group.add_argument('-embedder', '-e', help=\
 		"""
 		name of the embedder by default `pt` - prot_t5_xl_half_uniref50-enc, `esm`
-		for esm2_t33_650M_UR50D or prost for ProtT5-XL-U50 you can olso specify full
-		embedder name and it should be downloaded automaticaly
+		for esm2_t33_650M_UR50D, `prost` for ProtT5-XL-U50 you can olso specify any model
+		 supported by huggingface `AutoModel` typing `hf:modelname` (eg. `hf:Rostlab/prot_bert` 
+		 for Rostlab/prot_bert, modelname may be also a path to pretrained model)
 		""",
 						dest='embedder', type=str, default='pt')
 	start_group.add_argument('-cname', '-col', help='custom sequence column name',
@@ -88,7 +89,7 @@ def create_parser() -> argparse.Namespace:
 		type=int, dest='truncate')
 	start_group.add_argument('--use_fastt5', action='store_true', help=\
 		"""
-		experimental feature - uses https://github.com/Ki6an/fastT5 for inference speed
+		experimental feature - uses https://github.com/Ki6an/fastT5 for (prott5) inference speed
 		""")
 	start_group.add_argument('-res_per_batch', default=6000, type=int, help=\
 		"""
@@ -120,31 +121,35 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 				raise FileNotFoundError(f'output directory is invalid: {out_basedir}')
 			elif args.asdir and not os.path.isdir(args.output):
 				os.makedirs(args.output, exist_ok=True)
-		if args.h5py:
-			# remove previous h5py
-			if os.path.isfile(args.output):
-				os.remove(args.output)
-		# add extension for file mode if needed
-		if not args.h5py and not args.asdir:
-			if not args.output.endswith('.pt'):
-				args.output = args.output + ".pt"
+		# add .pt extention to file mode
+		if not args.asdir and not args.h5py:
+			if not args.output.endswith(".pt"):
+				args.output += ".pt"
 		if (args.embedder == 'pt') or args.embedder.lower().find('prot') !=- 1 :
 			pass
-		elif args.embedder.startswith('esm') or args.embedder.startswith('prost'):
+		elif args.embedder.startswith('esm') or \
+			 args.embedder.startswith('prost') or \
+			 args.embedder.startswith('ankh') or \
+			 args.embedder.startswith("hf:"):
 			pass
 		else:
-			raise EmbedderError("invalid embedder name: %s" % args.embedder)
+			raise EmbedderError("invalid embedder name, supported models: prot5, esm - family, and ankh", args.embedder)
 		
 		if args.truncate < 1:
+			raise EmbedderError('truncate must be greater then zero')
 			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
 		df.reset_index(inplace=True)
+		if args.nproc > 1:
+			if not args.asdir and not args.h5py:
+				raise EmbedderError("tu use `nproc` you must specify --asdir flag")
 	elif args.subparser_name == 'resume':
 		args = checkpoint_from_json(args.output)
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
+		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():
@@ -153,6 +158,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 					that you torch package is built with gpu support''')
 		if args.nproc > 1:
 			if torch.cuda.device_count() < args.nproc:
+				raise EmbedderError('''
 				raise EmbedderError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
@@ -192,9 +198,12 @@ def prepare_dataframe(df: pd.DataFrame,
 		df['seqlens'] = df['sequence'].apply(len)
 		df['sequence'] = df.apply(lambda row: \
 					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
+		df['sequence'] = df['sequence'].str.upper()
 		# update size
 		df['seqlens'] = df['sequence'].apply(len)
-		batch_list = make_iterator(df['seqlens'].tolist(), batch_size, args.res_per_batch)
+		print(f'saving index file to: {args.output + ".csv"}')
+		df.to_csv(args.output + ".csv")
+		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
 			batch_iterator = BatchIterator(batch_list=batch_list)
@@ -218,7 +227,8 @@ def make_iterator(seqlens: List[int], batch_size: int, res_per_batch: int) -> Li
 	'''
 	iterator: List[slice]
 	seqnum = len(seqlens)
-	# fixed batch size
+	# fixed batch size only available for more then one sequence
+	batch_size = batch_size if len(seqlens) != 1 else 1
 	if batch_size != 0:
 		startbatch = list(range(0, seqnum, batch_size))
 		startbatch.append(seqnum)

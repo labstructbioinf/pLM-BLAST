@@ -1,5 +1,8 @@
 
-from typing import Tuple, List, Union
+from typing import (Tuple,
+					List,
+					Union,
+					Optional)
 
 import numpy as np
 import torch
@@ -38,6 +41,29 @@ def list_to_html_row(data: List[str]) -> str:
 	for letter in data:
 		output += f"<td>{letter}</td>"
 	return output
+
+
+def mask_like(paths: Union[List[List[int]], List[Tuple[int, int]]],
+			   densitymap: Optional[np.ndarray] = None) -> np.ndarray:
+	'''
+	create densitymap mask for visualization
+	Args:
+		paths: (list of paths)
+		densitymap: (np.ndarray) plot background if not supplied it will be automatically created based on paths
+	Returns:
+		mask: (np.ndarray) binary mask
+	'''
+	if densitymap is None:
+		maxseq1 = max([coords[-1][0] for coords in paths]) + 1
+		maxseq2 = max([coords[-1][1] for coords in paths]) + 1
+		mask = np.zeros((maxseq1, maxseq2), dtype=np.int32)
+	else:
+		mask = np.zeros_like(densitymap)
+	for path in paths:
+		for (y, x) in path:
+			assert x >= 0 and y >= 0
+			mask[y, x] = 1
+	return mask
 
 
 def draw_alignment(coords: List[Tuple[int, int]], seq1: str, seq2: str, output: Union[None, str]) -> str:
@@ -252,8 +278,7 @@ def gather_all_paths(array: np.ndarray,
 					norm: bool = False,
 					minlen: int = 10,
 					bfactor: Union[int, str] = 1,
-					gap_opening: float = 0,
-					gap_extension: float = 0,
+					gap_penalty: float = 0,
 					with_scores: bool = False) -> List[np.ndarray]:
 	'''
 	calculate scoring matrix from input substitution matrix `array`
@@ -261,6 +286,7 @@ def gather_all_paths(array: np.ndarray,
 	Args:
 		array (np.ndarray): raw subtitution matrix aka densitymap
 		bfactor (int): use argmax pooling when extracting borders, bigger values will improve performence but may lower accuracy
+		gap_penalty: (float) default to zero
 		with_scores (bool): if True return score matrix
 	Returns:
 		list: list of all valid paths through scoring matrix
@@ -270,27 +296,27 @@ def gather_all_paths(array: np.ndarray,
 	assert isinstance(with_scores, bool)
 	if not isinstance(array, np.ndarray):
 		array = array.numpy().astype(np.float32)
+	if not isinstance(norm, bool):
+		raise ValueError(f'norm_rows arg should be bool type, but given: {norm}')
 	if not isinstance(bfactor, (str, int)):
 		raise TypeError(f'bfactor should be int/str but given: {type(bfactor)}')
+	# standarize embedding
+	if norm:
+		array = (array - array.mean())/(array.std() + 1e-3)
 	# set local or global alignment mode
-	global_mode = False
-	stop_value = 1e-3
-	if bfactor == 'global':
-		global_mode = True
-		stop_value = -10000
-
-	score_matrix = fill_score_matrix(array, gap_penalty=gap_opening, global_mode=global_mode, norm=norm)
+	globalmode = True if bfactor == "global" else False
 	# get all edge indices for left and bottom
-	# score_matrix shape array.shape + 1
+	# score_matrix shape = array.shape + 1
+	score_matrix = fill_score_matrix(array, gap_penalty=gap_penalty, globalmode=globalmode)
 	# local alignment mode
 	if isinstance(bfactor, int):
 		indices = border_argmaxpool(score_matrix, cutoff=minlen, factor=bfactor)
 	# global alignment mode
-	elif global_mode:
-		indices = [(score_matrix.shape[0] - 1, score_matrix.shape[1] - 1)]
+	elif globalmode:
+		indices = [(array.shape[0], array.shape[1])]
 	paths = list()
 	for ind in indices:
-		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_opening, stop_value=stop_value)
+		path = traceback_from_point_opt2(score_matrix, ind, gap_opening=gap_penalty)
 		paths.append(path)
 	if with_scores:
 		return (paths, score_matrix)

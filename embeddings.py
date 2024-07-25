@@ -7,7 +7,10 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 
 from embedders import create_parser, prepare_dataframe, validate_args
-from embedders import main_esm, main_prottrans
+from embedders import (main_esm, 
+                       main_prottrans, 
+                       main_ankh,
+                       main_automodel)
 from embedders.checkpoint import capture_checkpoint, find_and_load_checkpoint_file
 
 def mp_process(rank_id: int, nproc: int, args: argparse.Namespace):
@@ -43,10 +46,14 @@ if __name__ == "__main__":
 		args, df = validate_args(args, verbose=True)
 		df, batch_iter = prepare_dataframe(df, args)
 		try:
-			if not args.embedder.startswith('esm'):
-				main_prottrans(df, args, batch_iter)
-			else:
+			if args.embedder.startswith('esm'):
 				main_esm(df, args, batch_iter)
+			elif args.embedder.startswith('ankh'):
+				main_ankh(df, args, batch_iter)
+			elif args.embedder.startswith("hf:"):
+				main_automodel(df, args, batch_iter)
+			else:
+				main_prottrans(df, args, batch_iter)
 		# checkpointing
 		except Exception as e:
 			capture_checkpoint(args, exception_msg = e)

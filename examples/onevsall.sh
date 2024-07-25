@@ -1,9 +1,8 @@
 #!/bin/bash
 set -e
-export MKL_DYNAMIC=FALSE
 
-case='cupredoxin' # single-query example
-#case='rossmannsdb' # multi-query example
+# Query is a cupredoxin sequence (see the manuscript for the details)
+case='cupredoxin'
 
 # data paths
 INDIR="./data/input"
@@ -11,15 +10,15 @@ OUTDIR="./data/output"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database
-DB_PATH="/home/nfs/kkaminski/PLMBLST/ecod70db_20220902"
+# Pre-calculated ECOD databased can be obtained from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs
+DB_PATH="/home/users/sdunin/db/plmblast/data/ecod30db_20231201"
 
-# Return hits with scores >=0.3
-ALIGNMENT_CUTOFF="0.3"
-COSINE_CUTOFF=90
-SIGMA=2
+# Return hits with scores >=0.3 (max score is 1)
+ALIGNMENT_CUTOFF="0.35"
+COSINE_CUTOFF=70
 
 # Customize according to your system specifications
-NUM_WORKERS=6
+NUM_WORKERS=10
 
 mkdir -p $OUTDIR
 
@@ -38,10 +37,8 @@ python ../scripts/plmblast.py \
 	-cosine_percentile_cutoff $COSINE_CUTOFF \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
 	-workers $NUM_WORKERS \
-		-sigma_factor $SIGMA \
-	--use_chunks
 
 # Plotting works for single queries only
-#python plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
-#python plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_qend_ecod.png -mode qend -ecod
+python ../scripts/plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_score_ecod.png -mode score -ecod
+python ../scripts/plot.py $OUTFILE $OUTDIR/$case.fas $OUTDIR/$case.hits_qend_ecod.png -mode qend -ecod
 

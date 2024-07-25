@@ -1,29 +1,30 @@
 '''functions to make results more friendly'''
 from typing import List, Optional
+from typing import List, Optional
 
 import pandas as pd
 from Bio.Align import substitution_matrices
 
 from ..alignment import draw_alignment
 from ..settings import (RESIDUES,
-                        RESIDUE_GROUPMAP)
+                        RESIDUE_GROUPMAP,
+                        COLUMNS_TO_SAVE,
+                        COLUMNS_TO_SAVE_OPTIONAL)
 
 blosum62 = substitution_matrices.load("BLOSUM62")
 
 COLUMNS_DB = ['id', 'sequence']
 COLUMNS_QUERY = ['id', 'dbid', 'sequence']
-# columns to save in output
-COLUMNS_TO_SAVE = ['qid', 'score', 'ident', 'similarity', 'sid', 'qstart',
-                'qend', 'qseq', 'con', 'tseq', 'tstart', 'tend', 'tlen', 'qlen',
-                'match_len']
 
-208
+
 def calc_con(s1, s2):
+	res = list()
 	res = list()
 	for c1, c2 in zip(list(s1), list(s2)):
 		if c1=='-' or c2=='-': 
 			res+=' '
 			continue
+		bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
 		bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
 		if bscore >= 6 or c1==c2:
 			res+='|'
@@ -32,6 +33,12 @@ def calc_con(s1, s2):
 		else:
 			res+='.'
 	return ''.join(res)
+
+def residue_to_group(residue: str) -> int:	
+    for resgroup, groupid in RESIDUE_GROUPMAP.items():
+        if residue in resgroup:
+            return groupid
+    assert False, f'invalid resdue {residue}'
 
 def residue_to_group(residue: str) -> int:	
     for resgroup, groupid in RESIDUE_GROUPMAP.items():
@@ -50,6 +57,25 @@ def calc_identity(s1: List[str], s2: List[str]) -> float:
     '''
     res = [c1==c2 for c1, c2 in zip(list(s1), list(s2))]
     return round(sum(res)/len(res), 2)
+
+
+def add_duplicates(resdf: pd.DataFrame) -> pd.DataFrame:
+    '''
+    The function is used to restore the results of b vs a comparisons.
+    '''
+    # duplicates = list()
+    for q, s in zip(resdf["qid"].tolist(), resdf["sid"].tolist()):
+        row_to_check = resdf.loc[(resdf['qid'] == s) & (resdf['sid'] == q)]
+        if row_to_check.empty:
+            rows = resdf.loc[(resdf['qid'] == q) & (resdf['sid'] == s)]
+            for _, row in rows.iterrows():
+                # duplicates.append(row)
+                row_to_modify = row[['sid', 'score', 'ident', 'similarity', 'qid', 'tstart', 'tend', 'tseq', 'con', 'qseq', 'qstart', 'qend', 'qlen', 'tlen', 'match_len']].values
+                resdf.loc[resdf.shape[0]] = row_to_modify
+    # dupilcatesdf = pd.concat(duplicates, axis=0)
+    # resuls = pd.concat((resdf, duplicatesdf), axis=?, ignore_index=True)
+    resdf['score'] = resdf['score'].round(2)
+    return resdf
 	
 
 def prepare_output(resdf: pd.DataFrame,
@@ -67,7 +93,10 @@ def prepare_output(resdf: pd.DataFrame,
     Returns:
         pd.DataFrame
     '''
-    querydf = resdf.reset_index()
+    # drop technical columns    
+    querydf = resdf.drop(columns=['span_start', 'span_end', 'spanid', 'len'])
+    if 'index' in querydf.columns:
+         querydf.drop(columns=['index'], inplace=True)
     if alignment_cutoff is None:
           alignment_cutoff = 0.0
 	# check columns
@@ -80,6 +109,7 @@ def prepare_output(resdf: pd.DataFrame,
     if len(querydf) == 0 and verbose:
         print('No hits found!')
         return pd.DataFrame()
+        return pd.DataFrame()
     else:
         querydf = querydf[querydf.score >= alignment_cutoff].copy()
     if len(querydf) == 0:
@@ -87,13 +117,13 @@ def prepare_output(resdf: pd.DataFrame,
             print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
         return pd.DataFrame()
     else:
-        # drop technical columns
-        querydf.drop(columns=['span_start', 'span_end', 'pathid', 'spanid', 'len'], inplace=True)            
         querydf.rename(columns={'id' : 'qid'}, inplace=True)
         dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
         assert dbdf_matches.shape[0] == querydf.shape[0]
-
+        # add description to target if exists
+        if "description" in dbdf_matches.columns:
+             querydf['sdesc'] = dbdf_matches['description'].values
         querydf['sid'] = dbdf_matches['id'].values
         querydf['tlen'] = dbdf_matches['sequence'].apply(len).values.astype(int)
         querydf['qlen'] = querydf['sequence'].apply(len).values.astype(int)
@@ -101,7 +131,13 @@ def prepare_output(resdf: pd.DataFrame,
         querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
         querydf['tstart'] = [aln[0][0] for aln in aligmentlist]
         querydf['tend'] = [aln[-1][0] for aln in aligmentlist]
+        
+        # `match_len` calculated with respect to the query
         querydf['match_len'] = (querydf['qend'].values - querydf['qstart'].values + 1).astype(int)
+        
+        # `match_len` calculated with respect to the target
+        #querydf['match_len'] = (querydf['tend'].values - querydf['tstart'].values + 1).astype(int)        
+        
         # check if alignment is not exeeding sequence lenght
         assert (querydf['qstart'] <= querydf['qlen']).all()
         assert (querydf['qstart'] <= querydf['qlen']).all()
@@ -132,4 +168,10 @@ def prepare_output(resdf: pd.DataFrame,
                 if col in querydf.columns:
                     querydf.drop(columns=col, inplace=True)
         querydf.index.name = 'index'
-    return querydf[COLUMNS_TO_SAVE]
+    # round alignment values
+    querydf['score'] = querydf['score'].round(3)
+    query_results = querydf[COLUMNS_TO_SAVE].copy()
+    for col in COLUMNS_TO_SAVE_OPTIONAL:
+        if col in querydf.columns:
+            query_results[col] = querydf[col].values
+    return query_results

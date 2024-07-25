@@ -108,3 +108,5 @@ def test_cosine_similarity(X, Y):
 	assert not np.isnan(result).any()
 	assert not np.isinf(result).any()
 	assert result.shape[0] == Y.shape[0]
+
+

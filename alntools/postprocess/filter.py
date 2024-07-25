@@ -86,21 +86,27 @@ def filter_result_dataframe(data: pd.DataFrame,
 								pd.DataFrame:
 	'''
 	keep spans with biggest score and len
+	and remove heavily overlapping hits
 	Args:
+		data (pd.DataFrame): columns required (dbid)
 		data (pd.DataFrame): columns required (dbid)
 	Returns:
 		filtred frame sorted by score
 	'''
+	if isinstance(column, str):
+		column = [column]
 	if 'dbid' not in data.columns:
 		data['dbid'] = 0
+
 	data = data.sort_values(by=['len'], ascending=False)
 	indices = data.indices.tolist()
 	data['y1'] = [yx[0][0] for yx in indices]
 	data['x1'] = [yx[0][1] for yx in indices]
-	data['score'] = data['score'].round(3)
+	#data['y2'] = [yx[-1][0] for yx in indices]
+	#data['x2'] = [yx[-1][1] for yx in indices]
+	#xy1 = np.concatenate((data['x1'].values, data['y1'].values))
+	#data['score'] = data['score'].round(3)
 
-	if isinstance(column, str):
-		column = [column]
 	resultsflt = list()
 	iterator = data.groupby(['y1', 'x1'])
 	for col in column:
@@ -110,6 +116,7 @@ def filter_result_dataframe(data: pd.DataFrame,
 	resultsflt = pd.concat(resultsflt)
 	# drop duplicates sometimes
 	resultsflt = resultsflt.drop_duplicates(
+		subset=['pathid', 'dbid', 'len', 'score'])
 		subset=['pathid', 'dbid', 'len', 'score'])
 	# filter
 	resultsflt = resultsflt.sort_values(by=['score'], ascending=False)

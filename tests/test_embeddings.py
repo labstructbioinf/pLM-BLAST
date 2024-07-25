@@ -16,12 +16,13 @@ from embedders.schema import BatchIterator
 
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
-EMBEDDING_DATA: os.PathLike = os.path.join(DIR, "test_data/seq.p")
-EMBEDDING_FASTA: os.PathLike = os.path.join(DIR, "test_data/seq.fasta")
-EMBEDDING_OUTPUT: os.PathLike = os.path.join(DIR, "test_data/output/seq.emb")
-EMBEDDING_OUTPUT_DIR: os.PathLike = os.path.join(DIR, 'test_data', 'output')
+EMBEDDING_DATA: str = os.path.join(DIR, "test_data/seq.p")
+EMBEDDING_FASTA: str = os.path.join(DIR, "test_data/seq.fasta")
+EMBEDDING_OUTPUT: str = os.path.join(DIR, "test_data/output/seq.emb")
+EMBEDDING_OUTPUT_DIR: str = os.path.join(DIR, 'test_data', 'output')
 NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
 DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
+
 
 @pytest.fixture(autouse=True)
 def remove_outputs():
@@ -57,7 +58,8 @@ def test_batching(seqlen_list, res_per_batch):
 		assert len(seqlen_batch) % 4 == 0 or len(seqlen_batch) < 4, batch
 		assert batch.stop <= num_seq, batch
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
@@ -130,7 +132,7 @@ def test_batch_spliting():
 		assert seqlen_list[i] == re_seq_len[i], i
 	
 
-
+@pytest.mark.embedding
 def test_h5py_feature():
 	proc = subprocess.run(["python", "embeddings.py", "start",
 	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", "pt", "-bs", "16", "--h5py", "--gpu"],
@@ -145,7 +147,7 @@ def test_h5py_feature():
 		assert emb.shape[0] == len(seqlist[i])
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['0', '16'])
@@ -175,7 +177,7 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 								 {[e.shape[0] for e in embout]} and \n {[len(s) for s in seq_list]}''')
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file',[
 	'test_data/emb_checkpoint_start.json',
 	'test_data/emb_checkpoint_middle.json',
@@ -211,8 +213,9 @@ def test_checkpointing(checkpoint_file: str):
 	assert expected_files == found_files, proc.stdout
 
 
-@pytest.mark.parametrize('savemode', ['--asdir', '--h5py', ''])
-def test_parallelism(savemode):
+@pytest.mark.embedding
+@pytest.mark.parametrize('embedder',['pt'])
+def test_parallelism(embedder):
 	assert th.cuda.device_count() > 1, 'cannot run test'
 		
 	embdata = pd.read_pickle(EMBEDDING_DATA)
@@ -232,6 +235,7 @@ def test_parallelism(savemode):
 		assert proc.returncode != 0 # savemode: file should raise an exception
 
 
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])
 @pytest.mark.parametrize('save_mode', ['asdir', 'h5py'])
 def test_parallelism_checkpoint(checkpoint_file: str, save_mode: str):

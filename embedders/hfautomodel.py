@@ -9,11 +9,12 @@ import gc
 import pandas as pd
 from tqdm import tqdm
 import torch
-from transformers import T5Tokenizer, T5EncoderModel
+from transformers import AutoModel, AutoTokenizer
 
 from .dataset import HDF5Handle
 from .base import save_as_separate_files, select_device
 from .schema import BatchIterator
+
 regex_aa = re.compile(r"[UZOB]")
 # default embedder
 DEFAULT_EMBEDDER_PT5: str = 'Rostlab/prot_t5_xl_half_uniref50-enc'
@@ -21,7 +22,7 @@ DEFAULT_EMBEDDER_PROST: str = 'Rostlab/ProstT5'
 DEFAULT_DTYPE = torch.float32
 DEFAULT_WAIT_TIME: float = 0.05
 
-def main_prottrans(df: pd.DataFrame,
+def main_automodel(df: pd.DataFrame,
 				    args: argparse.Namespace,
 					  iterator: BatchIterator,
 					  rank_id: int = 1):
@@ -29,26 +30,13 @@ def main_prottrans(df: pd.DataFrame,
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
 	device = select_device(args)
+	dtype = torch.float32 if device == torch.device('cpu') else torch.float16
 	# select appropriate embedding model
-	if args.embedder == 'pt':
-		embedder_name = DEFAULT_EMBEDDER_PT5
-	elif args.embedder == 'prost':
-		embedder_name = DEFAULT_EMBEDDER_PROST
-	tokenizer = T5Tokenizer.from_pretrained(embedder_name, do_lower_case=False)
-	if args.use_fastt5:
-		# implementation based on https://github.com/Ki6an/fastT5/issues/70
-		from fastT5 import generate_onnx_representation
-		from fastT5 import get_onnx_runtime_sessions
-		from fastT5 import quantize, OnnxT5
-		model_path = generate_onnx_representation(embedder_name)
-		model_path_quant = quantize(model_path)
-		model_sessions = get_onnx_runtime_sessions(model_path_quant, default=False)
-		model = OnnxT5(model_path_quant, model_sessions)
-	else:
-		torch_dtype = torch.float16 if args.gpu else DEFAULT_DTYPE
-		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
-		model.to(device)
-		model.eval()
+	embedder_name = args.embedder.replace("hf:", "")
+	tokenizer = AutoTokenizer.from_pretrained(embedder_name, do_lower_case=False)
+	model = AutoModel.from_pretrained(embedder_name, torch_dtype=dtype)
+	model.to(device)
+	model.eval()
 	print(f'model: {embedder_name} loaded on {device}')
 	gc.collect()
 	if df.seqlens.max() > 1000:
@@ -65,7 +53,7 @@ def main_prottrans(df: pd.DataFrame,
 			lenlist = lenlist_all[batchslice]
 			# add empty character between all residues
 			# his is mandatory for pt5 embedders
-			seqlist = [' '.join(list(seq)).upper() for seq in seqlist]
+			seqlist = [' '.join(list(seq)) for seq in seqlist]
 			batch_index = list(range(batchslice.start, batchslice.stop))
 			ids = tokenizer.batch_encode_plus(seqlist, add_special_tokens=True, padding="longest")
 			input_ids = torch.tensor(ids['input_ids']).to(device, non_blocking=True)

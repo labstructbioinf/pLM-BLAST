@@ -1,84 +1,94 @@
 '''module merging all extraction steps into user friendly functions'''
-from typing import List
-from typing import Union, Optional
+from typing import List, Union
 
 import pandas as pd
 import numpy as np
 
-from .numeric import embedding_local_similarity
-from .numeric import embedding_local_similarity2
-from .numeric import signal_enhancement
+from .numeric import embedding_local_similarity, signal_enhancement
 from .alignment import gather_all_paths
 from .prepare import search_paths
 from .postprocess import filter_result_dataframe
+
+
+class PlmBlastParamError(Exception):
+	pass
 
 
 class Extractor:
 	'''
 	main class for handling alignment extaction
 	'''
-	min_spanlen: int = 25
+	min_spanlen: int = 20
 	window_size: int = 20
+	FILTER_RESULTS: bool = False
 	# NORM rows/cols whould make this method asymmmetric a(x,y) != a(y,x).T
-	NORM: Union[bool, str] = True
-	bfactor: int = 1
-	sigma_factor: float = 1
-	GAP_OPEN: float = 0.0
-	GAP_EXT: float = 0.0
-	filter_results: bool = False
-	mode: str = 'local'
-	featurewise_norm: bool = False
-	enhance: bool = False
-	enhance_signal: bool = False
+	norm: bool = False
+	enh: bool = False
+	globalmode: bool = False
+	sigma_factor: Union[int, float] = 2
+	bfactor: int = 2
 
-
-	def __init__(self,
-			   	min_spanlen: int = 20,
-			    window_size: int = 20,
-				sigma_factor: float = 2,
-				filter_results: bool = False,
-				bfactor: int = 1,
-				featurewise_norm = False,
-				enhance_signal = False,
-				**kw_args):
-		'''
-		pLM-BLAST module
+	# TODO add proper agument handling here
+	def __init__(self, enh: bool = False,
+			    norm: bool = False,
+				bfactor: Union[str, int] = 2,
+				sigma_factor: Union[int, float] = 2,
+				gap_penalty: float = 0.0,
+				min_spanlen: int = 20,
+				window_size: int = 20,
+				filter_results: bool = False):
+		"""
+		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
 		Args:
-			min_spanlen (int): minimal lenght of requested alignment
-			window_size (int): size of averaging window, used when extracting alignments
-			sigma_factor (float): 
-			filter_results (bool): whether to remove redundant hits from results
-			bfactor (str, int): if int it refers to density of alignment searching (1 is maximal density),
-			 	increasing this parameter will reduce the number of overlaping alignments in results
-				  and will increase searching speed. When bfactor == global, will perform global alignment search
-			featurewise_norm: (bool) if False substitution matrix is equal to cosine similarity per residue
-		'''
-		assert isinstance(min_spanlen, int)
-		assert min_spanlen > 0
-		assert isinstance(window_size, int)
-		assert window_size > 0
-		assert isinstance(sigma_factor, (int, float))
-		assert sigma_factor > 0
-		assert isinstance(filter_results, bool)
-		assert isinstance(bfactor, (str, int))
-		if isinstance(bfactor, int):
-			assert 1 <= bfactor <= 10
-		if isinstance(bfactor, str):
-			assert bfactor == 'global'
-		assert isinstance(featurewise_norm, bool)
-		assert isinstance(enhance_signal, bool)
+			enh: (bool) if true use signal enhancement
+			bfactor: (str, int) if integer - density of path search for local aligment, if string ("global")
+				change plmblast mode to global
+			sigma_factor: (float, int): higher values will result in more conservative aligments
+			gap_penalty: (float) gap penalty
+			min_spanlen: (int) shortest alignment len to capture, measrued in number of residues within
+			window_size: (int) size of average window, bigger values may produce wider but more gapish alignment
+			filter_results: (bool) - apply postprocess filtering to remove redundant hits
 
+		"""
+		# validate arguments
+		assert isinstance(enh, bool)
+		assert isinstance(norm, bool)
+		assert isinstance(filter_results, bool)
+		if not isinstance(min_spanlen, int) or min_spanlen < 1:
+			raise PlmBlastParamError(f'min_spanlen must be positive integer, instead of {type(min_spanlen)}: {min_spanlen}')
+		if isinstance(bfactor, str):
+			if bfactor != "global":
+				raise PlmBlastParamError(f'invalid bfactor value: {bfactor}')
+		elif isinstance(bfactor, int):
+			if bfactor <= 0:
+				raise PlmBlastParamError(f'invalid bfactor value: {bfactor} should be > 0 or str: global')
+		else:
+			raise PlmBlastParamError(f'invalid bfactor type: {type(bfactor)}')
+		if not isinstance(sigma_factor, (float, int)) or sigma_factor <= 0:
+			raise PlmBlastParamError(f'sigma factor must be positive valued number, not: {type(sigma_factor)} with value: {sigma_factor}')
+
+		self.enh = enh
+		self.norm = norm
+		self.globalmode = True if bfactor == 'global' else False
+		self.bfactor = bfactor
+		self.sigma_factor = sigma_factor
+		self.gap_penalty = gap_penalty
 		self.min_spanlen = min_spanlen
 		self.window_size = window_size
-		self.sigma_factor = sigma_factor
-		self.filter_results = filter_results
-		self.bfactor = bfactor
-		self.mode = 'global' if self.bfactor == 'global' else 'local'
-		self.global_mode = True if self.mode == 'global' else False
-		self.featurewise_norm = featurewise_norm
-		self.enhance_signal = enhance_signal
+		self.FILTER_RESULTS = filter_results
 
-	def embedding_to_span(self, X: np.ndarray, Y: np.ndarray, mode : str = 'results') -> pd.DataFrame:
+	# TODO implement this
+	def submatrix_to_span(self, densitymap: np.ndarray, mode: str = 'results') -> pd.DataFrame:
+		'''
+		run plmblast flow from substitution matrix
+		func should return same results as embedding_to_span
+		'''
+		pass
+
+	def embedding_to_span(self,
+					    X: np.ndarray,
+						Y: np.ndarray,
+						mode: str = 'results') -> pd.DataFrame:
 		'''
 		convert embeddings of given X and Y tensors into dataframe
 
@@ -96,25 +106,16 @@ class Extractor:
 			X = X.astype(np.float32)
 		if not np.issubdtype(Y.dtype, np.float32):
 			Y = Y.astype(np.float32)
-		if mode not in {'results', 'all'}:
-			raise AttributeError(f'mode must me results or all, but given: {mode}')
-		# select normalisation
-		if self.featurewise_norm:
-			densitymap = embedding_local_similarity2(X, Y)
-		else:
-			densitymap = embedding_local_similarity(X, Y)
-		if self.enhance_signal:
+		if not isinstance(mode, str) or mode not in {'results', 'all'}:
+			raise PlmBlastParamError(f'mode must me results or all, but given: {mode}')
+		densitymap = embedding_local_similarity(X, Y)
+		if self.enh:
 			densitymap = signal_enhancement(densitymap)
-		return self.submatrix_to_span(densitymap, mode=mode)
-
-	def submatrix_to_span(self, submatrix: np.ndarray, mode: str = "results"):
-
-		paths = gather_all_paths(submatrix,
-						   		 norm=self.NORM,
+		paths = gather_all_paths(densitymap,
+								 norm=self.norm,
 								 minlen=self.min_spanlen,
 								 bfactor=self.bfactor,
-								 gap_opening=self.GAP_OPEN,
-								 gap_extension=self.GAP_EXT,
+								 gap_penalty=self.gap_penalty,
 								 with_scores = True if mode == 'all' else False)
 		if mode == 'all':
 			scorematrix = paths[1]
@@ -124,7 +125,7 @@ class Extractor:
 							   window=self.window_size,
 							   min_span=self.min_spanlen,
 							   sigma_factor=self.sigma_factor,
-							   global_mode=self.global_mode,
+							   globalmode=self.globalmode,
 							   as_df=True)
 		if mode == 'all':
 			return (results, submatrix, paths, scorematrix)
@@ -132,7 +133,7 @@ class Extractor:
 			return results
 
 	def full_compare(self, emb1: np.ndarray, emb2: np.ndarray,
-					 dbid: int = 0, qid: int = 0) -> Optional[pd.DataFrame]:
+					 qid: int = 0, dbid: int = 0) -> pd.DataFrame:
 		'''
 		perform comparison of two sequence embeddings
 
@@ -147,35 +148,14 @@ class Extractor:
 		res = self.embedding_to_span(emb1, emb2)
 		if len(res) > 0:
 			# add referece index to each hit
-			res['dbid'] = dbid
 			res['queryid'] = qid
+			res['dbid'] = dbid
 			# filter out redundant hits
 			if self.filter_results and not self.global_mode:
 				res = filter_result_dataframe(res)
 			return res
+		return None
 
-	def full_compare_args(self, args, result_stack: List[pd.DataFrame]):
-		'''
-		perform comparison of two sequence embeddings
-		args - the same as for `full_compare` method
-		'''
-	
-		emb1, emb2, dbid, qid = args
-		res = self.full_compare(emb1=emb1, emb2=emb2, dbid=dbid, qid=qid)
-		if res is not None:
-			result_stack.append(res)
-
-	def show_config(self):
-		"""
-		print run spefication
-		"""
-		if self.global_mode:
-			print("running pLM-Blast in global alignment mode")
-		else:
-			print(f'running pLM-Blast in local alignment mode')
-			print(f'minimal alignment len: {self.min_spanlen} sigma: {self.sigma_factor}')
-		if self.enhance_signal:
-			print(f"using signal enhancement")
 
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:

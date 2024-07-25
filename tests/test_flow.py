@@ -31,7 +31,9 @@ def test_results(GAP_OPEN, GAP_EXT, WINDOW_SIZE, BFACTOR, SIGMA_FACTOR):
 		# convert to numpy array
 		tmp = tmp.cpu().float().numpy()
 		embedding_list.append(tmp)
-	module = Extractor(window_size=WINDOW_SIZE, sigma_factor=SIGMA_FACTOR, bfactor=BFACTOR)
+	module = Extractor()
+	module.SIGMA_FACTOR = SIGMA_FACTOR
+	module.window_size = WINDOW_SIZE
 	module.GAP_OPEN = GAP_OPEN
 	module.GAP_EXT = GAP_EXT
 	for emb1 in embedding_list:
@@ -64,10 +66,17 @@ def test_result_symmetry(window_size, sigma):
 		raise FileNotFoundError(f'missing embedding symmetricity test file: {PATH_SYMMETRIC_TEST}')
 	embs = torch.load(PATH_SYMMETRIC_TEST)
 	X, Y = embs[0].numpy(), embs[1].numpy()
-	module = Extractor(min_spanlen=window_size, window_size=window_size, sigma_factor=sigma)
-	assert module.global_mode is False
-	res12, density12, paths12, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
-	res21, density21, paths21, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
+	module = Extractor()
+	module.window_size = WINDOW_SIZE
+	res12, density12, _, scorematrix12 = module.embedding_to_span(Y, X, mode='all')
+	res21, density21, _, scorematrix21 = module.embedding_to_span(X, Y, mode='all')
+	# draw path masks for both
+	if res12.shape[0] != res21.shape[0]:
+		raise ValueError('result dataframe is asymmetric')
+	if res12.shape[0] == 0 or res21.shape[0] == 0:
+		raise ValueError(f'empty result dataframe {res12.shape[0]}, {res21.shape[0]} for window: {WINDOW_SIZE}')
+	mask12 = aln.prepare.mask_like(densitymap=density12, paths=res12['indices'])
+	mask21 = aln.prepare.mask_like(densitymap=density21, paths=res21['indices'])
 	if not np.allclose(density12, density21.T, atol=ATOL):
 		max_diff = density12 - density21.T
 		raise ValueError(f'density matrix is asymmetric, max diff: {max_diff.max()}')

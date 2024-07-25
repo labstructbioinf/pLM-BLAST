@@ -22,11 +22,19 @@ classifiers = [
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = [
-    "--maxfail=10",
+    "--maxfail=10", 
 ]
 python_files = "test_*"
-pythonpath = ["."
-]
+pythonpath = ["."]
 testpaths = [
     "tests",
 ]
+markers = [
+    "embedding: marks tests as slow (deselect with '-m \"not embedding\"')",
+    "serial",
+]
+
+[tool.pytest_env]
+PLMBLAST_TESTDATA="/home/nfs/kkaminski/PLMBLST/test_data"
+PLMBLAST_DB="/home/nfs/kkaminski/PLMBLST/ecod30db_mini"
+PLMBLAST_WORKERS="4"

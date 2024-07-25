@@ -1,17 +1,12 @@
 import sys
 import os
 import gc
+import time
+import json
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import tempfile
 import datetime
-from typing import List
-import multiprocessing
-from functools import partial
-
-
-#os.environ["MKL_DYNAMIC"] = str(False)
-#os.environ["NUMEXPR_NUM_THREADS"] = '1'
-#os.environ['MKL_NUM_THREADS'] = '1'
-#os.environ["OMP_NUM_THREADS"] = '1'
-#os.environ['OPENBLAS_NUM_THREADS'] = '1'
+from typing import List, Dict
 
 import mkl
 import numba
@@ -22,96 +17,112 @@ import torch
 mkl.set_num_threads(1)
 numba.set_num_threads(1)
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import alntools.settings as cfg
 from alntools.parser import get_parser
+from alntools.prepare.screening import apply_database_screening
+from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
-from alntools.base import Extractor
 import alntools as aln
-
-
-# ANSI escape sequences for colors
-colors = {
-	'black': '\033[30m',
-	'red': '\033[31m',
-	'green': '\033[32m',
-	'yellow': '\033[33m',
-	'blue': '\033[34m',
-	'magenta': '\033[35m',
-	'cyan': '\033[36m',
-	'white': '\033[37m',
-	'reset': '\033[0m'  # Reset to default color
-	}
 
 
 if __name__ == "__main__":
 
-	time_start = datetime.datetime.now()
+	start_time = datetime.datetime.now()
+
 	args = get_parser()
+	module = aln.Extractor( \
+					enh=args.enh,
+					norm=False, # legacy arg always false
+					bfactor='global' if args.global_aln else args.bfactor,
+					sigma_factor=args.sigma_factor,
+					gap_penalty=args.gap_penalty,
+					min_spanlen=args.min_spanlen,
+					window_size=args.window_size)
+	# other params
+	module.FILTER_RESULTS = True
 	print("num cores: ", args.workers)
-	torch.set_num_threads(args.workers)
-	module = Extractor(min_spanlen=args.min_spanlen,
-							 window_size=args.WINDOW_SIZE,
-							 sigma_factor=args.SIGMA_FACTOR,
-							 filter_results=True,
-							 bfactor='global' if args.global_aln else args.bfactor,
-							 enhance_signal=args.enh)
-	module.GAP_EXT = args.GAP_EXT
-	module.NORM = False
-	module.show_config()
+
+	#module.show_config()
 	# Load database index file
 	dbdata = DataObject.from_dir(args.db, objtype="database")
 	# Load query index file
 	querydata = DataObject.from_dir(args.query, objtype="query")
 	# add id column if not present already
 	##########################################################################
-	# 								filtering								 #
+	# 						filtering (reduce search space)					 #
 	##########################################################################
-	batch_size = aln.cfg.jobs_per_process*args.workers
-	query_filedict = aln.prepare.apply_database_screening(args,
-													   	querydata=querydata,
-														dbdata=dbdata)
+	batch_size = cfg.jobs_per_process*args.workers
+	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
+	if args.only_scan:
+		# round float values in json 
+		# https://stackoverflow.com/questions/54370322/how-to-limit-the-number-of-float-digits-jsonencoder-produces
+		class RoundingFloat(float):
+			__repr__ = staticmethod(lambda x: format(x, '.3f'))
+		json.encoder.float = RoundingFloat
+		with open(args.output, "wt") as fp:
+			json.dump(query_filedict, fp)
+		sys.exit(0)
+	else:
+		# simplify dictionary
+		query_filedict = {
+        	queryid: { targetid: value['file']
+            	for targetid, value in outer_dict.items()
+        	}
+        	for queryid, outer_dict in query_filedict.items()
+    	}
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
-										    dbdata=dbdata,
-											filedict=query_filedict,
-											batch_size=batch_size)
+										      dbdata=dbdata,
+											  filedict=query_filedict,
+											  batch_size=batch_size)
+	if len(query_filedict) == 0:
+		print(f'{cfg.colors["red"]}No matches after pre-filtering. Consider lowering the -cosine_percentile_cutoff{cfg.colors["reset"]}')
+		sys.exit(1)
 	##########################################################################
-	# 								plm-blast								 #
+	# 						main   plm-blast loop							 #
 	##########################################################################
-	# TODO wrapp this into context manager
 	# limit threads for concurrent
-	torch.set_num_threads(1)
-	with multiprocessing.Manager() as manager:
-		result_stack: List[pd.DataFrame] = manager.list()
-		compare_fn = partial(module.full_compare_args, result_stack=result_stack)
-		# Create the multiprocessing pool outside the loop
-		with multiprocessing.Pool(processes=int(args.workers)) as pool:
-			for query_index, embedding_index, query_emb, embedding_list in tqdm(batch_loader, desc='searching for alignments'):
-				# submit jobs
-				iterable = ((query_emb, emb, db_index, query_index) for db_index, emb in zip(embedding_index, embedding_list))
-				job_stack = pool.map_async(compare_fn, iterable, chunksize=aln.cfg.mp_chunksize)
-				# Wait for the asynchronous processing to complete
-				job_stack.wait()
-				# Get the result of the asynchronous processing
-				job_stack.get()
-				gc.collect()
-		results_stack = list(result_stack)
-		if len(result_stack) > 0: 
-			result_df = pd.concat(result_stack, ignore_index=True)
-			result_df.reset_index(inplace=True)
+	mkl.set_num_threads(1)
+	numba.set_num_threads(1)
+	tmpresults: List[str] = list()
+	with tempfile.TemporaryDirectory() as tmpdir, tqdm(total=len(batch_loader), desc='searching for alignments') as pbar:
+		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(batch_loader):
+			job_stack = list()
+			result_stack: List[pd.DataFrame] = list()
+			with ProcessPoolExecutor(max_workers = args.workers) as executor:
+				for (idx, emb) in zip(embedding_index, embedding_list):
+					job = executor.submit(module.full_compare, query_emb, emb, query_index, idx)
+					job_stack.append(job)
+				time.sleep(0.05)
+				for job in as_completed(job_stack):
+					try:
+						res = job.result()
+						if res is not None:
+							result_stack.append(res)
+					except Exception as e:
+						raise AssertionError('job failed', e)	
+				if len(result_stack) > 0:
+					tmpfile = os.path.join(tmpdir, f"{itr}.p")
+					pd.concat(result_stack).to_pickle(tmpfile)
+					tmpresults.append(tmpfile)
+			gc.collect()
+			pbar.update(1)
+		if len(tmpresults) > 0: 
+			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
+			print(f'hit candidates, {result_df.shape[0]}')
 		else:
-			print(f'No valid hits given pLM-BLAST parameters!')
+			print(f'No valid alignemnts for given pLM-BLAST parameters! Consider changing input parameters and validate your inputs')
 			sys.exit(0)
-
 	# Invalid plmblast score encountered
 	# only valid when signal ehancement is off
 	if result_df.score.max() > 1.01 and not args.enh:
-		print(f'{colors["red"]}Error: score is greater then one{colors["reset"]}', result_df.score.min(), result_df.score.max())
-		sys.exit(0)
+		print(f'{cfg.colors["red"]}Error: score is greater then one{cfg.colors["reset"]}', result_df.score.min(), result_df.score.max())
+		sys.exit(1)
 	print('merging results')
 	# run postprocessing
-	results = list()
+	results: List[pd.DataFrame] = list()
 	result_df = result_df.merge(
-		querydata.indexdata[['run_index', 'id', 'sequence']],
+		querydata.indexdata[['run_index', 'id', 'sequence']].copy(),
 		 left_on="queryid", right_on="run_index", how='left')
 	for qid, rows in result_df.groupby('queryid'):
 		query_result = aln.postprocess.prepare_output(rows, dbdata.indexdata, alignment_cutoff=args.alignment_cutoff)
@@ -119,17 +130,23 @@ if __name__ == "__main__":
 	results = pd.concat(results, axis=0)
 	if len(results) == 0:
 		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
-		sys.exit(0)
-	
+		sys.exit(1)
+	if args.reduce_duplicates:
+		results = results.reset_index(drop=True)
+		results = add_duplicates(results)
 	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
+	# create output directory if needed
+	if os.path.dirname(args.output) != "":
+		os.makedirs(os.path.dirname(args.output), exist_ok=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):
-			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';')
+			row.to_csv(os.path.join(args.output, f"{qid}.csv"), sep=';', index=False)
 	else:
 		output_name = args.output if args.output.endswith('.csv') else args.output + '.csv'
-		results.to_csv(output_name, sep=';')
+		results.to_csv(output_name, sep=';', index=False)
 
-	time_end = datetime.datetime.now()
+	script_time = datetime.datetime.now() - start_time
 	print('total hits found: ', results.shape[0])
-	print(f'{colors["green"]}Done!{colors["reset"]} Time {time_end-time_start}')
+	print(f'{cfg.colors["green"]}Done!{cfg.colors["reset"]}\nTime {script_time}')
+	# stats

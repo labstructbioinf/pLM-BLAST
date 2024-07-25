@@ -5,8 +5,12 @@ import argparse
 import torch
 import pandas as pd
 from tqdm import tqdm
-from glob import glob
 
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from alntools.filehandle import DataObject
+from alntools.density.local import calculate_pool_embs
+from alntools.density.parallel import load_embeddings_parallel_generator
 
 def get_parser() -> argparse.Namespace:
     
@@ -23,21 +27,14 @@ if not os.path.isdir(dbpath):
     raise NotADirectoryError(f'given path is not a directory: {dbpath}')
 
 
-# Adjustable (see publication for details)
-factor = 64
-kernel = int(1024/factor)
-
-embfilelist = glob(os.path.join(dbpath, '*.emb'))
-embpoollist = []
-
-for file in tqdm(embfilelist):
-    emb = torch.load(file).float()
-    if emb.ndim != 2:
-        raise ValueError(f'embedding file dim is invalid: {emb.ndim}')
-    embpool = torch.nn.functional.avg_pool1d(emb.unsqueeze(0), kernel).squeeze()
-    embpoollist.append(embpool)
-
-outfile = os.path.join(dbpath, f'emb.{factor}')
-torch.save(embpoollist, outfile)
+dbdata = DataObject.from_dir(dbpath, "db")
+db_embs = []
+for embs in load_embeddings_parallel_generator(dbdata.embeddingpath,
+                                                num_records=dbdata.size,
+                                                num_workers=2):
+    db_embs.extend(calculate_pool_embs(embs))
+    # try to write emb.64 file
+outfile = os.path.join(dbpath, f'emb.64')
+torch.save(db_embs, outfile)
 print(f'Done! {outfile} created')
 
