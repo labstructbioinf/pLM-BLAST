@@ -1,17 +1,15 @@
 import os
 import gc
 import argparse
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from tqdm import tqdm
 import torch
 
 from ..filehandle import DataObject
 from ..density.local import chunk_cosine_similarity, calculate_pool_embs, unfold_large_db
-from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density.iterate import slice_iterator_with_seqlen
-from ..settings import EMB64_EXT
 from .reduce_duplicates import reduce_duplicates_query_filedict
 
 

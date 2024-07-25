@@ -41,8 +41,6 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 	assert 0 <= quantile <= 1
 	assert isinstance(dataset_files, list)
 	assert isinstance(kernel_size, int)
-	
-	
 	results = list()
 	seqlen_targets = list(itertools.chain(*[v[1] for v in targets.values()]))
 	num_targets = len(seqlen_targets)
@@ -59,7 +57,7 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 		q_sm = scoremask[:, qnb].view(-1).tolist()
 		q_st = scorestack[:, qnb].view(-1).tolist()
 		filedict: Dict[int, str] = {
-			i : dict(file=file, score=score) 
+			i : {"file": file, "score": score} 
 				for i, (file, condition, score) in enumerate(zip(dataset_files, q_sm, q_st))
 				if condition
 			}

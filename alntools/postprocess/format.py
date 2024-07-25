@@ -1,6 +1,5 @@
 '''functions to make results more friendly'''
 from typing import List, Optional
-from typing import List, Optional
 
 import pandas as pd
 from Bio.Align import substitution_matrices
@@ -18,33 +17,27 @@ COLUMNS_QUERY = ['id', 'dbid', 'sequence']
 
 
 def calc_con(s1, s2):
-	res = list()
-	res = list()
-	for c1, c2 in zip(list(s1), list(s2)):
-		if c1=='-' or c2=='-': 
-			res+=' '
-			continue
-		bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
-		bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
-		if bscore >= 6 or c1==c2:
-			res+='|'
-		elif bscore >= 0:
-			res+='+'
-		else:
-			res+='.'
-	return ''.join(res)
+    res = list()
+    for c1, c2 in zip(list(s1), list(s2)):
+        if c1 == '-' or c2 == '-':
+            res += ' '
+            continue
+        bscore = blosum62[RESIDUES.index(c1)][RESIDUES.index(c2)]
+        if bscore >= 6 or c1==c2:
+            res+='|'
+        elif bscore >= 0:
+            res+='+'
+        else:
+            res+='.'
+    return ''.join(res)
 
-def residue_to_group(residue: str) -> int:	
+
+def residue_to_group(residue: str) -> int:
     for resgroup, groupid in RESIDUE_GROUPMAP.items():
         if residue in resgroup:
             return groupid
     assert False, f'invalid resdue {residue}'
 
-def residue_to_group(residue: str) -> int:	
-    for resgroup, groupid in RESIDUE_GROUPMAP.items():
-        if residue in resgroup:
-            return groupid
-    assert False, f'invalid resdue {residue}'
 
 def calc_similarity(s1, s2) -> float:
 	res = [residue_to_group(c1)==residue_to_group(c2) for c1, c2 in zip(list(s1), list(s2))]
@@ -108,7 +101,6 @@ def prepare_output(resdf: pd.DataFrame,
               raise KeyError(f'missing {col} in input results frame')
     if len(querydf) == 0 and verbose:
         print('No hits found!')
-        return pd.DataFrame()
         return pd.DataFrame()
     else:
         querydf = querydf[querydf.score >= alignment_cutoff].copy()

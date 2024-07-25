@@ -63,7 +63,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 
 		assert os.path.isdir(path), f"path {path} is no a valid directory"
 		dirname = os.path.dirname(path)
-		if not (dirname == ''):
+		if not dirname == '':
 			if not os.path.isdir(dirname):
 				raise FileExistsError(f'directory: {dirname} is bad')
 		self.embedding_files = [os.path.join(path, f'{f}.emb') for f in range(0, num_records)]
@@ -113,8 +113,7 @@ def load_and_score_database(query_emb : torch.Tensor,
 							dbpath: str,
 							num_records: Optional[int],
 							quantile : float = 0.9,
-							num_workers: int = 1,
-							device : torch.device = torch.device('cpu')) -> Dict[int, str]:
+							num_workers: int = 1) -> Dict[int, str]:
 	'''
 	perform cosine similarity screening
 	Args:
