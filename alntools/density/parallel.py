@@ -2,16 +2,13 @@
 import os
 import time
 from typing import Union, List, Dict, Optional, Union
-from typing import Union, List, Dict, Optional, Union
 import warnings
 
 from tqdm import tqdm
 import torch
 import numpy as np
 import pandas as pd
-import pandas as pd
 from torch.nn.functional import avg_pool1d
-
 
 
 
@@ -63,7 +60,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 
 		assert os.path.isdir(path), f"path {path} is no a valid directory"
 		dirname = os.path.dirname(path)
-		if not dirname == '':
+		if not (dirname == ''):
 			if not os.path.isdir(dirname):
 				raise FileExistsError(f'directory: {dirname} is bad')
 		self.embedding_files = [os.path.join(path, f'{f}.emb') for f in range(0, num_records)]
@@ -71,7 +68,6 @@ class DatabaseChunk(torch.utils.data.Dataset):
 		for file in self.embedding_files:
 			if not os.path.isfile(file):
 				raise FileExistsError(f'missing file: {file}')
-		self.flatten = flatten
 		self.flatten = flatten
 
 	def __len__(self):
@@ -84,18 +80,10 @@ class DatabaseChunk(torch.utils.data.Dataset):
 		return embedding
 
 
-def load_embeddings_parallel(path: str, num_records: int, num_workers: Optional[int] = 0) -> List[torch.Tensor]:
-	batch_size = 128
-	# TODO optimize this choice
-	dataset = DatabaseChunk(path=path, num_records=num_records)
-	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x, worker_init_fn=worker_init_fn)
-	embeddinglist = list()
-	for batch in dataloader:
-		embeddinglist.extend(batch)
-	return embeddinglist
-
-
-def load_embeddings_parallel_generator(path: str, num_records: int, batch_size: int = 1, num_workers: Optional[int] = 0) -> List[torch.Tensor]:
+def load_embeddings_parallel_generator(path: str, 
+									   num_records: int, 
+									   batch_size: int = 1, 
+									   num_workers: Optional[int] = 0):
 	# TODO optimize this choice
 	if os.path.isfile(path):
 		dataset = torch.load(path)
@@ -104,7 +92,11 @@ def load_embeddings_parallel_generator(path: str, num_records: int, batch_size: 
 	else:
 		raise FileNotFoundError(f"path is not valid directory: {path}")
 	
-	dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, collate_fn=lambda x: x, worker_init_fn=worker_init_fn)
+	dataloader = torch.utils.data.DataLoader(dataset, 
+										  batch_size=batch_size, 
+										  num_workers=num_workers, 
+										  collate_fn=lambda x: x, 
+										  worker_init_fn=worker_init_fn)
 	for batch in dataloader:
 		yield batch
 
@@ -120,14 +112,12 @@ def load_and_score_database(query_emb : torch.Tensor,
 		dbpath (str): file with .pt extension or directory
 	Returns:
 		(dict): with file id and path to embedding used
-		(dict): with file id and path to embedding used
 	'''
 	assert 0 < quantile < 1
 	if isinstance(query_emb, list):
 		query_emb = query_emb[0]
 	batch_size = 256
 	pooling = 1
-	num_workers = 0
 	num_workers = 0
 	verbose = False
 	# setup database
@@ -184,17 +174,11 @@ def load_and_score_database(query_emb : torch.Tensor,
 def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int) -> torch.Tensor:
 	'''
 	first dimension should be embedding dimenson, expects x: [embdim, 1] and B: [embdim, batch_size]
-	first dimension should be embedding dimenson, expects x: [embdim, 1] and B: [embdim, batch_size]
 	'''
-	assert x.ndim == 2
-	assert B.ndim == 2
 	assert x.ndim == 2
 	assert B.ndim == 2
 	if poolfactor > 1:
 		B = avg_pool1d(B.T, poolfactor).T
-	# embedding dimension match
-	if B.shape[0] != x.shape[0]:
-		B = B.T
 	# embedding dimension match
 	if B.shape[0] != x.shape[0]:
 		B = B.T

@@ -1,7 +1,6 @@
 '''numerical function tests'''
 import os
 os.environ['NUMBA_DEBUGINFO'] = '1'
-os.environ['NUMBA_DISABLE_JIT'] = '1'
 import pytest
 import numpy as np
 import torch
@@ -70,30 +69,29 @@ def test_path_validpoints(arr, spans):
 				path_found = True
 		if not path_found:
 			raise AssertionError(f'missing results for arr {arr.size} with {spans_in_range} and {spans_results}') 
+	
 
-
-@pytest.mark.parametrize("gap", [20, 50, 100])
-def test_fill_score_matrix(gap):
-	'''
-	when grap penalty is high (> 1) there shouldnt be any gaps in resulting alignments
-	'''
+def test_fill_score_matrix():
 	# convert to numpy
 	densitymap = densitymap_test['densitymap']
-	n, c = densitymap.shape
-	score_matrix = fill_score_matrix(densitymap, gap_penalty=gap)
+	score_matrix = fill_score_matrix(densitymap)
 	assert not np.isnan(score_matrix).any(), 'nan values in score_matrix'
-	#score_matrix_with_penalty = fill_score_matrix(densitymap, gap_penalty=0.1)
-	#assert not np.isnan(score_matrix_with_penalty).any(), 'nan values in score_matrix'
-	#assert not (score_matrix == score_matrix_with_penalty).all(), 'penalty score dont affect score_matrix'
+	assert not np.isinf(score_matrix).any(), 'nan values in score_matrix'
 
 
-@pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(25, 25), (25, 20), (30, 50), (100, 50)]])
+@pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(8,8), (15, 10), (11, 25), (25, 20), (30, 50), (100, 50)]])
 @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
 @pytest.mark.parametrize("factor", [1, 2, 3])
 def test_borderline_extraction(arr, cutoff, factor):
 	borders = border_argmaxpool(array=arr, cutoff=cutoff, factor=factor)
 	if factor == 1:
-		assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
+		# small score matrix case
+		if cutoff >= arr.shape[0] or cutoff >= arr.shape[1]:
+			arr_shape0 = arr.shape[0] if cutoff >= arr.shape[0] else arr.shape[0] - cutoff
+			arr_shape1 = arr.shape[1] if cutoff >= arr.shape[1] else arr.shape[1] - cutoff
+			assert (arr_shape0 + arr_shape1 - 1) == borders.shape[0], 'border size mismatch'
+		else:
+			assert borders.shape[0] == (arr.shape[0] + arr.shape[1] - 2*cutoff - 1), 'border size mismatch'
 		# diagonal location should be always here
 		bottom_right_diag = np.array([[arr.shape[0], arr.shape[1]]]) - 1
 		assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
@@ -108,5 +106,4 @@ def test_cosine_similarity(X, Y):
 	assert not np.isnan(result).any()
 	assert not np.isinf(result).any()
 	assert result.shape[0] == Y.shape[0]
-
-
+	assert result.shape[1] == X.shape[0]
