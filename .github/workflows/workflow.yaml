@@ -1,4 +1,4 @@
-name: "plmblast build"
+name: "CI-CD"
 
 on:
   push:
@@ -13,12 +13,11 @@ jobs:
       uses: conda-incubator/setup-miniconda@v2.2.0
       with:
         miniconda-version: "latest"
-        python-version: 3.9
+        python-version: 3.10
     - name: list environments
       run: conda env list
+    - name: install requirements
+      run: pip install -r requirements.txt
     - name: Pytest run
-      run: |
-        conda env update --file environment.yml
-        conda install pytest
-        python -m pytest
+      run: python -m pytest
     
