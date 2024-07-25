@@ -6,7 +6,7 @@ on:
      - dev
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ghrunner
     # not ignore bash profile files
     steps:
     - name: Setup Miniconda
