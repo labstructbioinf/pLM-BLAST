@@ -5,20 +5,19 @@ on:
     branches:
      - dev
 jobs:
-  build:
-    runs-on: ghrunner
-    # not ignore bash profile files
-    steps:
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.2.0
-      with:
-        miniconda-version: "latest"
-        python-version: 3.9
-    - name: list environments
-      run: conda env list
-    - name: Pytest run
-      run: |
-        conda env update --file environment.yml
-        conda install pytest
-        python -m pytest
+  runs-on: self-hosted
+  # not ignore bash profile files
+  steps:
+  - name: Setup Miniconda
+    uses: conda-incubator/setup-miniconda@v2.2.0
+    with:
+      miniconda-version: "latest"
+      python-version: 3.9
+  - name: list environments
+    run: conda env list
+  - name: Pytest run
+    run: |
+      conda env update --file environment.yml
+      conda install pytest
+      python -m pytest
     
