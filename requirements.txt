@@ -11,6 +11,7 @@ torch==2.0.1
 tqdm==4.65.0
 transformers>=4.38.0
 sentencepiece==0.1.99
+psutil
 accelerate
 h5py
 mkl

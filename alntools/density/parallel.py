@@ -2,13 +2,16 @@
 import os
 import time
 from typing import Union, List, Dict, Optional, Union
+from typing import Union, List, Dict, Optional, Union
 import warnings
 
 from tqdm import tqdm
 import torch
 import numpy as np
 import pandas as pd
+import pandas as pd
 from torch.nn.functional import avg_pool1d
+
 
 
 
@@ -57,6 +60,7 @@ class DatabaseChunk(torch.utils.data.Dataset):
 	handle loading database composed from single files
 	'''
 	def __init__(self, path: List[os.PathLike], num_records: int, flatten: bool = False):
+	def __init__(self, path: List[os.PathLike], num_records: int, flatten: bool = False):
 
 		assert os.path.isdir(path), f"path {path} is no a valid directory"
 		dirname = os.path.dirname(path)
@@ -64,10 +68,12 @@ class DatabaseChunk(torch.utils.data.Dataset):
 			if not os.path.isdir(dirname):
 				raise FileExistsError(f'directory: {dirname} is bad')
 		self.embedding_files = [os.path.join(path, f'{f}.emb') for f in range(0, num_records)]
+		self.embedding_files = [os.path.join(path, f'{f}.emb') for f in range(0, num_records)]
 		# check if all file exists
 		for file in self.embedding_files:
 			if not os.path.isfile(file):
 				raise FileExistsError(f'missing file: {file}')
+		self.flatten = flatten
 		self.flatten = flatten
 
 	def __len__(self):
@@ -108,8 +114,11 @@ def load_embeddings_parallel_generator(path: str, num_records: int, batch_size: 
 def load_and_score_database(query_emb : torch.Tensor,
 							dbpath: str,
 							num_records: Optional[int],
+							dbpath: str,
+							num_records: Optional[int],
 							quantile : float = 0.9,
 							num_workers: int = 1,
+							device : torch.device = torch.device('cpu')) -> Dict[int, str]:
 							device : torch.device = torch.device('cpu')) -> Dict[int, str]:
 	'''
 	perform cosine similarity screening
@@ -117,12 +126,14 @@ def load_and_score_database(query_emb : torch.Tensor,
 		dbpath (str): file with .pt extension or directory
 	Returns:
 		(dict): with file id and path to embedding used
+		(dict): with file id and path to embedding used
 	'''
 	assert 0 < quantile < 1
 	if isinstance(query_emb, list):
 		query_emb = query_emb[0]
 	batch_size = 256
 	pooling = 1
+	num_workers = 0
 	num_workers = 0
 	verbose = False
 	# setup database
@@ -179,11 +190,17 @@ def load_and_score_database(query_emb : torch.Tensor,
 def batch_cosine_similarity(x : torch.Tensor, B : torch.Tensor, poolfactor: int) -> torch.Tensor:
 	'''
 	first dimension should be embedding dimenson, expects x: [embdim, 1] and B: [embdim, batch_size]
+	first dimension should be embedding dimenson, expects x: [embdim, 1] and B: [embdim, batch_size]
 	'''
+	assert x.ndim == 2
+	assert B.ndim == 2
 	assert x.ndim == 2
 	assert B.ndim == 2
 	if poolfactor > 1:
 		B = avg_pool1d(B.T, poolfactor).T
+	# embedding dimension match
+	if B.shape[0] != x.shape[0]:
+		B = B.T
 	# embedding dimension match
 	if B.shape[0] != x.shape[0]:
 		B = B.T

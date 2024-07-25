@@ -12,7 +12,10 @@ import mkl
 import numba
 import pandas as pd
 from tqdm import tqdm
+import torch
 
+mkl.set_num_threads(1)
+numba.set_num_threads(1)
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.settings as cfg
 from alntools.parser import get_parser

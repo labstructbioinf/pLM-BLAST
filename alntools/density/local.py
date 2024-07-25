@@ -29,6 +29,7 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 							targets : List[th.Tensor],
 							quantile: float, dataset_files : List[str],
 							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
+							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
 	# soft type check
 	assert isinstance(targets, Dict)
 	if isinstance(query, th.Tensor):
@@ -37,6 +38,7 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 		assert len(query) > 0
 		assert isinstance(query[0], th.Tensor)
 	assert isinstance(quantile, float)
+	assert 0 <= quantile <= 1
 	assert 0 <= quantile <= 1
 	assert isinstance(dataset_files, list)
 	assert isinstance(kernel_size, int)
@@ -73,6 +75,10 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	Returns:
 		torch.Tensor: [?]
 	'''
+	'''
+	Returns:
+		torch.Tensor: [?]
+	'''
 	# hard type params
 	unfold_kernel: List[int] = [kernel_size, embdim]
 	stride_kernel: List[int] = [stride, 1]
@@ -82,6 +88,7 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	target_norm = target_norm.squeeze()
 	target_norm = target_norm.pow(2).sum(0).sqrt()
 	return target_norm
+
 
 
 @th.jit.script

@@ -1,4 +1,4 @@
-'''test torch script operations'''
+'''test torch operations'''
 import pytest
 import torch
 import numpy as np
@@ -6,11 +6,13 @@ import numpy as np
 from alntools.numeric import embedding_local_similarity
 from alntools import gather_all_paths
 from alntools.density import chunk_cosine_similarity
+from alntools.density.local import chunk_score_batch
+from alntools.density.local import chunk_cosine_similarity
 
-PATH_SYMMETRIC_TEST = 'tests/test_data/asymetric'
+PATH_SYMMETRIC_TEST = 'tests/test_data/asymetric.pt'
 ATOL=1e-6
 EMB_DIM = 1024
-embs = torch.load(PATH_SYMMETRIC_TEST + '.pt')
+embs = torch.load(PATH_SYMMETRIC_TEST)
 embsym1, embsym2 = embs[0].numpy(), embs[1].numpy()
 
 

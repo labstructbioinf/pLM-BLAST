@@ -14,10 +14,19 @@ __pycache__/
 emb.64
 **.emb*
 
+# example
+examples/data/input/scope40.fas
+
 # temp logs
 **.txt
 **.logs
 **.log
+
+#temp notebook
+tmp.ipynb
+
+# tests
+test.sh
 
 # exceptions for tests
 !tests/test_data/*.pt
@@ -42,6 +51,8 @@ profile*.txt
 
 # script results
 scripts/output
+# example results
+examples/output
 
 # results cache
 results.*

@@ -25,6 +25,8 @@ def range_limited_float_type(arg, MIN, MAX):
 		raise argparse.ArgumentTypeError("Must be a floating point number")
 	if f < MIN or f >= MAX :
 		raise argparse.ArgumentTypeError(f"Argument must be {MIN} <= x < {MAX}")
+	if f < MIN or f >= MAX :
+		raise argparse.ArgumentTypeError(f"Argument must be {MIN} <= x < {MAX}")
 	return f
 
 
@@ -35,6 +37,7 @@ def get_parser() -> argparse.Namespace:
 		)
 
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
+	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
 	# Input and Output

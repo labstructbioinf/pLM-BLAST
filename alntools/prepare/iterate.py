@@ -17,6 +17,7 @@ def search_paths(submatrix: np.ndarray,
 		 as_df: bool = False) -> Union[Dict[str, Dict], pd.DataFrame]:
 	'''
 	iterate over all paths and search for routes matching alignmnet criteria
+
 	Args:
 		submatrix: (np.ndarray) density matrix
 		paths: (list) list of paths to scan
@@ -82,8 +83,7 @@ def search_paths(submatrix: np.ndarray,
 					continue
 				arr_values = submatrix[y1, x1]
 				arr_indices = np.stack([y1, x1], axis=1)
-				keyid = f'{ipath}_{idx}'
-				spans_locations[keyid] = {
+				spans_locations[idx] = {
 					'pathid': ipath,
 					'spanid': idx,
 					'span_start': start,
@@ -91,7 +91,7 @@ def search_paths(submatrix: np.ndarray,
 					'indices': arr_indices,
 					'score': arr_values.mean(),
 					"len": alnlen,
-					"mode": mode
+					"mode": "global" if global_mode else "local"
 				}
 	if as_df:
 		return pd.DataFrame(spans_locations.values())
