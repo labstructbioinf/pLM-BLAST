@@ -29,7 +29,6 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 							targets : List[th.Tensor],
 							quantile: float, dataset_files : List[str],
 							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
-							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
 	# soft type check
 	assert isinstance(targets, Dict)
 	if isinstance(query, th.Tensor):

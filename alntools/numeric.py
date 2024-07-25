@@ -11,8 +11,9 @@ from numba.core.errors import NumbaDeprecationWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
 
+FASTMATH = True
 
-@numba.njit(fastmath=True, cache=True)
+@numba.njit(fastmath=FASTMATH, cache=True)
 def max_value_over_line_gaps(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int, gap_pentalty: float = 0) -> float:
 	'''
@@ -76,7 +77,7 @@ def max_value_over_line_old(arr: np.ndarray, ystart: int, ystop: int,
 	return max_value
 
 
-@numba.njit(fastmath=True, cache=True)
+@numba.njit(fastmath=FASTMATH, cache=True)
 def max_value_over_line_kaiyu(arr: np.ndarray, ystart: int, ystop: int,
 						xstart: int, xstop: int):
 	'''
@@ -97,18 +98,16 @@ def max_value_over_line_kaiyu(arr: np.ndarray, ystart: int, ystop: int,
 		max_value = arr[ystart, xstart]
 		for yidx in range(ystart+1, ystop):
 			if max_value < arr[yidx, xstart]:
-			if max_value < arr[yidx, xstart]:
 				max_value = arr[yidx, xstart]
 	else:
 		max_value = arr[ystart, xstart]
 		for xidx in range(xstart+1, xstop):
 			if max_value < arr[ystart, xidx]:
-			if max_value < arr[ystart, xidx]:
 				max_value = arr[ystart, xidx]
 	return max_value
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=True, cache=True)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=FASTMATH, cache=True)
 def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 	'''
 	fill score matrix with Smith-Waterman fashion
@@ -137,7 +136,7 @@ def fill_scorematrix_local(a: np.ndarray, gap_penalty: float = 0.0):
 	return H
 
 
-@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=fastmath, cache=cache)
+@numba.njit('f4[:,:](f4[:,:], f4)', nogil=True, fastmath=FASTMATH, cache=True)
 def fill_matrix_global(a: np.ndarray, gap_penalty: float):
 	'''
 	fill score matrix in Needleman-Wunch procedure - global alignment
@@ -192,7 +191,7 @@ def fill_score_matrix(sub_matrix: np.ndarray,
 	return score_matrix
 
 
-@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=fastmath, cache=cache)
+@numba.njit('f4[:](f4[:], i4)', nogil=True, fastmath=FASTMATH, cache=True)
 def move_mean(a: np.ndarray, window_width: int):
 	'''
 	Moving average
@@ -234,7 +233,7 @@ def move_mean(a: np.ndarray, window_width: int):
 	return out
 
 
-@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', fastmath=fastmath, cache=cache)
+@numba.njit('types.Tuple((f4, i4))(f4, f4, f4)', fastmath=FASTMATH, cache=True)
 def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 	'''
 	return value and index of biggest values
@@ -248,7 +247,7 @@ def max_from_3(x: float, y: float, z: float) -> Tuple[float, int]:
 		return y, 1
 
 
-@numba.jit(fastmath=fastmath, cache=cache)
+@numba.jit(fastmath=FASTMATH, cache=True)
 def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 							gap_opening: float = 0, stop_value: float = 1e-3) -> np.ndarray:
 	'''
@@ -326,7 +325,7 @@ def traceback_from_point_opt2(scoremx: np.ndarray, point: Tuple[int, int],
 	return path_arr
 
 
-@numba.njit(fastmath=fastmath, cache=cache)
+@numba.njit(fastmath=FASTMATH, cache=True)
 def find_alignment_span(means: np.ndarray, minlen: int = 10,
 						mthreshold: float = 0.10) -> List[Tuple[int, int]]:
 	'''
@@ -365,7 +364,7 @@ def find_alignment_span(means: np.ndarray, minlen: int = 10,
 	return spans
 
 
-@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=fastmath, cache=cache)
+@numba.njit('f4[:,:](f4[:,:], f4[:,:])', nogil=True, fastmath=FASTMATH, cache=True)
 def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	'''
 	compute X, Y similarity by matrix multiplication
@@ -393,43 +392,6 @@ def embedding_local_similarity(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
 	emb2_norm = np.expand_dims(np.sqrt(np.power(Y, 2).sum(1)), 1)
 	emb1_normed = X / emb1_norm
 	emb2_normed = Y / emb2_norm
-	#density = (emb1_normed @ emb2_normed.T).T
-	density = emb2_normed @ emb1_normed.T
-	return density
-
-
-def embedding_local_similarity2(X: np.ndarray, Y: np.ndarray) -> np.ndarray:
-	'''
-	compute X, Y similarity by matrix multiplication
-	result shape [num X residues, num Y residues]
-	norm per embedding feature
-	Args:
-		X, Y - (np.ndarray 2D) protein embeddings as 2D tensors
-		  [num residues, embedding size]
-	Returns:
-		density (torch.Tensor)
-	'''
-	assert X.ndim == 2 and Y.ndim == 2
-	assert X.shape[1] == Y.shape[1]
-
-	xlen: int = X.shape[0]
-	ylen: int = Y.shape[0]
-	embdim: int = X.shape[1]
-	# normalize
-	emb1_mu: np.ndarray = np.empty((1, embdim), dtype=np.float32)
-	emb2_mu: np.ndarray = np.empty((1, embdim), dtype=np.float32)
-
-	emb1_mu_t: np.ndarray = embdim*np.ones_like(emb1_mu)
-	emb2_mu_t: np.ndarray = embdim*np.ones_like(emb2_mu)
-
-	emb1_normed: np.ndarray = np.empty((xlen, embdim), dtype=np.float32)
-	emb2_normed: np.ndarray = np.empty((ylen, embdim), dtype=np.float32)
-	density: np.ndarray = np.empty((xlen, ylen), dtype=np.float32)
-	# numba does not support sum() args other then first
-	emb1_mu = np.expand_dims(X.sum(0), axis=0)/emb1_mu_t
-	emb2_mu = np.expand_dims(Y.sum(0), axis=0)/emb2_mu_t
-	emb1_normed = X - emb1_mu
-	emb2_normed = Y - emb2_mu
 	#density = (emb1_normed @ emb2_normed.T).T
 	density = emb2_normed @ emb1_normed.T
 	return density

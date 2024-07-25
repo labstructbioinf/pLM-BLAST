@@ -159,7 +159,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		if args.nproc > 1:
 			if torch.cuda.device_count() < args.nproc:
 				raise EmbedderError('''
-				raise EmbedderError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
 	if args.nproc > 1:

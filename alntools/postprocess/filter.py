@@ -117,7 +117,6 @@ def filter_result_dataframe(data: pd.DataFrame,
 	# drop duplicates sometimes
 	resultsflt = resultsflt.drop_duplicates(
 		subset=['pathid', 'dbid', 'len', 'score'])
-		subset=['pathid', 'dbid', 'len', 'score'])
 	# filter
 	resultsflt = resultsflt.sort_values(by=['score'], ascending=False)
 	return resultsflt
