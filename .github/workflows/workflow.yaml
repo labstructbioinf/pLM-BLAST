@@ -9,6 +9,7 @@ env:
   PLMBLAST_TESTDATA: /data/test_data
   PLMBLAST_DB: /data/ecod30db_mini
   PLMBLAST_WORKERS: 4
+
 jobs:
   build:
     runs-on: self-hosted
@@ -20,6 +21,7 @@ jobs:
         python-version: '3.10'
         cache: 'pip' # caching pip dependencies
     - run: pip install -r requirements.txt
+    - run: env
     - name: run tests
       run: python -m pytest
 
