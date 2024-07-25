@@ -22,6 +22,6 @@ jobs:
         cache: 'pip' # caching pip dependencies
     - run: pip install -r requirements.txt
     - name: run tests
-      run: python -m pytest "not embedding"
+      run: pytest -m "not embedding"
 
     
