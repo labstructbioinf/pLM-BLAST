@@ -9,6 +9,7 @@ from alntools.filehandle import BatchLoader
 
 
 DIR = os.path.dirname(__file__)
+DIRUP = os.path.dirname(DIR)
 SCRIPT = os.path.join("scripts/plmblast.py")
 TESTDATA = os.environ.get("PLMBLAST_TESTDATA")
 NUM_WORKERS = int(os.environ.get("PLMBLAST_WORKERS", 4))
@@ -108,7 +109,8 @@ def test_multi_query(win: str, gap_ext: str):
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
-	assert os.path.isfile(OUTPUT_MULTI), proc.stderr
+	if not os.path.isfile(OUTPUT_MULTI):
+		raise FileNotFoundError(f'missing output after plmblast run, err: {proc.stderr}')
 	output = pd.read_csv(OUTPUT_MULTI, sep=";")
 	assert output.shape[0] > 0
 
@@ -119,14 +121,16 @@ def test_multi_query_multi_files(win: str, gap_ext: str):
 	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext} --separate"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
-	assert proc.returncode == 0, proc.stderr
+	if proc.returncode != 0:
+		raise OSError(proc.stderr)
 
 
 def test_self_similarity():
 	cmd = f"python {SCRIPT} {INPUT_SINGLE} {INPUT_SINGLE} {OUTPUT_SINGLE}"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
-	assert proc.returncode == 0, proc.stderr
+	if proc.returncode != 0:
+		raise OSError(proc.stderr)
 	assert os.path.isfile(OUTPUT_SINGLE)
 	output = pd.read_csv(OUTPUT_SINGLE)
 	# self similarity will always be not empty

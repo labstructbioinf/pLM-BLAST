@@ -29,6 +29,7 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 							targets : List[th.Tensor],
 							quantile: float, dataset_files : List[str],
 							stride: int = 3, kernel_size: int = 30) -> List[Dict[int, str]]:
+
 	# soft type check
 	assert isinstance(targets, Dict)
 	if isinstance(query, th.Tensor):
@@ -37,6 +38,7 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 		assert len(query) > 0
 		assert isinstance(query[0], th.Tensor)
 	assert isinstance(quantile, float)
+	assert 0 <= quantile <= 1
 	assert 0 <= quantile <= 1
 	assert isinstance(dataset_files, list)
 	assert isinstance(kernel_size, int)
@@ -55,9 +57,12 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 	scoremask = (scorestack >= quantile_threshold)
 	# convert mask to indices
 	for qnb in range(scorestack.shape[1]):
-		q_scoremask = scoremask[:, qnb].view(-1)
+		q_sm = scoremask[:, qnb].view(-1).tolist()
+		q_st = scorestack[:, qnb].view(-1).tolist()
 		filedict: Dict[int, str] = {
-			i : file for i, (file, condition) in enumerate(zip(dataset_files, q_scoremask)) if condition
+			i : dict(file=file, score=score) 
+				for i, (file, condition, score) in enumerate(zip(dataset_files, q_sm, q_st))
+				if condition
 			}
 		results.append(filedict)
 	del scorestack
@@ -66,6 +71,10 @@ def chunk_cosine_similarity(query : Union[th.Tensor, List[th.Tensor]],
 
 @th.jit.script
 def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
+	'''
+	Returns:
+		torch.Tensor: [?]
+	'''
 	'''
 	Returns:
 		torch.Tensor: [?]
@@ -81,10 +90,12 @@ def norm_chunk(target, kernel_size: int, embdim: int, stride: int):
 	return target_norm
 
 
+
 @th.jit.script
 def unfold_targets(targets: List[th.Tensor], kernel_size: int, stride: int, embdim: int):
 	'''
 	[kernel_size*embdim, num_folds]
+	each fold is euclidian normalized
 	'''
 	tgt_flat: List[th.Tensor] = list()
 	tgt_folds: List[int] = list()

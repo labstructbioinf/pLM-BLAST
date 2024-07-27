@@ -26,4 +26,5 @@ python ../scripts/plmblast.py \
 	$DBDIR \
 	$RESULTS \
 	-alignment_cutoff $ALIGNMENT_CUTOFF \
-	-workers $NUM_WORKERS
+	-workers $NUM_WORKERS \
+	-cpc $COSINE_CUTOFF
