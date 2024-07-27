@@ -97,7 +97,7 @@ def test_borderline_extraction(arr, cutoff, factor):
 		assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
 
 
-@pytest.mark.parametrize("X", [np.random.rand(1, 512), np.random.rand(1, 512)])
+@pytest.mark.parametrize("X", [np.random.rand(11, 512), np.random.rand(15, 512)])
 @pytest.mark.parametrize("Y", [np.random.rand(64, 512), np.random.rand(32, 512)])
 def test_cosine_similarity(X, Y):
 	X = X.astype(np.float32)
