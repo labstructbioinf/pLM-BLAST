@@ -119,10 +119,10 @@ def test_multi_query(win: str, gap_ext: str):
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
 def test_multi_query_multi_files(win: str, gap_ext: str):
 	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext} --separate"
-	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr)
+		raise OSError(proc.stderr.decode("utf-8"))
 
 
 def test_self_similarity():
@@ -130,7 +130,7 @@ def test_self_similarity():
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr)
+		raise OSError(proc.stderr.decode("utf-8"))
 	assert os.path.isfile(OUTPUT_SINGLE)
 	output = pd.read_csv(OUTPUT_SINGLE)
 	# self similarity will always be not empty
