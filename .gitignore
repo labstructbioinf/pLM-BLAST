@@ -28,7 +28,8 @@ tmp.ipynb
 # tests
 test.sh
 
-# exceptions for tests
+# exceptions for tests & development
+!requirements_dev.txt
 !tests/test_data/*.pt
 !tests/test_data/*.fas
 !tests/test_data/*.fasta
