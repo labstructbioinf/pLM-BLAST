@@ -14,6 +14,7 @@ from embedders.base import calculate_adaptive_batchsize_div4
 from embedders.dataset import HDF5Handle
 from embedders.schema import BatchIterator
 
+
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
 EMBEDDING_DATA: str = os.path.join(DIR, "test_data/seq.p")
@@ -33,6 +34,7 @@ def remove_outputs():
 		os.mkdir(EMBEDDING_OUTPUT_DIR)
 
 
+@pytest.mark.embedding
 @pytest.mark.dependency()
 def test_files():
 	assert os.path.isfile(EMBEDDING_DATA)
@@ -86,6 +88,7 @@ def test_embedding_generation(embedder, truncate, batchsize):
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
 
 
+@pytest.mark.skip("not actualy in use now")
 def test_h5py_dataset():
 	# write first batch
 	num_embs1 = 128

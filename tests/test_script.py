@@ -78,7 +78,8 @@ def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int):
 	cmd += " -alignment_cutoff 0.2"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
-	assert proc.returncode == 0, proc.stderr
+	if proc.returncode != 0:
+		raise OSError(proc.stderr)
 	# check if there are hits
 	assert os.path.isfile(OUTPUT_SINGLE), f"missing output after run from cmd: {proc.stdout}"
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")
