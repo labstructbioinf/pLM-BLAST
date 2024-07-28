@@ -94,7 +94,8 @@ def test_results_reproducibility():
 		cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {output}"
 		proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 		# check process error code
-		assert proc.returncode == 0, proc.stderr
+		if proc.returncode != 0:
+			raise OSError(proc.stderr)
 		result_stack.append(pd.read_csv(output))
 	for i, resulti in enumerate(result_stack):
 		for j, resultj in enumerate(result_stack):
@@ -111,7 +112,7 @@ def test_multi_query(win: str, gap_ext: str):
 	# check process error code
 	assert proc.returncode == 0, proc.stderr
 	if not os.path.isfile(OUTPUT_MULTI):
-		raise FileNotFoundError(f'missing output after plmblast run, err: {proc.stderr}')
+		raise FileNotFoundError(f'missing output after plmblast run, err:\n {proc.stderr}')
 	output = pd.read_csv(OUTPUT_MULTI, sep=";")
 	assert output.shape[0] > 0
 
@@ -123,15 +124,15 @@ def test_multi_query_multi_files(win: str, gap_ext: str):
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr.decode("utf-8"))
-
+		raise OSError(proc.stderr.encode("utf-8"))
+	
 
 def test_self_similarity():
 	cmd = f"python {SCRIPT} {INPUT_SINGLE} {INPUT_SINGLE} {OUTPUT_SINGLE}"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr.decode("utf-8"))
+		raise OSError(proc.stderr.encode("utf-8"))
 	assert os.path.isfile(OUTPUT_SINGLE)
 	output = pd.read_csv(OUTPUT_SINGLE)
 	# self similarity will always be not empty

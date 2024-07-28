@@ -1,5 +1,4 @@
 Bio==1.5.9
-fairscale==0.4.13
 matplotlib==3.7.1
 numba==0.57.1
 pandas==2.0.2
