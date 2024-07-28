@@ -40,6 +40,7 @@ def test_move_mean(arr, window):
 	assert not np.isnan(result).any(), 'nan values'
 
 
+@pytest.mark.timeout(30)
 @pytest.mark.parametrize("arr", [
 	np.random.uniform(noise_low, noise_high, 35),
 	np.random.uniform(noise_low, noise_high, 50),
@@ -76,9 +77,10 @@ def test_fill_score_matrix():
 	densitymap = densitymap_test['densitymap']
 	score_matrix = fill_score_matrix(densitymap)
 	assert not np.isnan(score_matrix).any(), 'nan values in score_matrix'
-	assert not np.isinf(score_matrix).any(), 'nan values in score_matrix'
+	assert not np.isinf(score_matrix).any(), 'inf values in score_matrix'
 
 
+@pytest.mark.timeout(30)
 @pytest.mark.parametrize("arr", [np.random.rand(s1, s2) for s1, s2 in [(8,8), (15, 10), (11, 25), (25, 20), (30, 50), (100, 50)]])
 @pytest.mark.parametrize("cutoff", [0, 1, 5, 10])
 @pytest.mark.parametrize("factor", [1, 2, 3])
@@ -97,6 +99,7 @@ def test_borderline_extraction(arr, cutoff, factor):
 		assert (borders == bottom_right_diag).all(1).any(), 'missing last diagnal index'
 
 
+@pytest.mark.timeout(30)
 @pytest.mark.parametrize("X", [np.random.rand(11, 512), np.random.rand(15, 512)])
 @pytest.mark.parametrize("Y", [np.random.rand(64, 512), np.random.rand(32, 512)])
 def test_cosine_similarity(X, Y):
