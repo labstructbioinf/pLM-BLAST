@@ -33,8 +33,3 @@ markers = [
     "embedding: marks tests as slow (deselect with '-m \"not embedding\"')",
     "serial",
 ]
-
-[tool.pytest_env]
-PLMBLAST_TESTDATA="/data/test_data"
-PLMBLAST_DB="/data/ecod30db_mini"
-PLMBLAST_WORKERS="4"
