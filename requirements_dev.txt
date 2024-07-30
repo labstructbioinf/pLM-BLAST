@@ -1,5 +1,4 @@
-pytest
-pytest-env
+pytest==7.4.3
 pytest-timeout
 ankh
 fairscale
