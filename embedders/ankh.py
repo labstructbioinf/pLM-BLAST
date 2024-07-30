@@ -1,7 +1,5 @@
 
 import os
-import re
-import time
 import argparse
 import warnings
 import tempfile
@@ -25,7 +23,10 @@ def main_ankh(df: pd.DataFrame,
 	'''
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
-	import ankh
+	try:
+		import ankh
+	except ImportError:
+		raise ImportError('in order to use `ankh` models type `pip install ankh` first')
 	device = select_device(args)
 	# select appropriate embedding model
 	if args.embedder == 'ankh_base':

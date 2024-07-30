@@ -1,25 +1,34 @@
-name: "build"
+name: CI-CD
 
 on:
   push:
     branches:
      - dev
 
+env:
+  PLMBLAST_TESTDATA: /data/test_data
+  PLMBLAST_DB: /data/ecod30db_mini
+  PLMBLAST_WORKERS: 4
+
+# This is what will cancel the workflow
+# source: https://stackoverflow.com/questions/66335225/how-to-cancel-previous-runs-in-the-pr-when-you-push-new-commitsupdate-the-curre
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: self-hosted
     # not ignore bash profile files
     steps:
-    - name: Setup Miniconda
-      uses: conda-incubator/setup-miniconda@v2.2.0
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
       with:
-        miniconda-version: "latest"
-        python-version: 3.9
-    - name: list environments
-      run: conda env list
-    - name: Pytest run
-      run: |
-        conda env update --file environment.yml
-        conda install pytest
-        python -m pytest
+        python-version: '3.9'
+        #cache: 'pip' # caching pip dependencies
+    - run: |
+        pip install -r requirements.txt
+        pip install -r requirements_dev.txt
+    - name: run tests
+      run: pytest tests/test_script.py --maxfail=1
+
     

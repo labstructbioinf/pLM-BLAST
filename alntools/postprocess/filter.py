@@ -1,5 +1,6 @@
 '''functions used to find and handle redundant alignments'''
 from typing import List, Union
+
 import numpy as np
 import pandas as pd
 
@@ -28,6 +29,7 @@ def calc_aln_sim(aln_xy: List[np.ndarray]) -> np.ndarray:
 def unique_aln(simgrid: np.ndarray, tolerance: float = 0.8) -> np.ndarray:
 	'''
 	create mask indicating unique alignment over alignment similarity matrix
+
 	Args:
 		simgrid: (np.ndarray) 2D matrix with alignment similarity
 		tolerance: (float) similarity cutoff, alignment with similarity lower
@@ -76,7 +78,7 @@ def filter_aln(aln_list: List[np.array], tolerance: float = 0.8,
 	aln_matrix = calc_aln_sim(aln_list)
 	mask = unique_aln(aln_matrix, tolerance=tolerance)
 	if with_similarity:
-		return mask, aln_matrix
+		return (mask, aln_matrix)
 	else:
 		return mask
 
@@ -96,16 +98,10 @@ def filter_result_dataframe(data: pd.DataFrame,
 		column = [column]
 	if 'dbid' not in data.columns:
 		data['dbid'] = 0
-
 	data = data.sort_values(by=['len'], ascending=False)
 	indices = data.indices.tolist()
 	data['y1'] = [yx[0][0] for yx in indices]
 	data['x1'] = [yx[0][1] for yx in indices]
-	#data['y2'] = [yx[-1][0] for yx in indices]
-	#data['x2'] = [yx[-1][1] for yx in indices]
-	#xy1 = np.concatenate((data['x1'].values, data['y1'].values))
-	#data['score'] = data['score'].round(3)
-
 	resultsflt = list()
 	iterator = data.groupby(['y1', 'x1'])
 	for col in column:

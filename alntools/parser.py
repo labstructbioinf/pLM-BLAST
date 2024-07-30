@@ -25,6 +25,8 @@ def range_limited_float_type(arg, MIN, MAX):
 		raise argparse.ArgumentTypeError("Must be a floating point number")
 	if f < MIN or f >= MAX :
 		raise argparse.ArgumentTypeError(f"Argument must be {MIN} <= x < {MAX}")
+	if f < MIN or f >= MAX :
+		raise argparse.ArgumentTypeError(f"Argument must be {MIN} <= x < {MAX}")
 	return f
 
 
@@ -35,6 +37,7 @@ def get_parser() -> argparse.Namespace:
 		)
 
 	range01 = lambda f:range_limited_float_type(f, 0, 1)
+	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 	range0100 = lambda f:range_limited_float_type(f, 0, 100)
 
 	# Input and Output
@@ -69,7 +72,7 @@ def get_parser() -> argparse.Namespace:
 	# Cosine Similarity Scan
 
 	parser.add_argument('-cosine_percentile_cutoff', '-cpc', 
-						help='Percentile cutoff for chunk cosine similarity pre-screening (default: %(default)s). '
+						help='Percentile cutoff (aka cpc) chunk cosine similarity pre-screening (default: %(default)s). '
 							 'The lower the value, the more sequences will be pre-screened and then aligned with pLM-BLAST. '
 							 'Setting the cutoff to 0 disables the pre-screening step.',
 						type=range0100, default=70, dest='COS_PER_CUT')    
@@ -77,7 +80,21 @@ def get_parser() -> argparse.Namespace:
 	parser.add_argument('--reduce_duplicates', 
 						help='Filter redundant hits (feature under development, use with caution).',
 						action='store_true', default=False)
-
+	
+	parser.add_argument('--only-scan', '-oc', 
+					 help='run only prescreening, results will be stored in JSON format in path specified by `output` parameter\n'
+					 	  "results format:\n"
+						  'queryid1 : {'
+						  '		{ file: targetfile1, score: scoreval1}'
+						  '     { file: targetfile2, score: scoreval2 }'
+						  '}, queryid2 : {'
+						  '	     { file: targetfile1, score: scoreval1 }'
+						  '...'
+						  '} Where score is a pre-screening value and condition checks whether quantile threshold criteria is met',
+					 action='store_true',dest='only_scan', default=False)
+	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30, type=int)
+	parser.add_argument('-cpc-stride', dest='cpc_stride', default=10, type=int,
+					 help='density of cpc sampling, the lower value the more precise search')
 	# pLM-BLAST
 
 	parser.add_argument('-alignment_cutoff', 
@@ -104,7 +121,6 @@ def get_parser() -> argparse.Namespace:
 							Use the additional normalization introduced in the paper https://doi.org/10.1093/bioinformatics/btad786 
 							(feature under development, use with caution).
 						""")
-	
 	# misc
 	parser.add_argument('--verbose', help='Be verbose (default: %(default)s)', action='store_true', default=False)
 	parser.add_argument('-workers', help='Number of CPU workers (default: %(default)s) Set to 0 to use all available cores or the number of cores set in a Slurm session.',
@@ -114,8 +130,13 @@ def get_parser() -> argparse.Namespace:
 	args = parser.parse_args()
 	
 	# validate provided parameters
+	assert args.cpc_stride > 0, 'stride must be geater or equal 1'
+	assert args.cpc_kernel_size > 1, 'kernel must be geater of equal 2. We suggest ~20-30'
 	assert args.workers >= 0
-	assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'
+	if not args.only_scan:
+		assert args.min_spanlen >= args.window_size, 'The minimum alignment length must be equal to or greater than the window length'
+	else:
+		print('running in pre-screening only mode')
 	if args.reduce_duplicates and not args.enh:
 		print('-reduce_duplicates flag is on but --enh is disabled, it will be turned on')
 		args.enh = True

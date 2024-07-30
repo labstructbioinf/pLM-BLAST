@@ -20,9 +20,11 @@ EMBEDDER = 'esm2_t33_650M_UR50D'
 def fsdb_wrappered_setup(embedder_name: str) -> torch.nn.Module:
 	# based on https://github.com/guruace/esm2-esm-1v/blob/main/examples/esm2_infer_fairscale_fsdp_cpu_offloading.py
 	# initialize the model with FSDP wrapper
-
-	from fairscale.nn.data_parallel import FullyShardedDataParallel as FSDP
-	from fairscale.nn.wrap import enable_wrap, wrap
+	try:
+		from fairscale.nn.data_parallel import FullyShardedDataParallel as FSDP
+		from fairscale.nn.wrap import enable_wrap, wrap
+	except ImportError as e:
+		raise ImportError("in order to use esm2 models, you need to install fairscale first. `pip install fairscale`")
 
 	fsdp_params = dict(
 	mixed_precision=True,

@@ -6,6 +6,7 @@ import itertools
 import warnings
 
 import numpy as np
+import numpy as np
 from Bio import SeqIO
 import pandas as pd
 import torch
@@ -98,6 +99,8 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
     Returns:
         pd.DataFrame: with columns: sequence, id and optionally description
+    Returns:
+        pd.DataFrame: with columns: sequence, id and optionally description
 	'''
 	# gather input file
 	if file.endswith('csv'):
@@ -157,6 +160,15 @@ class BatchLoader:
         assert mode in {"emb", "file"}
         
         self.mode = mode
+        self.query_ids = querydata.indexdata['run_index'].tolist()
+        if querydata.datatype == "file":
+            self.qasdir = False
+            self.qdata = self._load_single(querydata.embeddingpath)
+        else:
+             self.queryfiles = querydata.dirfiles
+        if dbdata.datatype == "file":
+             self.dbasdir = False
+             self.dbdata =  self._load_single(dbdata.embeddingpath)
         self.query_ids = querydata.indexdata['run_index'].tolist()
         if querydata.datatype == "file":
             self.qasdir = False
@@ -255,6 +267,7 @@ class BatchLoader:
     
     def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
+         embeddings = [torch.load(f).float().numpy() for f in filelist]
          embeddings = [torch.load(f).float().numpy() for f in filelist]
          return embeddings
     

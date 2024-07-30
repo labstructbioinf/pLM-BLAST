@@ -65,7 +65,7 @@ def main_prottrans(df: pd.DataFrame,
 			lenlist = lenlist_all[batchslice]
 			# add empty character between all residues
 			# his is mandatory for pt5 embedders
-			seqlist = [' '.join(list(seq)) for seq in seqlist]
+			seqlist = [' '.join(list(seq)).upper() for seq in seqlist]
 			batch_index = list(range(batchslice.start, batchslice.stop))
 			ids = tokenizer.batch_encode_plus(seqlist, add_special_tokens=True, padding="longest")
 			input_ids = torch.tensor(ids['input_ids']).to(device, non_blocking=True)

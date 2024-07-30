@@ -6,7 +6,6 @@ from typing import (Tuple,
 
 import numpy as np
 import torch
-import pandas as pd
 
 from .numeric import fill_score_matrix, traceback_from_point_opt2
 
@@ -29,11 +28,6 @@ th, td {
 }
 </style>
 </head>"""
-
-
-def sequence_to_number(seq: List[str]):
-	encoded = [ACID_DICT[res] for res in seq]
-	return torch.LongTensor(encoded)
 
 
 def list_to_html_row(data: List[str]) -> str:

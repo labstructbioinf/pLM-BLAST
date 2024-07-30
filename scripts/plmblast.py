@@ -2,17 +2,20 @@ import sys
 import os
 import gc
 import time
+import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import tempfile
 import datetime
 from typing import List, Dict
 
-import torch
 import mkl
 import numba
 import pandas as pd
 from tqdm import tqdm
+import torch
 
+mkl.set_num_threads(1)
+numba.set_num_threads(1)
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.settings as cfg
 from alntools.parser import get_parser
@@ -50,6 +53,23 @@ if __name__ == "__main__":
 	##########################################################################
 	batch_size = cfg.jobs_per_process*args.workers
 	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
+	if args.only_scan:
+		# round float values in json 
+		# https://stackoverflow.com/questions/54370322/how-to-limit-the-number-of-float-digits-jsonencoder-produces
+		class RoundingFloat(float):
+			__repr__ = staticmethod(lambda x: format(x, '.3f'))
+		json.encoder.float = RoundingFloat
+		with open(args.output, "wt") as fp:
+			json.dump(query_filedict, fp)
+		sys.exit(0)
+	else:
+		# simplify dictionary
+		query_filedict = {
+        	queryid: { targetid: value['file']
+            	for targetid, value in outer_dict.items()
+        	}
+        	for queryid, outer_dict in query_filedict.items()
+    	}
 	# initialize embedding iterator
 	batch_loader = aln.filehandle.BatchLoader(querydata=querydata,
 										      dbdata=dbdata,
@@ -65,8 +85,8 @@ if __name__ == "__main__":
 	mkl.set_num_threads(1)
 	numba.set_num_threads(1)
 	tmpresults: List[str] = list()
-	with tempfile.TemporaryDirectory() as tmpdir:
-		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(tqdm(batch_loader, desc='searching for alignments')):
+	with tempfile.TemporaryDirectory() as tmpdir, tqdm(total=len(batch_loader), desc='searching for alignments') as pbar:
+		for itr, (query_index, embedding_index, query_emb, embedding_list) in enumerate(batch_loader):
 			job_stack = list()
 			result_stack: List[pd.DataFrame] = list()
 			with ProcessPoolExecutor(max_workers = args.workers) as executor:
@@ -80,12 +100,13 @@ if __name__ == "__main__":
 						if res is not None:
 							result_stack.append(res)
 					except Exception as e:
-						raise AssertionError('job not done', e)	
+						raise AssertionError('job failed', e)	
 				if len(result_stack) > 0:
 					tmpfile = os.path.join(tmpdir, f"{itr}.p")
 					pd.concat(result_stack).to_pickle(tmpfile)
 					tmpresults.append(tmpfile)
 			gc.collect()
+			pbar.update(1)
 		if len(tmpresults) > 0: 
 			result_df = pd.concat([pd.read_pickle(f) for f in tmpresults])
 			print(f'hit candidates, {result_df.shape[0]}')
@@ -109,14 +130,17 @@ if __name__ == "__main__":
 	results = pd.concat(results, axis=0)
 	if len(results) == 0:
 		print(f'No valid hits given pLM-BLAST parameters after requested alignment cutoff {args.alignment_cutoff}!')
-		sys.exit(1)
+		sys.exit(0)
 	if args.reduce_duplicates:
 		results = results.reset_index(drop=True)
 		results = add_duplicates(results)
 	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
 	# create output directory if needed
 	if os.path.dirname(args.output) != "":
-		os.makedirs(os.path.dirname(args.output), exist_ok=True)
+		if args.separate:
+			os.makedirs(args.output, exist_ok=True)
+		else:
+			os.makedirs(os.path.dirname(args.output), exist_ok=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):

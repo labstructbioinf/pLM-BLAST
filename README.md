@@ -1,5 +1,9 @@
 # pLM-BLAST
 
+[![CI-CD](https://github.com/labstructbioinf/pLM-BLAST/actions/workflows/workflow.yaml/badge.svg)](https://github.com/labstructbioinf/pLM-BLAST/actions/workflows/workflow.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![python](https://img.shields.io/badge/Python-3.9-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
+
 pLM-BLAST is a sensitive remote homology detection tool based on the comparison of residue embeddings obtained from protein language models such as ProtTrans5. It is available as a stand-alone package as well as an easy-to-use web server within the [MPI Bioinformatics Toolkit](https://toolkit.tuebingen.mpg.de/tools/plmblast), where pre-computed databases can be searched.
 
 ## Table of contents
@@ -141,3 +145,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
 * 23/04/2024 added support for transformers `AutoModel`
 * 11/06/2024 improved speed and memory efficiency for long `plmblast.py` runs. Intermediate results are now stored on disk not RAM.
+* 30/07/2024 added `--only-scan` flag to `plmblast.py` now script can be run only pre-screening. Improved pre-screening parameter control

@@ -1,7 +1,7 @@
 import os
 import sys
 import argparse
-from typing import List, Union, Iterable, Tuple
+from typing import List, Union, Iterable, Tuple, Optional
 
 import numpy as np
 from Bio import SeqIO
@@ -113,6 +113,9 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		if df.shape[0] == 0:
 			raise AssertionError('input dataframe is empty: ', args.input)
 		out_basedir = os.path.dirname(args.output)
+		######################################################
+		# 				validate output						 #
+		######################################################
 		if out_basedir != '':
 			if not args.asdir and not os.path.isdir(out_basedir):
 				raise FileNotFoundError(f'output directory is invalid: {out_basedir}')
@@ -134,11 +137,9 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		
 		if args.truncate < 1:
 			raise EmbedderError('truncate must be greater then zero')
+			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
-		if args.h5py:
-			if os.path.isfile(args.output):
-				os.remove(args.output)
 		df.reset_index(inplace=True)
 		if args.nproc > 1:
 			if not args.asdir and not args.h5py:
@@ -148,6 +149,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
+		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():
@@ -159,6 +161,12 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 				raise EmbedderError('''
 								not enough cuda visible devices requested %d available %d
 								''' % (args.nproc, torch.cuda.device_count()))
+	if args.nproc > 1:
+		if not args.asdir and not args.h5py:
+			raise EmbedderError('''
+								multiprocessing is only available with --asdir or --h5py flag
+								''')
+
 	print('embedder: ', args.embedder, 'on ', 'GPU' if args.gpu else 'CPU')
 	print('input file: ', args.input)
 	print('output: ', args.output)
@@ -176,9 +184,15 @@ def prepare_dataframe(df: pd.DataFrame,
 			from [last_batch:]
 		'''
 		assert 'sequence' in df.columns
+		batch_size = args.batch_size
 		# prepare dataframe
 		df.reset_index(inplace=True)
 		num_records = df.shape[0]
+		if num_records < args.nproc:
+			raise EmbedderError("less sequences then requested processes, please lower nproc value")
+		# addaptive batch size dont work with one sequence
+		if num_records == 1 and batch_size == 0:
+			batch_size = 1
 		# cut sequences
 		df['seqlens'] = df['sequence'].apply(len)
 		df['sequence'] = df.apply(lambda row: \
@@ -245,8 +259,9 @@ def save_as_separate_files(embeddings: List[torch.Tensor],
 def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterable:
 	'''
 	create slice iterator over sequence list
+
 	Returns:
-		endbatch_index: (Iterable[slice]) iterator over start stop batch indices
+		Iterable[slice]: iterator over start stop batch indices
 	'''
 	assert len(seqlen_list) > 1
 	num_seq = len(seqlen_list)
@@ -338,9 +353,16 @@ def select_device(args: argparse.Namespace) -> torch.device:
 		device = torch.device('cpu')
 	return device
 
-def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
+
+def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str] = None) -> pd.DataFrame:
 	'''
 	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
+	Args:
+		file (str): path to file
+		cname (str): optional name of column with sequence string
+		plmblastid: (str, None) optional if for plmblast loop
+	Returns:
+		pd.DataFrame: columns: [queryid, id, sequence, description] if desription is not available they are filled
 	'''
 	# gather input file
 	if file.endswith('csv'):
@@ -352,8 +374,7 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
 		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
-		df = pd.DataFrame(data, columns=['id', 'description', 'sequence'])
-		df.set_index('description', inplace=True)
+		df = pd.DataFrame(data, columns=['queryid', 'id', 'sequence'])
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
@@ -367,4 +388,14 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
+	# add missing columns
+	if 'description' not in df.columns:
+		df['description'] = ['na']*df.shape[0]
+	if 'id' not in df.columns:
+		df['id'] = list(range(df.shape[0]))
+	if plmblastid is not None:
+		assert plmblastid in ['queryid', 'dbid']
+		df[plmblastid] = list(range(df.shape[0]))
+	if 'queryid' not in df.columns:
+		df['queryid'] = list(range(df.shape[0]))
 	return df

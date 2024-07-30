@@ -14,6 +14,7 @@ from embedders.base import calculate_adaptive_batchsize_div4
 from embedders.dataset import HDF5Handle
 from embedders.schema import BatchIterator
 
+
 DIR = os.path.dirname(__file__)
 EMBEDDING_SCRIPT: str = "embeddings.py"
 EMBEDDING_DATA: str = os.path.join(DIR, "test_data/seq.p")
@@ -33,6 +34,7 @@ def remove_outputs():
 		os.mkdir(EMBEDDING_OUTPUT_DIR)
 
 
+@pytest.mark.embedding
 @pytest.mark.dependency()
 def test_files():
 	assert os.path.isfile(EMBEDDING_DATA)
@@ -58,7 +60,8 @@ def test_batching(seqlen_list, res_per_batch):
 		assert len(seqlen_batch) % 4 == 0 or len(seqlen_batch) < 4, batch
 		assert batch.stop <= num_seq, batch
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['16', '0'])
@@ -85,6 +88,7 @@ def test_embedding_generation(embedder, truncate, batchsize):
 		assert emblen[0] == seqlen, f'{emblen[0]} != {seqlen}, emb full shape: {emblen}'
 
 
+@pytest.mark.skip("not actualy in use now")
 def test_h5py_dataset():
 	# write first batch
 	num_embs1 = 128
@@ -131,7 +135,7 @@ def test_batch_spliting():
 		assert seqlen_list[i] == re_seq_len[i], i
 	
 
-
+@pytest.mark.embedding
 def test_h5py_feature():
 	proc = subprocess.run(["python", "embeddings.py", "start",
 	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", "pt", "-bs", "16", "--h5py", "--gpu"],
@@ -146,7 +150,7 @@ def test_h5py_feature():
 		assert emb.shape[0] == len(seqlist[i])
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
 @pytest.mark.parametrize("batchsize", ['0', '16'])
@@ -176,7 +180,7 @@ def test_embedding_generation_fasta(embedder: str, truncate: int, batchsize: int
 								 {[e.shape[0] for e in embout]} and \n {[len(s) for s in seq_list]}''')
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file',[
 	'test_data/emb_checkpoint_start.json',
 	'test_data/emb_checkpoint_middle.json',
@@ -212,28 +216,29 @@ def test_checkpointing(checkpoint_file: str):
 	assert expected_files == found_files, proc.stdout
 
 
-#@pytest.mark.dependency(depends=['test_files', 'test_batching'])
+@pytest.mark.embedding
 @pytest.mark.parametrize('embedder',['pt'])
 def test_parallelism(embedder):
 	assert th.cuda.device_count() > 1, 'cannot run test'
 		
 	embdata = pd.read_pickle(EMBEDDING_DATA)
-	seqlist = embdata['seq'].tolist()
 	# cmd
-	proc = subprocess.run(["python", "embeddings.py", "start",
-	EMBEDDING_DATA, EMBEDDING_OUTPUT, "-embedder", embedder,
-	  "-bs", "0", '-nproc', '2'],
-	stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	cmd = f"python embeddings.py start {EMBEDDING_DATA} {EMBEDDING_OUTPUT} -bs 0 -nproc 2 {savemode}"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# chech process error code
-	assert proc.returncode == 0, proc.stderr
-	assert proc.stderr, proc.stderr
-	# check process output file/dir
-	assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
-	# check output consistency
-	embout = th.load(EMBEDDING_OUTPUT)
-	assert len(embout) == embdata.shape[0], proc.stderr
+	if savemode != "":
+		assert proc.returncode == 0, proc.stderr
+		assert proc.stderr, proc.stderr
+		# check process output file/dir
+		assert os.path.isfile(EMBEDDING_OUTPUT), f'missing embedding output file, {EMBEDDING_OUTPUT} {proc.stderr}'
+		# check output consistency
+		embout = th.load(EMBEDDING_OUTPUT)
+		assert len(embout) == embdata.shape[0], proc.stderr
+	else:
+		assert proc.returncode != 0 # savemode: file should raise an exception
 
 
+@pytest.mark.embedding
 @pytest.mark.parametrize('checkpoint_file', ['test_data/emb_checkpoint_mp_0.json'])
 @pytest.mark.parametrize('save_mode', ['asdir', 'h5py'])
 def test_parallelism_checkpoint(checkpoint_file: str, save_mode: str):

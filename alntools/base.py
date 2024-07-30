@@ -39,15 +39,16 @@ class Extractor:
 				filter_results: bool = False):
 		"""
 		Handle alignment extraction from per-reside embeddings in form of [seqlen, embdim]
+
 		Args:
-			enh: (bool) if true use signal enhancement
+			enh (bool): if true use signal enhancement
 			bfactor: (str, int) if integer - density of path search for local aligment, if string ("global")
 				change plmblast mode to global
-			sigma_factor: (float, int): higher values will result in more conservative aligments
-			gap_penalty: (float) gap penalty
-			min_spanlen: (int) shortest alignment len to capture, measrued in number of residues within
-			window_size: (int) size of average window, bigger values may produce wider but more gapish alignment
-			filter_results: (bool) - apply postprocess filtering to remove redundant hits
+			sigma_factor (float, int): higher values will result in more conservative aligments
+			gap_penalty (float): gap penalty
+			min_spanlen (int): shortest alignment len to capture, measrued in number of residues within
+			window_size (int): size of average window, bigger values may produce wider but more gapish alignment
+			filter_results (bool): - apply postprocess filtering to remove redundant hits
 
 		"""
 		# validate arguments
@@ -154,8 +155,6 @@ class Extractor:
 			return res
 		return None
 
-
 	@staticmethod
 	def validate_argument(X: np.ndarray) -> bool:
 		raise NotImplementedError()
-

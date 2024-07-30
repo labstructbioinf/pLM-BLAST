@@ -19,6 +19,7 @@ class HDF5Handle:
     wait_time: float = 0.1
     def __init__(self, filename : Union[str, os.PathLike]):
         self.filename = filename
+        # TODO create if not exists
 
     def write_batch(self, emb_list: List[Any], start_index: Union[int, List[int]]):
         assert isinstance(emb_list, list)

@@ -1,6 +1,6 @@
 [project]
 name = "plm-Blast"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Stanisław Dunin-Horkawicz", email="s.dunin-horkawicz@cent.uw.edu.pl" },
   { name="Kamil Kamiński", email="k.kaminski16@uw.edu.pl"}
@@ -22,11 +22,14 @@ classifiers = [
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = [
-    "--maxfail=10",
+    "--maxfail=10", 
 ]
 python_files = "test_*"
-pythonpath = ["."
-]
+pythonpath = ["."]
 testpaths = [
     "tests",
+]
+markers = [
+    "embedding: marks tests as slow (deselect with '-m \"not embedding\"')",
+    "serial",
 ]
