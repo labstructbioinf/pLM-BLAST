@@ -145,3 +145,4 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 * 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
 * 23/04/2024 added support for transformers `AutoModel`
 * 11/06/2024 improved speed and memory efficiency for long `plmblast.py` runs. Intermediate results are now stored on disk not RAM.
+* 30/07/2024 added `--only-scan` flag to `plmblast.py` now script can be run only pre-screening. Improved pre-screening parameter control
