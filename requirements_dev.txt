@@ -1,3 +1,5 @@
 pytest
 pytest-env
 pytest-timeout
+ankh
+fairscale

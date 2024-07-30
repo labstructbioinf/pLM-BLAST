@@ -11,15 +11,14 @@ Our tool is based on an advanced homology search algorithm, enabling the discove
 For the analysis of the proteome of Nostoc punctiforme PCC 73102, we collected a set of protein sequences specific to this bacterium from the NCBI database.
 
 ## Data Preparation
-1. We downloaded protein sequences of Nostoc punctiforme PCC 73102 from the [NCBI database](https://www.ncbi.nlm.nih.gov/datasets/taxonomy/63737/) in FASTA format.
-2. The fasta file with the sequence from October 22, 2023 has been added to the input folder. It contains 6690 protein sequences
-3. To streamline the analysis process, we've broken down the file into smaller segments, with each segment containing 1000 sequences. You'll find a script named "split_fasta.py" in the scripts folder, which can be employed for this task. (It's possible to conduct the analysis without splitting the files, but please bear in mind that longer sequences will demand more GPU memory. For graphics cards with 11 GB capacity, the maximum sequence length is approximately 3,500 amino acids. Consequently, sequences that exceed this length should be processed using the CPU.)
+1. Download protein sequences of Nostoc punctiforme PCC 73102 from the [NCBI database](https://www.ncbi.nlm.nih.gov/datasets/taxonomy/63737/) in FASTA format. It contains 6690 protein sequences.
+2. To streamline the analysis process, we've broken down the file into smaller segments, with each segment containing 1000 sequences. You'll find a script named "split_fasta.py" in the scripts folder, which can be employed for this task. (It's possible to conduct the analysis without splitting the files, but please bear in mind that longer sequences will demand more GPU memory. For graphics cards with 11 GB capacity, the maximum sequence length is approximately 3,500 amino acids. Consequently, sequences that exceed this length should be processed using the CPU.)
 
-    ```console
+    ```bash
     python examples/scripts/split_fasta.py examples/data/input/protein.fas protein_split -cs 1000 -ml 3500
     ```
-4. The fasta files will be used to calculate embeddings. To do this, you should utilize the 'embeddings.py' script.
-    ```console
+3. The fasta files will be used to calculate embeddings. To do this, you should utilize the 'embeddings.py' script.
+    ```bash
     python embeddings.py start examples/data/input/protein_split_1.fas examples/data/output/protein_split_1.pt -embedder pt --gpu -bs 1 -t 6000
     ```
     The utilized flags are as follows:
@@ -29,7 +28,7 @@ For the analysis of the proteome of Nostoc punctiforme PCC 73102, we collected a
     * `-t` -> This value determines the maximum embedding size. In our analysis, we should set a value greater than the longest sequence.
     
     For more useful flags, type:
-    ```console
+    ```bash
     python embeddings.py start -h
     ```
 
@@ -37,22 +36,15 @@ For the analysis of the proteome of Nostoc punctiforme PCC 73102, we collected a
 The data prepared in this manner will be used to search a database for homologous proteins. The database can be prepared independently or downloaded ready-made from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. In this analysis, we will use the pre-built ECOD30 database. You should use the 'scripts/plmblast.py' script, which searches the database and then returns a CSV file containing similar proteins for each query.
 
 Usage:
-```console
-python scripts/plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cosine_percentile_cutoff 90 -alignment_cutoff 0.25 -sigma_factor 2 --use_chunks
+```bash
+python scripts/plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cpc 90 -alignment_cutoff 0.25 -sigma_factor 2
 ```
 The utilized flags are as follows:
-* `-cosine_percentile_cutoff` -> Percentile cutoff for chunk cosine similarity pre-screening. The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST'
-* `-alignment_cutoff` -> pLM-BLAST alignment score cut-off
+* `-cpc` -> Percentile cutoff for chunk cosine similarity pre-screening. The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST'
+* `-alignment_cutoff` -> pLM-BLAST alignment score cut-off aka average cosine similarity of each position in alignment
 * `-sigma_factor` -> The Sigma factor defines the greediness of the local alignment search procedure
-* `--use_chunks` -> Use fast chunk cosine similarity screening instead of regular cosine similarity screening
 
 For more useful flags, type:
-```console
+```bash
 python scripts/plmblast.py -h
 ```
-
-## Results
-Our analysis of the proteome of Nostoc punctiforme PCC 73102 using the homology search program allowed us to identify numerous protein homologies within the sequences we examined. These results can provide insights into the evolutionary relationships between proteins in this specific bacterium and potential functions of these proteins.
-
-## Conclusion
-The use of a homology search program in the analysis of the proteome of Nostoc punctiforme PCC 73102 is a valuable tool for studying protein relatedness and evolution within this specific bacterium. It provides an opportunity to better understand the functions of these proteins and their evolutionary relationships within the context of Nostoc punctiforme PCC 73102.

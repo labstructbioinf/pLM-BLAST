@@ -137,7 +137,10 @@ if __name__ == "__main__":
 	results.sort_values(by=['qid', 'score'], ascending=False, inplace=True)
 	# create output directory if needed
 	if os.path.dirname(args.output) != "":
-		os.makedirs(os.path.dirname(args.output), exist_ok=True)
+		if args.separate:
+			os.makedirs(args.output, exist_ok=True)
+		else:
+			os.makedirs(os.path.dirname(args.output), exist_ok=True)
 	# save results in desired mode
 	if args.separate:
 		for qid, row in results.groupby('qid'):
