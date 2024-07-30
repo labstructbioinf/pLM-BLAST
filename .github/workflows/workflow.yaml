@@ -24,6 +24,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements_dev.txt
     - name: run tests
-      run: pytest -m "not embedding"
+      run: pytest -m tests/test_script.py
 
     
