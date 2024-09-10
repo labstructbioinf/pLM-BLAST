@@ -37,7 +37,7 @@ pip install -r requirements.txt
 # Usage
 ## Databases
 
-Pre-computed databases can be downloaded from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs. pLM-BLAST can use any kind of embeddings, which are in the form of `(seqlen, embdim)`.
+Pre-computed databases can be downloaded from [http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs](http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/). pLM-BLAST can use any kind of embeddings, which are in the form of `(seqlen, embdim)`.
 
 The `embeddings.py` script can be used to create a custom database based on pLM embeddings (`T5` based model such as `prott5`, `esm`-family or any model working with `transformers` `AutoModel` class) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
 
