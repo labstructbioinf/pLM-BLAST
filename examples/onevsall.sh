@@ -10,7 +10,7 @@ OUTDIR="./data/output"
 OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database
-# Pre-calculated ECOD databased can be obtained from http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs
+# Pre-calculated ECOD databased can be obtained from http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/
 DB_PATH="/home/users/sdunin/db/plmblast/data/ecod30db_20231201"
 
 # Return hits with scores >=0.3 (max score is 1)
