@@ -82,19 +82,22 @@ def get_parser() -> argparse.Namespace:
 						action='store_true', default=False)
 	
 	parser.add_argument('--only-scan', '-oc', 
-					 help='run only prescreening, results will be stored in JSON format in path specified by `output` parameter\n'
-					 	  "results format:\n"
+					 help='Perform preprocessing only, results are stored in JSON format in the path specified by the `output` parameter.\n'
+					 	  "Results format:\n"
 						  'queryid1 : {'
 						  '		{ file: targetfile1, score: scoreval1}'
-						  '     { file: targetfile2, score: scoreval2 }'
+						  '             { file: targetfile2, score: scoreval2 }'
 						  '}, queryid2 : {'
 						  '	     { file: targetfile1, score: scoreval1 }'
 						  '...'
-						  '} Where score is a pre-screening value and condition checks whether quantile threshold criteria is met',
+						  '} Where score is a pre-screening score. Note that only hits matching the criteria specified by the `-cpc` parameter are saved.',
 					 action='store_true',dest='only_scan', default=False)
-	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30, type=int)
+
+	parser.add_argument('-cpc-kernel-size', dest='cpc_kernel_size', default=30, type=int,
+					 help='Cosine similarity pre-screening window size. (default: %(default)s)')
 	parser.add_argument('-cpc-stride', dest='cpc_stride', default=10, type=int,
-					 help='density of cpc sampling, the lower value the more precise search')
+					 help='Sampling density, the lower the value, the more precise the search. (default: %(default)s)')
+
 	# pLM-BLAST
 
 	parser.add_argument('-alignment_cutoff', 
