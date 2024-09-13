@@ -64,7 +64,7 @@ In the examples above, `database` defines a directory where sequence embeddings 
 
 The batch size (number of sequences per batch) is set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
-The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-proc X` where `X` is the number of GPU devices you want to use.
+The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-nproc X` where `X` is the number of GPU devices you want to use.
 
 ### Checkpointing feature
 
