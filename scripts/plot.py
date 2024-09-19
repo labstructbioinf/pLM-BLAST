@@ -65,7 +65,7 @@ assert os.path.isfile(query_index)
 
 # qid == id
 query_df = read_input_file(query_index)
-#query_df.set_index('id', inplace=True)
+query_df.set_index('id', inplace=True)
 #print(query_df)
 num_queries = query_df.shape[0]
 # create output dir for multi-query case
