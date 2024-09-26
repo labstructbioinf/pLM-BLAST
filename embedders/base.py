@@ -16,6 +16,16 @@ class EmbedderError(Exception):
 	pass
 
 
+def is_index_valid(dfindex) -> bool:
+	'''
+	true if index is unique and integer
+	'''
+	if dfindex.has_duplicates or not np.issubdtype(dfindex.dtype, np.integer):
+		return False
+	else:
+		return True
+
+
 def create_parser() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description =
 		"""
@@ -140,7 +150,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
-		df.reset_index(inplace=True)
+		if not is_index_valid(df.index):
+			df.reset_index(inplace=True)
 		if args.nproc > 1:
 			if not args.asdir and not args.h5py:
 				raise EmbedderError("tu use `nproc` you must specify --asdir flag")
@@ -185,8 +196,9 @@ def prepare_dataframe(df: pd.DataFrame,
 		'''
 		assert 'sequence' in df.columns
 		batch_size = args.batch_size
-		# prepare dataframe
-		df.reset_index(inplace=True)
+		# prepare dataframe - validate that index is unique integer
+		if not is_index_valid(df.index):
+			df.reset_index(inplace=True)
 		num_records = df.shape[0]
 		if num_records < args.nproc:
 			raise EmbedderError("less sequences then requested processes, please lower nproc value")
@@ -194,14 +206,14 @@ def prepare_dataframe(df: pd.DataFrame,
 		if num_records == 1 and batch_size == 0:
 			batch_size = 1
 		# cut sequences
-		df['seqlens'] = df['sequence'].apply(len)
+		df['seqlens'] = df['sequence'].str.len()
 		df['sequence'] = df.apply(lambda row: \
 					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
 		df['sequence'] = df['sequence'].str.upper()
 		# update size
-		df['seqlens'] = df['sequence'].apply(len)
+		df['seqlens'] = df['sequence'].str.len()
 		print(f'saving index file to: {args.output + ".csv"}')
-		df.to_csv(args.output + ".csv")
+		df.to_csv(args.output + ".csv", index=False)
 		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
