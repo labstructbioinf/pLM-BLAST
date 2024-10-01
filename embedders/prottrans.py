@@ -14,6 +14,9 @@ from transformers import T5Tokenizer, T5EncoderModel
 from .dataset import HDF5Handle
 from .base import save_as_separate_files, select_device
 from .schema import BatchIterator
+from .utils import pool_batch
+
+
 regex_aa = re.compile(r"[UZOB]")
 # default embedder
 DEFAULT_EMBEDDER_PT5: str = 'Rostlab/prot_t5_xl_half_uniref50-enc'
@@ -50,6 +53,8 @@ def main_prottrans(df: pd.DataFrame,
 		model.to(device)
 		model.eval()
 	print(f'model: {embedder_name} loaded on {device}')
+	if args.poolfc != 1:
+		print(f"output embeddings will be reshaped by factor {args.poolfc}")
 	gc.collect()
 	if df.seqlens.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
@@ -84,9 +89,13 @@ def main_prottrans(df: pd.DataFrame,
 					raise KeyError(f'sequence is longer then embedding {emb.shape} and {seq_len} ')
 				# clone unpadded tensor to aviod memory issues	   
 				embeddings_filt.append(emb[:seq_len].clone())
+			embeddings_filt = pool_batch(embeddings_filt, args.poolfc)
 			# store each batch depending on save mode
 			if args.asdir:
-				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
+				save_as_separate_files(embeddings_filt, 
+                           batch_index=batch_index, 
+                           directory=args.output,
+                           suffix=args.poolfc if args.poolfc != 1 else "")
 			elif args.h5py:
 				if args.nproc == 1:
 					HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)

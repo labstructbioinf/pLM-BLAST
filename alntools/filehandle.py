@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Union, Optional
 from collections import namedtuple
 import itertools
 import warnings
+import json
 
 import numpy as np
 import numpy as np
@@ -29,6 +30,7 @@ class DataObject:
      embeddingpath: str = ""
      # none if not exists
      poolpath: Optional[str] = None
+     poolfc: Optional[int] = 1
      pathdata: str
      ext: str = ".emb"
      objtype: str = "query"
@@ -54,7 +56,7 @@ class DataObject:
      
      def _find_datatype(self):
         """
-        determine dir or file
+        determine dir or file and pooled variants
         """
         self.embeddingpath = self.pathdata
         if os.path.isdir(self.pathdata):
@@ -62,6 +64,12 @@ class DataObject:
             # only present in dir mode
             poolpath = os.path.join(self.pathdata, EMB64_EXT)
             self.poolpath = poolpath
+            if os.path.isfile(self.pathdata + ".json"):
+                with open(self.pathdata + ".json", "rt") as fp:
+                    embedder_args = json.load(fp)
+                    print(embedder_args)
+                self.poolfc = embedder_args.get("poolfc", 1)
+                print(self.poolfc)
         elif os.path.isfile(self.pathdata + ".pt"):
             self.datatype = 'file'
             self.embeddingpath += ".pt"
@@ -75,10 +83,16 @@ class DataObject:
           """
           return all files availabe for this dataobj
           """
+          run_index = self.indexdata['run_index'].tolist()
           if self.datatype == "dir":
-                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in self.indexdata['run_index'].tolist()]
+            # handle pooled version of dbs
+            if self.poolfc != 1:
+                suffix = f".{self.poolfc}{self.ext}"
+            else:
+                suffix = self.ext
+            return [os.path.join(self.embeddingpath, f"{idx}{suffix}") for idx in run_index]
           else:
-                return self.indexdata['run_index'].tolist()
+              return run_index
           
                
 def find_file_extention(infile: str) -> str:
@@ -274,6 +288,7 @@ class BatchLoader:
     def _load_single(self, f) -> List[np.ndarray]:
         """
         load torch file content
+        
         Returns:
             list(np.ndarray) or np.ndarray
         """

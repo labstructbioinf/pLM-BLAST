@@ -11,7 +11,7 @@ mkdir -p data/output
 # Calculate embeddings if they are not created yet
 if [ ! -d $DBDIR ]; then
 	echo "calculate Rossmanns embeddings"
-	python ../embeddings.py start $INPUT.fas $DBDIR -bs 0 --asdir
+	python ../embeddings.py start $INPUT.fas $DBDIR -bs 0 --asdir -poolfc 2
 	cp $INPUT.fas $DBDIR.fas
 fi
 

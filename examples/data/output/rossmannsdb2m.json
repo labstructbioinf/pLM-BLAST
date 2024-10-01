@@ -1,0 +1,1 @@
+{"subparser_name": "start", "input": "data/input/rossmannsdb.fas", "output": "data/output/rossmannsdb2m", "embedder": "pt", "cname": "", "gpu": false, "batch_size": 0, "asdir": true, "h5py": false, "truncate": 1000, "use_fastt5": false, "res_per_batch": 6000, "poolfc": 2, "last_batch": 0, "nproc": 1}

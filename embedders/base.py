@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 from typing import List, Union, Iterable, Tuple, Optional
+import json
 
 import numpy as np
 from Bio import SeqIO
@@ -105,6 +106,8 @@ def create_parser() -> argparse.Namespace:
 		"""
 		set the maximal number of residues in each batch, only used when batch_size is set to 0
 		""")
+	start_group.add_argument("-poolfc", default=1, type=int, choices=[1, 2, 4], help=\
+     "if > 1 resulting embeddings will be pooled [num_res, embdim/poolfc]")
 	start_group.add_argument('--last_batch', help=argparse.SUPPRESS, type=int, default=0)
 	start_group.add_argument('-nproc', '-np', help='number of process to spawn', default=1,
 						  type=int)
@@ -147,7 +150,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		
 		if args.truncate < 1:
 			raise EmbedderError('truncate must be greater then zero')
-			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
 		if not is_index_valid(df.index):
@@ -160,7 +162,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
-		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():
@@ -181,9 +182,9 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 	print('embedder: ', args.embedder, 'on ', 'GPU' if args.gpu else 'CPU')
 	print('input file: ', args.input)
 	print('output: ', args.output)
-	#print('sequence cut threshold: ', args.truncate)
-	#print('save mode: ', 'directory' if args.asdir else 'file')
-	#print()
+	# save args for later usage
+	with open(args.output + ".json", "wt") as fp:
+		json.dump(vars(args), fp)
 	return args, df
 
 	
@@ -254,15 +255,17 @@ def make_iterator(seqlens: List[int], batch_size: int, res_per_batch: int) -> Li
 
 def save_as_separate_files(embeddings: List[torch.Tensor],
 						   batch_index: List[Union[str, int]],
-						   directory: os.PathLike) -> List[os.PathLike]:
+						   directory: os.PathLike,
+						   suffix: Union[str, int] = "") -> List[os.PathLike]:
 
+	assert isinstance(suffix, (int, str))
 	assert len(embeddings) == len(batch_index)
 	assert len(embeddings) > 0 and isinstance(embeddings[0], torch.Tensor)
-
+	extention = ".emb" if suffix == "" else f".{suffix}.emb"
 	batch_index = [str(idx) for idx in batch_index]
 	filelist = list()
 	for batch_i, emb_i in zip(batch_index, embeddings):
-		path_i = os.path.join(directory, batch_i) + '.emb'
+		path_i = os.path.join(directory, batch_i) + extention
 		torch.save(emb_i.half(), path_i)
 		filelist.append(path_i)
 	return filelist
