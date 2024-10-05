@@ -6,13 +6,15 @@
 __pycache__/
 **/__pycache__/
 
-# torch embeddings
+# embeddings
 **.pt
 **.pth
 **.emb
 **.emb.64
 emb.64
 **.emb*
+**.npy
+**.index.csv
 
 # example
 examples/data/input/scope40.fas

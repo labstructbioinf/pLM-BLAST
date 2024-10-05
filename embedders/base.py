@@ -92,15 +92,12 @@ def create_parser() -> argparse.Namespace:
 		output embeddings will be stored as hdf5 file with .h5
 		""",
 		action='store_true', default=False)
+	store_group.add_argument("--npy", action='store_true', default=False)
 	start_group.add_argument('-truncate', '-t', default=1000, help=\
 		"""
 		cut sequences longer then parameter, similar to sequence[:truncate], helps to prevent OOM errors
 		""",
 		type=int, dest='truncate')
-	start_group.add_argument('--use_fastt5', action='store_true', help=\
-		"""
-		experimental feature - uses https://github.com/Ki6an/fastT5 for (prott5) inference speed
-		""")
 	start_group.add_argument('-res_per_batch', default=6000, type=int, help=\
 		"""
 		set the maximal number of residues in each batch, only used when batch_size is set to 0
@@ -135,7 +132,7 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		if not args.asdir and not args.h5py:
 			if not args.output.endswith(".pt"):
 				args.output += ".pt"
-		if (args.embedder == 'pt') or args.embedder.lower().find('prot') !=- 1 :
+		if (args.embedder.startswith('pt')) or args.embedder.lower().find('prot') !=- 1 :
 			pass
 		elif args.embedder.startswith('esm') or \
 			 args.embedder.startswith('prost') or \
@@ -146,7 +143,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			raise EmbedderError("invalid embedder name, supported models: prot5, esm - family, and ankh", args.embedder)
 		
 		if args.truncate < 1:
-			raise EmbedderError('truncate must be greater then zero')
 			raise EmbedderError('truncate must be greater then zero')
 		if args.res_per_batch <= 0:
 			raise ValueError('res per batch must be > 0')
@@ -160,7 +156,6 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 		df = read_input_file(args.input, cname=args.cname)
 		print('checkpoint file: ', args.output)
 	else:
-		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 		raise EmbedderError(f'invalid subparser_name: {args.subparser_name}')
 	if args.gpu:
 		if not torch.cuda.is_available():

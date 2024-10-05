@@ -1,7 +1,8 @@
 import os
 import time
-from typing import List, Any, Union
+from typing import List, Any, Union, Tuple
 
+import pandas as pd
 import h5py 
 import numpy as np
 import torch
@@ -70,3 +71,96 @@ class HDF5Handle:
                 dataset_name = f'{self.preffix}{index}'
                 emb_list.append(emb_group[dataset_name][:])
         return emb_list
+    
+    
+class NPHandle:
+    '''
+    handle db operations on memmap numpy object
+    '''
+    dtype = np.float16
+    index_file_extention = ".index.csv"
+    index_columns = ['startindex', 'seqlen']
+    embdim: int = 1024
+    dbfile: str = None
+    dbfile_index: str = None
+    cursor: np.ndarray = None
+    # position of last embedding batch 
+    _last_save_location: int = 0
+    shape: Tuple[int, int] = None
+    
+    def __init__(self, dbfile: str, mode='r+', seqlens: List[int] = None):
+        
+        assert mode in {'r+', 'w+'}
+        self.dbfile = f"{dbfile}.npy"
+        self.dbfile_index = f"{dbfile}{self.index_file_extention}"
+        # read index
+        # read shape
+        # set pointer/cursor
+        if mode == 'r+':
+            assert os.path.isfile(self.dbfile)
+            assert os.path.isfile(self.dbfile_index)
+            self.index = pd.read_csv(self.dbfile_index)
+            self.read_shape()
+            self.fp = np.memmap(filename=self.dbfile,
+                    dtype=self.dtype,
+                    mode="r+",
+                    shape=self.shape)
+        
+        # create index if not exists
+        # calculate shape if file is not present
+        if mode == 'w+':
+            if not (os.path.isfile(dbfile) and os.path.isfile(self.dbfile_index)):
+                if isinstance(seqlens, list):
+                    self.initialize(seqlens)
+                else:
+                    raise ArgumentError("""
+                        if you want to create a database you must first supply
+                        seqlens
+                        """)
+      
+    def read_shape(self):
+        '''
+        shape of database is equal to position of last protein + its len
+        '''
+        lastindex = self.index['startindex'].values[-1]
+        lastlen = self.index['seqlen'].values[-1]
+        self.shape = (lastindex + lastlen, self.embdim)
+    
+    def initialize(self, seqlens: List[int], embdim: int = 1024):
+        '''
+        create instance .npy and index.csv if not exists
+        '''
+        startindex = np.cumsum([0] + seqlens)
+        self.shape = (startindex[-1] + seqlens[-1], embdim)
+        # write index
+        tmp = pd.DataFrame(data=zip(startindex, seqlens), columns=self.index_columns)
+        tmp.to_csv(self.dbfile_index, index=False)
+        fp = np.memmap(filename=self.dbfile, 
+                       dtype=self.dtype,
+                       mode="w+",
+                       shape=self.shape)
+        del fp
+        
+    def write(self, embbatch: torch.Tensor):
+        """
+        write single sequence
+        """
+        embbatch = embbatch.half().numpy()
+        num_residues = embbatch.shape[0]
+        fp = np.memmap(filename=self.dbfile,
+                       dtype=self.dtype,
+                       mode="w+",
+                       shape=self.shape)
+        fp[self._last_save_location:self._last_save_location + num_residues, :] = num_residues
+        # apply changes to disk and remove
+        del fp
+    
+    def readraw(self, startindex, seqlen) -> np.ndarray:
+        '''
+        read chunk of the database
+        '''
+        return self.fp[startindex:startindex+seqlen, :]
+        
+    def read(self, idx: int) -> np.ndarray:
+        idrow = self.index.iloc[idx]
+        return self.fp[idrow.startindex:idrow.startindex + idrow.seqlen, :]

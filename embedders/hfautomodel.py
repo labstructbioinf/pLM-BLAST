@@ -22,6 +22,7 @@ DEFAULT_EMBEDDER_PROST: str = 'Rostlab/ProstT5'
 DEFAULT_DTYPE = torch.float32
 DEFAULT_WAIT_TIME: float = 0.05
 
+
 def main_automodel(df: pd.DataFrame,
 				    args: argparse.Namespace,
 					  iterator: BatchIterator,
@@ -29,12 +30,20 @@ def main_automodel(df: pd.DataFrame,
 	'''
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
+	adapter_name = ""
 	device = select_device(args)
 	dtype = torch.float32 if device == torch.device('cpu') else torch.float16
 	# select appropriate embedding model
 	embedder_name = args.embedder.replace("hf:", "")
+	# search for adapter
+	if embedder_name.find(":") != -1:
+		embedder_name, adapter_name = embedder_name.split(":")
+	print(f'model: {embedder_name} loaded on {device}')
 	tokenizer = AutoTokenizer.from_pretrained(embedder_name, do_lower_case=False)
 	model = AutoModel.from_pretrained(embedder_name, torch_dtype=dtype)
+	if adapter_name:
+		print('using adapter:', adapter_name)
+		model.load_adapter(adapter_name)
 	model.to(device)
 	model.eval()
 	print(f'model: {embedder_name} loaded on {device}')

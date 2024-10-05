@@ -11,7 +11,7 @@ from tqdm import tqdm
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
 
-from .dataset import HDF5Handle
+from .dataset import HDF5Handle, NPHandle
 from .base import save_as_separate_files, select_device
 from .schema import BatchIterator
 regex_aa = re.compile(r"[UZOB]")
@@ -29,35 +29,30 @@ def main_prottrans(df: pd.DataFrame,
 	calulates embeddings for any embedding model fittable to transformer T5EncoderModel
 	'''
 	device = select_device(args)
+	adapter = ""
 	# select appropriate embedding model
-	if args.embedder == 'pt':
+	if args.embedder.find(":") != -1:
+		_, adapter = args.embedder.split(":")
+	if args.embedder.startswith('pt'):
 		embedder_name = DEFAULT_EMBEDDER_PT5
-	elif args.embedder == 'prost':
+	elif args.embedder.startswith('prost'):
 		embedder_name = DEFAULT_EMBEDDER_PROST
 	tokenizer = T5Tokenizer.from_pretrained(embedder_name, do_lower_case=False)
-	if args.use_fastt5:
-		# implementation based on https://github.com/Ki6an/fastT5/issues/70
-		from fastT5 import generate_onnx_representation
-		from fastT5 import get_onnx_runtime_sessions
-		from fastT5 import quantize, OnnxT5
-		model_path = generate_onnx_representation(embedder_name)
-		model_path_quant = quantize(model_path)
-		model_sessions = get_onnx_runtime_sessions(model_path_quant, default=False)
-		model = OnnxT5(model_path_quant, model_sessions)
-	else:
-		torch_dtype = torch.float16 if args.gpu else DEFAULT_DTYPE
-		model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
-		model.to(device)
-		model.eval()
+	torch_dtype = torch.float16 if args.gpu else DEFAULT_DTYPE
+	model = T5EncoderModel.from_pretrained(embedder_name, torch_dtype=torch_dtype)
+	if adapter: model.load_adapter(adapter)
+	model.to(device).eval()
 	print(f'model: {embedder_name} loaded on {device}')
 	gc.collect()
 	if df.seqlens.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
 	batch_files = []
-	if args.asdir and not os.path.isdir(args.output):
-		os.mkdir(args.output)
 	seqlist_all = df['sequence'].tolist()
 	lenlist_all = df['seqlens'].tolist()
+	if args.asdir and not os.path.isdir(args.output):
+		os.mkdir(args.output)
+	elif args.npy:
+		npyhandle = NPHandle(args.output, mode="w+", seqlens=lenlist_all)
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):
 			args.last_batch = batch_id_filename
@@ -87,6 +82,8 @@ def main_prottrans(df: pd.DataFrame,
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
+			if args.npy:
+				for emb in embeddings_filt: npyhandle.write(emb)
 			elif args.h5py:
 				if args.nproc == 1:
 					HDF5Handle(args.output).write_batch(embeddings_filt, batch_index)

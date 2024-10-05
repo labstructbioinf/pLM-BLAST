@@ -11,8 +11,9 @@ import pandas as pd
 import torch as th
 
 from embedders.base import calculate_adaptive_batchsize_div4
-from embedders.dataset import HDF5Handle
+from embedders.dataset import HDF5Handle, NPHandle
 from embedders.schema import BatchIterator
+
 
 
 DIR = os.path.dirname(__file__)
@@ -20,15 +21,21 @@ EMBEDDING_SCRIPT: str = "embeddings.py"
 EMBEDDING_DATA: str = os.path.join(DIR, "test_data/seq.p")
 EMBEDDING_FASTA: str = os.path.join(DIR, "test_data/seq.fasta")
 EMBEDDING_OUTPUT: str = os.path.join(DIR, "test_data/output/seq.emb")
+EMBEDDING_NPY: str = os.path.join(DIR, "test_data/seq.npy")
 EMBEDDING_OUTPUT_DIR: str = os.path.join(DIR, 'test_data', 'output')
 NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
 DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
 
 
+def random_sequences(size = 100, qmin = 50, qmax = 500) -> list:
+    seqlens = th.randint(qmin, qmax, size=(size, )).tolist()
+    return [th.rand((seqlen, 1024)) for seqlen in seqlens]
+
+
 @pytest.fixture(autouse=True)
 def remove_outputs():
-	if os.path.isfile(EMBEDDING_OUTPUT):
-		os.remove(EMBEDDING_OUTPUT)
+	if os.path.isfile(EMBEDDING_OUTPUT): os.remove(EMBEDDING_OUTPUT)
+	if os.path.isfile(EMBEDDING_NPY): os.remove(EMBEDDING_NPY)
 	if os.path.isdir(EMBEDDING_OUTPUT_DIR):
 		shutil.rmtree(EMBEDDING_OUTPUT_DIR)
 		os.mkdir(EMBEDDING_OUTPUT_DIR)
@@ -61,6 +68,24 @@ def test_batching(seqlen_list, res_per_batch):
 		assert batch.stop <= num_seq, batch
 
 
+def test_npy_database():
+	embeddings = random_sequences(200, 100, 500)
+	seqlens = [emb.shape[0] for emb in embeddings]
+	nph = NPHandle(EMBEDDING_NPY.replace(".npy", ""), mode="w+", seqlens=seqlens)
+	# write
+	for emb in embeddings:
+		nph.write(emb)
+	# read
+	embeddings_loaded = list()
+	npread = NPHandle(EMBEDDING_NPY.replace(".npy", ""), mode="r+")
+	for idx in range(len(embeddings)):
+		embeddings_loaded.append(npread.read(idx))
+	
+	assert len(embeddings) == len(embeddings_loaded)
+	for emb, embl in zip(embeddings, embeddings_loaded):
+		assert emb.shape[0] == embl.shape[0], f"shape mismath {emb.shape[0]} and {embl.shape[0]}"
+ 
+ 
 @pytest.mark.embedding
 @pytest.mark.parametrize("embedder", ["pt", "esm", "prost"])
 @pytest.mark.parametrize("truncate", ["200"])
