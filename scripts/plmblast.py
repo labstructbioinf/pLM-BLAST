@@ -12,7 +12,6 @@ import mkl
 import numba
 import pandas as pd
 from tqdm import tqdm
-import torch
 
 mkl.set_num_threads(1)
 numba.set_num_threads(1)
@@ -37,11 +36,9 @@ if __name__ == "__main__":
 					sigma_factor=args.sigma_factor,
 					gap_penalty=args.gap_penalty,
 					min_spanlen=args.min_spanlen,
-					window_size=args.window_size)
-	# other params
-	module.FILTER_RESULTS = True
+					window_size=args.window_size,
+     				filter_results=True)
 	print("num cores: ", args.workers)
-
 	#module.show_config()
 	# Load database index file
 	dbdata = DataObject.from_dir(args.db, objtype="database")

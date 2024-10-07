@@ -1,6 +1,6 @@
 import os
 import math
-from typing import List, Dict, Tuple, Union, Optional
+from typing import List, Dict, Tuple, Union, Optional, Literal
 from collections import namedtuple
 import itertools
 import warnings
@@ -13,8 +13,10 @@ import torch
 
 from .settings import EMB64_EXT
 from .settings import EXTENSIONS
+from ..embedders.dataset import NPHandle
 
-
+ObjType = Literal["query", "database"]
+DBType = Literal['dir', 'file', 'npy']
 record = namedtuple('record', ['qid', 'qdbids' , 'dbfiles'])
 
 
@@ -25,15 +27,15 @@ class DataObject:
      size: int = 0
      indexfile: str
      indexdata: pd.DataFrame
-     datatype: str = "dir"
+     datatype: DBType = "dir"
      embeddingpath: str = ""
      # none if not exists
      poolpath: Optional[str] = None
      pathdata: str
      ext: str = ".emb"
-     objtype: str = "query"
+     objtype: ObjType = "query"
 
-     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: str = "query"):
+     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: ObjType):
 
         self.pathdata = pathdata
         self.indexdata = indexdata
@@ -43,9 +45,9 @@ class DataObject:
         print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype} mode")
      
      @classmethod
-     def from_dir(cls, pathdata: str, objtype: str = "query"):
+     def from_dir(cls, pathdata: str, objtype: ObjType):
         """
-        path to data
+        find embeddings storage type
         """
         infile_with_extention = find_file_extention(pathdata)
         indexfile = read_input_file(infile_with_extention)
@@ -54,31 +56,35 @@ class DataObject:
      
      def _find_datatype(self):
         """
-        determine dir or file
+        determine dir, file or npy mode
         """
         self.embeddingpath = self.pathdata
+        if os.path.isfile(self.pathdata + '.npy') and os.path.isfile(self.pathdata + ".index.csv"):
+            self.datatype = 'npy'
         if os.path.isdir(self.pathdata):
             self.datatype = 'dir'
-            # only present in dir mode
-            poolpath = os.path.join(self.pathdata, EMB64_EXT)
-            self.poolpath = poolpath
         elif os.path.isfile(self.pathdata + ".pt"):
             self.datatype = 'file'
             self.embeddingpath += ".pt"
         else:
              FileNotFoundError(f'''no valid database in given location: {self.pathdata},
-                                make sure it contain {self.pathdata}.pt file or it is a 
-                                directory with .emb files''')
+                                make sure it contain {self.pathdata}.pt file, it is a 
+                                directory with .emb files or .npy file with .index.csv''')
+        if self.datatype in {'npy', 'dir'}:
+            # only present in dir mode
+            self.poolpath = os.path.join(self.pathdata, EMB64_EXT)
     
      @property
      def dirfiles(self) -> Union[List[str], List[int]]:
           """
           return all files availabe for this dataobj
           """
+          run_index = self.indexdata['run_index'].tolist()
+          # find file locations
           if self.datatype == "dir":
-                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in self.indexdata['run_index'].tolist()]
+                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in run_index]
           else:
-                return self.indexdata['run_index'].tolist()
+                return run_index
           
                
 def find_file_extention(infile: str) -> str:
@@ -97,8 +103,6 @@ def find_file_extention(infile: str) -> str:
 def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	'''
 	read sequence file in format (.csv, .p, .pkl, .fas, .fasta)
-    Returns:
-        pd.DataFrame: with columns: sequence, id and optionally description
     Returns:
         pd.DataFrame: with columns: sequence, id and optionally description
 	'''
@@ -148,6 +152,7 @@ class BatchLoader:
     _iteratons_per_record = dict()
     _qdata_record: List[record] = list()
     current_iteration = 0
+    npyhandle = None
     def __init__(self,
                  querydata: DataObject,
                  dbdata: DataObject, 
@@ -160,24 +165,19 @@ class BatchLoader:
         assert mode in {"emb", "file"}
         
         self.mode = mode
+        # prepare query data
         self.query_ids = querydata.indexdata['run_index'].tolist()
+        if dbdata.datatype == "file":
+             self.dbasdir = False
+             self.dbdata =  self._load_single(dbdata.embeddingpath)
+        elif dbdata.datatype == "npy":
+            self.npyhandle = NPHandle(dbdata.pathdata, mode="r+")
         if querydata.datatype == "file":
             self.qasdir = False
             self.qdata = self._load_single(querydata.embeddingpath)
         else:
              self.queryfiles = querydata.dirfiles
-        if dbdata.datatype == "file":
-             self.dbasdir = False
-             self.dbdata =  self._load_single(dbdata.embeddingpath)
-        self.query_ids = querydata.indexdata['run_index'].tolist()
-        if querydata.datatype == "file":
-            self.qasdir = False
-            self.qdata = self._load_single(querydata.embeddingpath)
-        else:
-             self.queryfiles = querydata.dirfiles
-        if dbdata.datatype == "file":
-             self.dbasdir = False
-             self.dbdata =  self._load_single(dbdata.embeddingpath)
+        
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
@@ -268,7 +268,6 @@ class BatchLoader:
     def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
          embeddings = [torch.load(f).float().numpy() for f in filelist]
-         embeddings = [torch.load(f).float().numpy() for f in filelist]
          return embeddings
     
     def _load_single(self, f) -> List[np.ndarray]:
@@ -283,3 +282,13 @@ class BatchLoader:
         else:
             emb = [emb.float().numpy()]
         return emb
+    
+    def _load_single_npy(self, idx: int):
+        '''
+        Args:
+            idx: (int) position in npyfile
+        '''
+        return [self.npyhandle.read(idx)]
+    
+    def _load_batch_npy(self, indexlist: List[int]):
+        pass

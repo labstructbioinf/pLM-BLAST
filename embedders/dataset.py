@@ -76,9 +76,17 @@ class HDF5Handle:
 class NPHandle:
     '''
     handle db operations on memmap numpy object
+    db structure
+    ```
+    ├── dbpath.csv # sequences and metadata
+    └── dbpath
+        ├── db.npy 
+        ├── db.index.csv
+    ```
     '''
     dtype = np.float16
-    index_file_extention = ".index.csv"
+    index_file_name = "db.index.csv"
+    dbfile_name = "db.npy"
     index_columns = ['startindex', 'seqlen']
     embdim: int = 1024
     dbfile: str = None
@@ -88,15 +96,16 @@ class NPHandle:
     _last_save_location: int = 0
     shape: Tuple[int, int] = None
     
-    def __init__(self, dbfile: str, mode='r+', seqlens: List[int] = None):
+    def __init__(self, dbpath: str, mode='r+', seqlens: List[int] = None):
         
         assert mode in {'r+', 'w+'}
-        self.dbfile = f"{dbfile}.npy"
-        self.dbfile_index = f"{dbfile}{self.index_file_extention}"
+        self.dbfile = os.path.join(self.dbfile_name)
+        self.dbfile_index = os.path.join(self.index_file_name)
         # read index
         # read shape
         # set pointer/cursor
         if mode == 'r+':
+            assert os.path.isdir(dbpath)
             assert os.path.isfile(self.dbfile)
             assert os.path.isfile(self.dbfile_index)
             self.index = pd.read_csv(self.dbfile_index)
@@ -109,7 +118,7 @@ class NPHandle:
         # create index if not exists
         # calculate shape if file is not present
         if mode == 'w+':
-            if not (os.path.isfile(dbfile) and os.path.isfile(self.dbfile_index)):
+            if not (os.path.isfile(self.dbfile) and os.path.isfile(self.dbfile_index)):
                 if isinstance(seqlens, list):
                     self.initialize(seqlens)
                 else:
@@ -134,6 +143,7 @@ class NPHandle:
         self.shape = (startindex[-1] + seqlens[-1], embdim)
         # write index
         tmp = pd.DataFrame(data=zip(startindex, seqlens), columns=self.index_columns)
+        os.makedirs(os.dirname(self.dbfile), exist_ok=True)
         tmp.to_csv(self.dbfile_index, index=False)
         fp = np.memmap(filename=self.dbfile, 
                        dtype=self.dtype,
