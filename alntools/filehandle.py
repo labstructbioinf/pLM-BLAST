@@ -13,7 +13,8 @@ import torch
 
 from .settings import EMB64_EXT
 from .settings import EXTENSIONS
-from ..embedders.dataset import NPHandle
+os.path.join("..")
+from embedders.dataset import NPHandle
 
 ObjType = Literal["query", "database"]
 DBType = Literal['dir', 'file', 'npy']
@@ -169,15 +170,27 @@ class BatchLoader:
         self.query_ids = querydata.indexdata['run_index'].tolist()
         if dbdata.datatype == "file":
              self.dbasdir = False
-             self.dbdata =  self._load_single(dbdata.embeddingpath)
+             self.dbdata =  self._load_single_dir(dbdata.embeddingpath)
         elif dbdata.datatype == "npy":
             self.npyhandle = NPHandle(dbdata.pathdata, mode="r+")
         if querydata.datatype == "file":
             self.qasdir = False
-            self.qdata = self._load_single(querydata.embeddingpath)
+            self.qdata = self._load_single_dir(querydata.embeddingpath)
         else:
              self.queryfiles = querydata.dirfiles
-        
+        if querydata.datatype == "dir":
+            setattr(self, "_load_single_query", self._load_single_dir)
+            setattr(self, "_load_batch_query", self._load_batch_dir)
+        elif querydata.datatype == "npy":
+            setattr(self, "_load_single_query", self._load_single_npy)
+            setattr(self, "_load_batch_query", self._load_batch_npy)
+        if dbdata.datatype == "dir":
+            setattr(self, "_load_single_db", self._load_single_dir)
+            setattr(self, "_load_batch_db", self._load_batch_dir)
+        elif dbdata.datatype == "npy":
+            setattr(self, "_load_single_db", self._load_single_npy)
+            setattr(self, "_load_batch_db", self._load_batch_npy)
+        #breakpoint()
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
@@ -211,20 +224,20 @@ class BatchLoader:
     
     def __iter__(self):
         return self
-    
+        
     def __next__(self) -> Tuple[int, List[int], np.ndarray, List[np.ndarray]]:
         if self.current_iteration < self.num_iterations:
              # get id
              qdata = self._qdata_record[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = self._load_single(self.queryfiles[qdata.qid]).pop()
+                qembedding = self._load_single_query(self.queryfiles[qdata.qid]).pop()
              else:
                 qembedding = self.qdata[qdata.qid]
              # return embeddings
              if self.mode == 'emb':
                 if self.dbdata is None:
-                    dbembeddings = self._load_batch(qdata.dbfiles)
+                    dbembeddings = self._load_batch_db(qdata.dbfiles)
                 else:
                      # if dbdata is single file
                     if len(self.dbdata) == 1:
@@ -265,12 +278,12 @@ class BatchLoader:
             batch_start = batch_end
         return batch_index, batch_list 
     
-    def _load_batch(self, filelist: List[str]) -> List[torch.FloatTensor]:
+    def _load_batch_dir(self, filelist: List[str]) -> List[torch.FloatTensor]:
          
          embeddings = [torch.load(f).float().numpy() for f in filelist]
          return embeddings
     
-    def _load_single(self, f) -> List[np.ndarray]:
+    def _load_single_dir(self, f) -> List[np.ndarray]:
         """
         load torch file content
         Returns:
@@ -291,4 +304,4 @@ class BatchLoader:
         return [self.npyhandle.read(idx)]
     
     def _load_batch_npy(self, indexlist: List[int]):
-        pass
+        return [self.npyhandle.read(idx) for idx in indexlist]

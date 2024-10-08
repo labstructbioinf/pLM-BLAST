@@ -82,7 +82,7 @@ def main_prottrans(df: pd.DataFrame,
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)
-			if args.npy:
+			elif args.npy:
 				for emb in embeddings_filt: npyhandle.write(emb)
 			elif args.h5py:
 				if args.nproc == 1:
@@ -97,7 +97,7 @@ def main_prottrans(df: pd.DataFrame,
 			del embeddings_filt
 			gc.collect()
 		# merge batch_data if `asdir` is false
-		if not args.asdir and not args.h5py:
+		if not args.asdir and not args.h5py and not args.npy:
 			stack = []
 			for fname in batch_files:
 				stack.extend(torch.load(fname))

@@ -99,8 +99,8 @@ class NPHandle:
     def __init__(self, dbpath: str, mode='r+', seqlens: List[int] = None):
         
         assert mode in {'r+', 'w+'}
-        self.dbfile = os.path.join(self.dbfile_name)
-        self.dbfile_index = os.path.join(self.index_file_name)
+        self.dbfile = os.path.join(dbpath, self.dbfile_name)
+        self.dbfile_index = os.path.join(dbpath, self.index_file_name)
         # read index
         # read shape
         # set pointer/cursor
@@ -143,7 +143,7 @@ class NPHandle:
         self.shape = (startindex[-1] + seqlens[-1], embdim)
         # write index
         tmp = pd.DataFrame(data=zip(startindex, seqlens), columns=self.index_columns)
-        os.makedirs(os.dirname(self.dbfile), exist_ok=True)
+        os.makedirs(os.path.dirname(self.dbfile), exist_ok=True)
         tmp.to_csv(self.dbfile_index, index=False)
         fp = np.memmap(filename=self.dbfile, 
                        dtype=self.dtype,
