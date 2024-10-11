@@ -98,6 +98,7 @@ class NPHandle:
     
     def __init__(self, dbpath: str, mode='r+', seqlens: List[int] = None):
         
+        self._last_save_location: int = 0
         assert mode in {'r+', 'w+'}
         self.dbfile = os.path.join(dbpath, self.dbfile_name)
         self.dbfile_index = os.path.join(dbpath, self.index_file_name)
@@ -151,18 +152,22 @@ class NPHandle:
                        shape=self.shape)
         del fp
         
-    def write(self, embbatch: torch.Tensor):
+    def write(self, embsingle: torch.Tensor):
         """
         write single sequence
         """
-        embbatch = embbatch.half().numpy()
-        num_residues = embbatch.shape[0]
+        assert isinstance(embsingle, torch.FloatTensor)
+        assert embsingle.ndim == 2
+        num_residues = embsingle.shape[0]
         fp = np.memmap(filename=self.dbfile,
                        dtype=self.dtype,
                        mode="w+",
                        shape=self.shape)
-        fp[self._last_save_location:self._last_save_location + num_residues, :] = num_residues
+        fp[self._last_save_location:self._last_save_location + num_residues, :] = embsingle.half().numpy()
         # apply changes to disk and remove
+        # push cursor
+        self._last_save_location += num_residues
+        fp.flush()
         del fp
     
     def readraw(self, startindex, seqlen) -> np.ndarray:

@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 
 from .settings import EMB64_EXT
-from .settings import EXTENSIONS
+from .settings import EXTENSIONS, DBNPY, DBNPY_INDEX
 os.path.join("..")
 from embedders.dataset import NPHandle
 
@@ -60,9 +60,13 @@ class DataObject:
         determine dir, file or npy mode
         """
         self.embeddingpath = self.pathdata
-        if os.path.isfile(self.pathdata + '.npy') and os.path.isfile(self.pathdata + ".index.csv"):
+        _dbnpy = os.path.join(self.pathdata, DBNPY)
+        _dbnpy_index = os.path.join(self.pathdata, DBNPY_INDEX)
+        _dbemb = os.path.join(self.pathdata, "0.emb") # at least one embedding in a directory
+        #breakpoint()
+        if os.path.isfile(_dbnpy) and os.path.isfile(_dbnpy_index):
             self.datatype = 'npy'
-        if os.path.isdir(self.pathdata):
+        elif os.path.isdir(self.pathdata) and os.path.isfile(_dbemb):
             self.datatype = 'dir'
         elif os.path.isfile(self.pathdata + ".pt"):
             self.datatype = 'file'
