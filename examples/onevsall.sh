@@ -25,12 +25,12 @@ mkdir -p $OUTDIR
 # Calculate query embedding
 if [ ! -f $OUTDIR/$case.pt ]; then
 	echo "calculate query embedding"
-	python ../embeddings.py start $INDIR/$case.fas $OUTDIR/$case.pt -bs 0
+	embeddings start $INDIR/$case.fas $OUTDIR/$case.pt -bs 0
 	cp $INDIR/$case.fas $OUTDIR/$case.fas
 fi
 
 # Run plm-blast
-python ../plmblast.py \
+plmblast \
 	$DB_PATH \
 	$OUTDIR/$case \
 	$OUTFILE \

@@ -62,11 +62,11 @@ In the examples above, `database` defines a directory where sequence embeddings 
 
 The batch size (number of sequences per batch) is set with the `-bs` option. Setting `-bs` to `0` activates the adaptive mode, in which the batch size is set so that all included sequences have no more than 3000 residues (this value can be changed with `--res_per_batch`).
 
-The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-nproc X` where `X` is the number of GPU devices you want to use.
+The use of `--gpu` is highly recommended for large datasets. To run `embeddings` on multiple GPUs, specify `-nproc X` where `X` is the number of GPU devices you want to use.
 
 ### Checkpointing feature
 
-When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
+When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
 
 ```bash
 embeddings resume database
@@ -102,7 +102,7 @@ The results of searching a database with a single query sequence can be visualiz
 python ./scripts/plot.py results.csv query.fas plot.png -mode score -ecod
 ```
 
-Where `results.csv` are the results of the `plmblast.py` script, `query.fas` is the query sequence in FASTA format, and `plot.png` is the plot file that will be generated.
+Where `results.csv` are the results of the `plmblast` script, `query.fas` is the query sequence in FASTA format, and `plot.png` is the plot file that will be generated.
 
 The `-mode` option is used to specify the order of the hits in the plot. `score` causes the hits to be sorted by score, while `qend` (default) causes the hits to be sorted by the end position of the match in the query. In both modes, the bars corresponding to each hit are colored according to the score.
 
@@ -133,14 +133,16 @@ This work was supported by the First TEAM program of the Foundation for Polish S
 
 # Changelog
 
-* 26/09/2023 Improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.
-* 26/09/2023 Improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance, and `-res_per_batch` options have been added.
-* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for the `run_plmblast.py` script.
-* 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.
-* 27/10/2023 added `examples` directory with end-to-end usages
-* 26/11/2023 added parallelism to cosine prescreening - which gives a huge performance boost, especially for multiple query sequences
-* 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
-* 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
-* 23/04/2024 added support for transformers `AutoModel`
-* 11/06/2024 improved speed and memory efficiency for long `plmblast.py` runs. Intermediate results are now stored on disk not RAM.
+* 1/11/2024 added `pyproject.toml` installation
+* 01/10/2024 added support for `npy` databases which are numpy memory map files, resulting databases are 10%-20% smaller and more friendly to hard drives. For more details see: https://numpy.org/doc/stable/reference/generated/numpy.memmap.html 
 * 30/07/2024 added `--only-scan` flag to `plmblast.py` now script can be run only pre-screening. Improved pre-screening parameter control
+* 11/06/2024 improved speed and memory efficiency for long `plmblast.py` runs. Intermediate results are now stored on disk not RAM.
+* 23/04/2024 added support for transformers `AutoModel`
+* 22/02/2024 improved RAM consumption in the prescreening process - additionally whole procedure will be faster now
+* 05/12/2023 added signal enhancement "*Embedding-based alignment: combining protein language models and alignment approaches to detect structural similarities in the twilight-zone*": https://www.biorxiv.org/content/10.1101/2022.12.13.520313v2
+* 26/11/2023 added parallelism to cosine prescreening - which gives a huge performance boost, especially for multiple query sequences
+* 27/10/2023 added `examples` directory with end-to-end usages
+* 9/10/2023 added multi-processing feature to embedding generation, `-nproc X` options will now spawn `X` independent processes.
+* 9/10/2023 added support for `hdf5` files for embedding generation, soon we will add support for the `run_plmblast.py` script.
+* 26/09/2023 Improved adaptive batching strategy for `-bs 0` option, batch size is now divisible by 4 for better performance, and `-res_per_batch` options have been added.
+* 26/09/2023 Improved embedding extraction script, calculations can now be resumed if interrupted, see databases section for more info.

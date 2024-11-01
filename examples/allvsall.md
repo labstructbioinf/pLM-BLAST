@@ -19,6 +19,6 @@ cp examples/data/input/rossmannsdb examples/data/output/rossmannsdb
 
 Now we are able to perform search
 ```bash
-python ../plmblast.py examples/data/output/rossmannsdb examples/data/output/rossmannsdb allvsall.csv --use_chunks
+plmblast examples/data/output/rossmannsdb examples/data/output/rossmannsdb allvsall.csv --use_chunks
 ```
 All above computations are also available as script here `allvsall.sh`

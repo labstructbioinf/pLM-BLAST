@@ -10,7 +10,7 @@ NUM_WORKERS=6
 # Return hits with scores >=0.3
 # no cutoff because our database is small we dont need additional filtering
 # Run plm-blast
-python ../scripts/plmblast.py \
+plmblast \
 	$DBDIR \
 	$DBDIR \
 	$RESULTS \

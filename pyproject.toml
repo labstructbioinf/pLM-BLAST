@@ -30,6 +30,12 @@ dependencies = [
     "mkl-service"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest-timeout",
+    "fairscale",
+    "flake8",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/labstructbioinf/pLM-BLAST"
