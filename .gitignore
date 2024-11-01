@@ -19,7 +19,7 @@ emb.64
 # example
 examples/data/input/scope40.fas
 examples/data/output
-
+*.egg-info
 # temp logs
 **.txt
 **.logs

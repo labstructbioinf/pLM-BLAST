@@ -34,8 +34,7 @@ def mp_process(rank_id: int, nproc: int, args: argparse.Namespace):
 		capture_checkpoint(args, exception_msg = 'keyboard interrput', rank_id=rank_id)
 		traceback.print_exc()
     
-
-if __name__ == "__main__":
+def main():
 	args = create_parser()
 	if args.subparser_name == 'resume':
 		args_t = find_and_load_checkpoint_file(args.output)
@@ -67,3 +66,6 @@ if __name__ == "__main__":
         args=(nproc, args, ),
         nprocs=nproc,
         join=True)
+
+if __name__ == "__main__":
+	main()

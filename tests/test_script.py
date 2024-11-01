@@ -85,9 +85,7 @@ def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, dbt
 	db = PLMBLAST_DB if dbtype == 'dir' else PLMBLAST_DB_NPY
 	cmd = f"python {SCRIPT} {db} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
 	cmd += f" -cpc {cosine_percentile_cutoff} -alignment_cutoff 0.2"
-	proc = subprocess.run(args=cmd.split(" "), 
-                       stderr=subprocess.PIPE, 
-                       stdout=subprocess.PIPE)
+	proc = subprocess.run(args=cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
 		raise OSError(proc.stderr.decode())

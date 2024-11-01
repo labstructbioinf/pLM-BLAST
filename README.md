@@ -25,13 +25,11 @@ Create a conda environment:
 ```bash
 conda create --name plmblast python=3.10
 conda activate plmblast
-# Install pip in the environment
-conda install pip
 ```
 
-Install pLM-BLAST using `requirements.txt`:
+Install pLM-BLAST using:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 # Usage
@@ -51,13 +49,13 @@ The `embeddings.py` script can be used to create a custom database based on pLM 
 If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
 It is recommended to sort the input sequences by length before running `embeddings.py`, when dealing with big databases.
-By default `embeddings.py` uses ProtT5 (`-embedder pt` alias for `Rostlab/prot_t5_xl_half_uniref50-enc`), by typing `- embedder hf:modelname_or_path` will download or load locally stored 
+By default `embeddings` uses ProtT5 (`-embedder pt` alias for `Rostlab/prot_t5_xl_half_uniref50-enc`), by typing `- embedder hf:modelname_or_path` will download or load locally stored 
 model supported by huggingface `AutoModel` class (same as calling: `AutoModel.from_pretrained(modelname_or_path)`).
 ```bash
 # CSV input
-python embeddings.py start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
+embeddings start database.csv database -embedder pt -cname sequence --gpu -bs 0 --asdir
 # FASTA input
-python embeddings.py start database.fasta database -embedder pt --gpu -bs 0 --asdir
+embeddings start database.fasta database -embedder pt --gpu -bs 0 --asdir
 ```
 
 In the examples above, `database` defines a directory where sequence embeddings are stored.
@@ -71,7 +69,7 @@ The use of `--gpu` is highly recommended for large datasets. To run `embeddings.
 When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:
 
 ```bash
-python embeddings.py resume database
+embeddings resume database
 ``` 
 
 ## Searching a database
@@ -79,17 +77,17 @@ python embeddings.py resume database
 To search a database `database` with a FASTA sequence in `query.fas`, we first need to compute the embedding:
 
 ```bash
-python embeddings.py start query.fas query.pt
+embeddings start query.fas query.pt
 ```
 
-Then the `plmblast.py` script can be used to search the database:
+Then the `plmblast` script can be used to search the database:
 
 ```bash
-python ./scripts/plmblast.py database query output.csv -cpc 70
+plmblast database query output.csv -cpc 70
 ```
 You can also perform an all vs. all search by typing:
 ```bash
-python ./scripts/plmblast.py database database output.csv -cpc 70
+plmblast database database output.csv -cpc 70
 ```
 
 :sun_with_face: Note that only the base filename should be specified for the query and database (extensions are added automatically) :sun_with_face: 

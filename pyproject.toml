@@ -37,7 +37,7 @@ dependencies = [
 
 [project.scripts]
 plmblast = "plmblast:main"
-embedding = "embeddings:main"
+embeddings = "embeddings:main"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

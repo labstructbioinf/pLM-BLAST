@@ -22,8 +22,7 @@ from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
 import alntools as aln
 
-
-if __name__ == "__main__":
+def main():
 	start_time = datetime.datetime.now()
 	args = get_parser()
 	module = aln.Extractor( \
@@ -145,4 +144,8 @@ if __name__ == "__main__":
 	script_time = datetime.datetime.now() - start_time
 	print('total hits found: ', results.shape[0])
 	print(f'{cfg.colors["green"]}Done!{cfg.colors["reset"]}\nTime {script_time}')
-	# stats
+	# stats  
+
+
+if __name__ == "__main__":
+	main()
