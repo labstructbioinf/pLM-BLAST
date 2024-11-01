@@ -8,8 +8,8 @@ from Bio import SeqIO
 import pandas as pd
 import torch
 
-from .schema import BatchIterator
-from .checkpoint import checkpoint_from_json
+from embedders.schema import BatchIterator
+from embedders.checkpoint import checkpoint_from_json
 
 
 class EmbedderError(Exception):
@@ -129,9 +129,8 @@ def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argp
 			elif args.asdir and not os.path.isdir(args.output):
 				os.makedirs(args.output, exist_ok=True)
 		# add .pt extention to file mode
-		if not args.asdir and not args.h5py:
-			if not args.output.endswith(".pt"):
-				args.output += ".pt"
+		if not args.asdir and not args.h5py and not args.npy:
+			if not args.output.endswith(".pt"): args.output += ".pt"
 		if (args.embedder.startswith('pt')) or args.embedder.lower().find('prot') !=- 1 :
 			pass
 		elif args.embedder.startswith('esm') or \

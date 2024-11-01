@@ -6,19 +6,22 @@ import itertools
 import warnings
 
 import numpy as np
-import numpy as np
 from Bio import SeqIO
 import pandas as pd
 import torch
 
-from .settings import EMB64_EXT
-from .settings import EXTENSIONS, DBNPY, DBNPY_INDEX
-os.path.join("..")
+from alntools.settings import DBTYPE, DataType
+from alntools.settings import EXTENSIONS, DBNPY, DBNPY_INDEX, EMB64_EXT
 from embedders.dataset import NPHandle
 
 ObjType = Literal["query", "database"]
 DBType = Literal['dir', 'file', 'npy']
 record = namedtuple('record', ['qid', 'qdbids' , 'dbfiles'])
+
+
+class PLMBlastDBError(Exception):
+    '''error coresponding to database format and its content'''
+    pass
 
 
 class DataObject:
@@ -28,25 +31,31 @@ class DataObject:
      size: int = 0
      indexfile: str
      indexdata: pd.DataFrame
-     datatype: DBType = "dir"
+     datatype: DBTYPE = "dir"
      embeddingpath: str = ""
      # none if not exists
      poolpath: Optional[str] = None
      pathdata: str
      ext: str = ".emb"
-     objtype: ObjType = "query"
+     objtype: DataType = "query"
 
-     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: ObjType):
+     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: DataType):
 
         self.pathdata = pathdata
         self.indexdata = indexdata
         self.objtype = objtype
         self.size = indexdata.shape[0]
         self._find_datatype()
-        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype} mode")
+        if objtype == DataType.db and self.dbtype == DBTYPE.file:
+            raise PLMBlastDBError('''
+                                  db argument must be a npy or directory database 
+                                  (--npy or --asdir in embeddings.py) it looks like you 
+                                  passed as file datatabase'''
+                                  )
+        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype.value} mode")
      
      @classmethod
-     def from_dir(cls, pathdata: str, objtype: ObjType):
+     def from_dir(cls, pathdata: str, objtype: DataType):
         """
         find embeddings storage type
         """
@@ -65,18 +74,18 @@ class DataObject:
         _dbemb = os.path.join(self.pathdata, "0.emb") # at least one embedding in a directory
         #breakpoint()
         if os.path.isfile(_dbnpy) and os.path.isfile(_dbnpy_index):
-            self.datatype = 'npy'
+            self.datatype = DBTYPE.npy
         elif os.path.isdir(self.pathdata) and os.path.isfile(_dbemb):
-            self.datatype = 'dir'
+            self.datatype = DBTYPE.dir
         elif os.path.isfile(self.pathdata + ".pt"):
-            self.datatype = 'file'
+            self.datatype = DBTYPE.file
             self.embeddingpath += ".pt"
         else:
              FileNotFoundError(f'''no valid database in given location: {self.pathdata},
                                 make sure it contain {self.pathdata}.pt file, it is a 
                                 directory with .emb files or .npy file with .index.csv''')
-        if self.datatype in {'npy', 'dir'}:
-            # only present in dir mode
+        if self.datatype != DBTYPE.file:
+            # only present in dir/npy mode
             self.poolpath = os.path.join(self.pathdata, EMB64_EXT)
     
      @property
@@ -86,7 +95,7 @@ class DataObject:
           """
           run_index = self.indexdata['run_index'].tolist()
           # find file locations
-          if self.datatype == "dir":
+          if self.datatype == DBTYPE.dir:
                 return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in run_index]
           else:
                 return run_index
@@ -114,9 +123,9 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 	# gather input file
 	if file.endswith('csv'):
 		df = pd.read_csv(file)
-	elif file.endswith('.p') or file.endswith('.pkl'):
+	elif file.endswith(('.p', '.pkl')):
 		df = pd.read_pickle(file)
-	elif file.endswith('.fas') or file.endswith('.fasta'):
+	elif file.endswith(('.fas', '.fasta')):
 		# convert fasta file to dataframe
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
@@ -172,26 +181,27 @@ class BatchLoader:
         self.mode = mode
         # prepare query data
         self.query_ids = querydata.indexdata['run_index'].tolist()
-        if dbdata.datatype == "file":
+        if dbdata.datatype == DBTYPE.file:
              self.dbasdir = False
              self.dbdata =  self._load_single_dir(dbdata.embeddingpath)
-        elif dbdata.datatype == "npy":
+        elif dbdata.datatype == DBTYPE.npy:
             self.npyhandle = NPHandle(dbdata.pathdata, mode="r+")
-        if querydata.datatype == "file":
+        if querydata.datatype == DBTYPE.file:
             self.qasdir = False
             self.qdata = self._load_single_dir(querydata.embeddingpath)
         else:
              self.queryfiles = querydata.dirfiles
-        if querydata.datatype == "dir":
+        # overwrite load methods depending on db type
+        if querydata.datatype == DBTYPE.dir:
             setattr(self, "_load_single_query", self._load_single_dir)
             setattr(self, "_load_batch_query", self._load_batch_dir)
-        elif querydata.datatype == "npy":
+        elif querydata.datatype == DBTYPE.npy:
             setattr(self, "_load_single_query", self._load_single_npy)
             setattr(self, "_load_batch_query", self._load_batch_npy)
-        if dbdata.datatype == "dir":
+        if dbdata.datatype == DBTYPE.dir:
             setattr(self, "_load_single_db", self._load_single_dir)
             setattr(self, "_load_batch_db", self._load_batch_dir)
-        elif dbdata.datatype == "npy":
+        elif dbdata.datatype == DBTYPE.npy:
             setattr(self, "_load_single_db", self._load_single_npy)
             setattr(self, "_load_batch_db", self._load_batch_npy)
         #breakpoint()

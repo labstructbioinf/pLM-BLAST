@@ -6,7 +6,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import tempfile
 import datetime
-from typing import List, Dict
+from typing import List
 
 import mkl
 import numba
@@ -15,7 +15,6 @@ from tqdm import tqdm
 
 mkl.set_num_threads(1)
 numba.set_num_threads(1)
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 import alntools.settings as cfg
 from alntools.parser import get_parser
 from alntools.prepare.screening import apply_database_screening
@@ -25,9 +24,7 @@ import alntools as aln
 
 
 if __name__ == "__main__":
-
 	start_time = datetime.datetime.now()
-
 	args = get_parser()
 	module = aln.Extractor( \
 					enh=args.enh,
@@ -39,7 +36,6 @@ if __name__ == "__main__":
 					window_size=args.window_size,
      				filter_results=True)
 	print("num cores: ", args.workers)
-	#module.show_config()
 	# Load database index file
 	dbdata = DataObject.from_dir(args.db, objtype="database")
 	# Load query index file

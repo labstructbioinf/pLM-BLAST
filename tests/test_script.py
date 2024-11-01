@@ -10,11 +10,12 @@ from alntools.filehandle import BatchLoader
 
 DIR = os.path.dirname(__file__)
 DIRUP = os.path.dirname(DIR)
-SCRIPT = os.path.join("scripts/plmblast.py")
+SCRIPT = os.path.join("plmblast.py")
 TESTDATA = os.environ.get("PLMBLAST_TESTDATA", "/home/nfs/kkaminski/PLMBLST/test_data")
 NUM_WORKERS = int(os.environ.get("PLMBLAST_WORKERS", 4))
 # use static db location to avoid unessesery calculations
 PLMBLAST_DB = os.environ.get("PLMBLAST_DB", "/home/nfs/kkaminski/PLMBLST/ecod30db_mini")
+PLMBLAST_DB_NPY = os.environ.get("PLMBLAST_DB_NPY", "/home/nfs/kkaminski/PLMBLST/npydb/ecod30db_20220902")
 PLMBLAST_DB_CSV = PLMBLAST_DB + ".csv"
 INPUT_SINGLE = os.path.join(TESTDATA, 'cupredoxin')
 INPUT_MULTI = os.path.join(TESTDATA, 'rossmanns')
@@ -37,6 +38,7 @@ def remove_outputs():
 				os.remove(ifn)
 
 
+@pytest.mark.core
 def test_data_exists():
 	assert os.path.isfile(SCRIPT), f"missing main script {SCRIPT}"
 	assert os.path.isdir(PLMBLAST_DB), f"missing db directory: {PLMBLAST_DB}"
@@ -74,17 +76,21 @@ def test_data_exists():
 #	for qid, files in query_files.items():
 #		assert len(files) == len(filedict[qid])
 
-
+@pytest.mark.core
 @pytest.mark.parametrize('win', [25])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
-@pytest.mark.parametrize("cosine_percentile_cutoff", [90, 0])
-def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int):
-	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
+@pytest.mark.parametrize("cosine_percentile_cutoff", [90])
+@pytest.mark.parametrize("dbtype", ['npy', 'dir'])
+def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, dbtype: str):
+	db = PLMBLAST_DB if dbtype == 'dir' else PLMBLAST_DB_NPY
+	cmd = f"python {SCRIPT} {db} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
 	cmd += f" -cpc {cosine_percentile_cutoff} -alignment_cutoff 0.2"
-	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	proc = subprocess.run(args=cmd.split(" "), 
+                       stderr=subprocess.PIPE, 
+                       stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr)
+		raise OSError(proc.stderr.decode())
 	# check if there are hits
 	assert os.path.isfile(OUTPUT_SINGLE), f"missing output after run from cmd: {proc.stdout}"
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")

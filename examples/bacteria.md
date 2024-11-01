@@ -37,7 +37,7 @@ The data prepared in this manner will be used to search a database for homologou
 
 Usage:
 ```bash
-python scripts/plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cpc 90 -alignment_cutoff 0.25 -sigma_factor 2
+python ../plmblast.py /path/to/database/ecod30db_20220902 examples/data/input/protein_split_1 examples/data/output/protein_split_1.hits.csv -cpc 90 -alignment_cutoff 0.25 -sigma_factor 2
 ```
 The utilized flags are as follows:
 * `-cpc` -> Percentile cutoff for chunk cosine similarity pre-screening. The lower the value, the more sequences will be passed through the pre-screening procedure and then aligned with the more accurate but slower pLM-BLAST'
@@ -46,5 +46,5 @@ The utilized flags are as follows:
 
 For more useful flags, type:
 ```bash
-python scripts/plmblast.py -h
+python ../plmblast.py -h
 ```

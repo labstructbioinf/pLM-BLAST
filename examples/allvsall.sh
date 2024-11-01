@@ -21,7 +21,7 @@ ALIGNMENT_CUTOFF="0.3"
 # we are comparing only 30 sequences vs 30 sequence there is no need for additional prescreening
 COSINE_CUTOFF=0
 # Run plm-blast
-python ../scripts/plmblast.py \
+python ../plmblast.py \
 	$DBDIR \
 	$DBDIR \
 	$RESULTS \

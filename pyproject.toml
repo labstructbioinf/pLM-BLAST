@@ -8,16 +8,36 @@ authors = [
 description = "plm-Blast package a tool for aligning sequence based language model potein representation"
 readme = "README.md"
 requires-python = ">=3.9"
-license = "LICENSE.md"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "Bio==1.5.9",
+    "matplotlib==3.7.1",
+    "numba==0.57.1",
+    "pandas==2.0.2",
+    "numpy==1.24.3",
+    "scikit_learn==1.2.2",
+    "torch==2.0.1",
+    "tqdm",
+    "transformers>=4.38.0",
+    "sentencepiece==0.1.99",
+    "psutil",
+    "h5py",
+    "mkl",
+    "mkl-service"
+]
+
 
 [project.urls]
 "Homepage" = "https://github.com/labstructbioinf/pLM-BLAST"
 "Bug Tracker" = "https://github.com/labstructbioinf/pLM-BLAST/issues"
+
+[project.scripts]
+plmblast = "plmblast:main"
+embedding = "embeddings:main"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -30,6 +50,10 @@ testpaths = [
     "tests",
 ]
 markers = [
-    "embedding: marks tests as slow (deselect with '-m \"not embedding\"')",
-    "serial",
+    "embedding: marks tests as slow (deselect with '-m \"not embedding\"') requires gpu",
+    "core: test functionalities of `plmblast.py`",
 ]
+
+[tool.pytest_env]
+PLMBLAST_DB_NPY = "~/tmp"
+

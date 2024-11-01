@@ -1,6 +1,6 @@
 import os
 import time
-from typing import List, Any, Union, Tuple
+from typing import List, Any, Union, Tuple, Literal
 
 import pandas as pd
 import h5py 
@@ -78,7 +78,7 @@ class NPHandle:
     handle db operations on memmap numpy object
     db structure
     ```
-    ├── dbpath.csv # sequences and metadata
+    ├── dbpath.csv # sequences and metadata not used here
     └── dbpath
         ├── db.npy 
         ├── db.index.csv
@@ -92,11 +92,13 @@ class NPHandle:
     dbfile: str = None
     dbfile_index: str = None
     cursor: np.ndarray = None
+    num_seqs: int = None
     # position of last embedding batch 
     _last_save_location: int = 0
     shape: Tuple[int, int] = None
     
-    def __init__(self, dbpath: str, mode='r+', seqlens: List[int] = None):
+    def __init__(self, dbpath: str, 
+                 mode: Literal['r+', 'w+'] = 'r+', seqlens: List[int] = None):
         
         self._last_save_location: int = 0
         assert mode in {'r+', 'w+'}
@@ -110,6 +112,7 @@ class NPHandle:
             assert os.path.isfile(self.dbfile)
             assert os.path.isfile(self.dbfile_index)
             self.index = pd.read_csv(self.dbfile_index)
+            self.num_seqs = self.index.shape[0]
             self.read_shape()
             self.fp = np.memmap(filename=self.dbfile,
                     dtype=self.dtype,
@@ -146,6 +149,7 @@ class NPHandle:
         tmp = pd.DataFrame(data=zip(startindex, seqlens), columns=self.index_columns)
         os.makedirs(os.path.dirname(self.dbfile), exist_ok=True)
         tmp.to_csv(self.dbfile_index, index=False)
+        print("ceating new npy database with shape: ", self.shape)
         fp = np.memmap(filename=self.dbfile, 
                        dtype=self.dtype,
                        mode="w+",
@@ -156,13 +160,14 @@ class NPHandle:
         """
         write single sequence
         """
-        assert isinstance(embsingle, torch.FloatTensor)
+        assert isinstance(embsingle, torch.Tensor)
         assert embsingle.ndim == 2
         num_residues = embsingle.shape[0]
         fp = np.memmap(filename=self.dbfile,
                        dtype=self.dtype,
-                       mode="w+",
+                       mode="r+",
                        shape=self.shape)
+        #breakpoint()
         fp[self._last_save_location:self._last_save_location + num_residues, :] = embsingle.half().numpy()
         # apply changes to disk and remove
         # push cursor
@@ -179,3 +184,10 @@ class NPHandle:
     def read(self, idx: int) -> np.ndarray:
         idrow = self.index.iloc[idx]
         return self.fp[idrow.startindex:idrow.startindex + idrow.seqlen, :]
+    
+    def read_all(self, return_tensors = False) -> List[np.ndarray] | List[torch.Tensor]:
+        if return_tensors:
+            return [torch.from_numpy(self.read(idx)) for idx in range(self.num_seqs)]
+        else:
+            return [self.read(idx) for idx in range(self.num_seqs)]
+        

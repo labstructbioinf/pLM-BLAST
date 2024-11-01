@@ -1,6 +1,26 @@
+from enum import Enum
+
+class DataType(Enum):
+	query = "query"
+	db = "database"
+ 
+ 
+class DBTYPE(Enum):
+    '''
+    allowed database types
+    '''
+    file = "file"
+    dir = "dir"
+    npy = "npy"
+    h5py = "h5py"
+    
+
 mp_chunksize: int = 1
 
 jobs_per_process: int = 30
+
+DBNPY = "db.npy"
+DBNPY_INDEX = "db.index.csv"
 
 SCR_BATCH_SIZE: int = 256
 AVG_EMBEDDING_STD: float = 0.1

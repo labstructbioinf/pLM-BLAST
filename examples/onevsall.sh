@@ -30,7 +30,7 @@ if [ ! -f $OUTDIR/$case.pt ]; then
 fi
 
 # Run plm-blast
-python ../scripts/plmblast.py \
+python ../plmblast.py \
 	$DB_PATH \
 	$OUTDIR/$case \
 	$OUTFILE \

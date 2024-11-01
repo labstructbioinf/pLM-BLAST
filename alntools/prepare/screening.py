@@ -8,10 +8,10 @@ import torch
 
 from ..filehandle import DataObject
 from ..density.local import chunk_cosine_similarity, calculate_pool_embs, unfold_large_db
-from ..density import load_and_score_database
 from ..density.parallel import load_embeddings_parallel_generator
 from ..density.iterate import slice_iterator_with_seqlen
-from ..settings import EMB64_EXT
+from ..settings import DBTYPE
+from embedders.dataset import NPHandle
 from .reduce_duplicates import reduce_duplicates_query_filedict
 
 
@@ -20,6 +20,7 @@ def apply_database_screening(args: argparse.Namespace,
                             dbdata: DataObject) -> Dict[int, List[str]]:
     '''
     apply pre-screening for database search
+    
     Args:
         args: (namespace)
         query_embs: (list[torch.Tensor]) query embeddings
@@ -32,7 +33,7 @@ def apply_database_screening(args: argparse.Namespace,
     percentile_factor = args.COS_PER_CUT/100
     embdim: int = 64
     torch.set_num_threads(args.workers)
-    if (0 < args.COS_PER_CUT < 100 and dbdata.size > 10) or args.only_scan:
+    if (0 < percentile_factor < 1 and dbdata.size > 10) or args.only_scan:
         print(f"Pre-screening params: {args.COS_PER_CUT} quantile, kernel size: {args.cpc_kernel_size}, stride: {args.cpc_stride}")
         query_filedict = dict()
         if not os.path.isfile(dbdata.poolpath):
@@ -42,45 +43,53 @@ def apply_database_screening(args: argparse.Namespace,
                 especially for larger databases. It can be created manually by scripts/dbtofile.py''')
             # load regular database and pool
             # find db structure
-            if dbdata.datatype == "file":
+            if dbdata.datatype == DBTYPE.file:
                 db_embs = torch.load(dbdata.embeddingpath)
                 db_embs = calculate_pool_embs(db_embs)
-            else:
+            elif dbdata.datatype == DBTYPE.dir:
                 # generator version to reduce RAM usage
                 db_embs = list()
-                print('loading embeddings')
                 for embs in load_embeddings_parallel_generator(dbdata.embeddingpath,
                                                                num_records=dbdata.size,
                                                                num_workers=num_workers_loader):
                     db_embs.extend(calculate_pool_embs(embs))
+            elif dbdata.datatype == DBTYPE.npy:
+                npyhandle = NPHandle(dbdata.pathdata)
+                db_embs = calculate_pool_embs(npyhandle.read_all(True))
             # try to write emb.64 file
-            try:
-                torch.save(db_embs, dbdata.poolpath)
-            except Exception as e:
-                print(f'cannot write {dbdata.poolpath} due to: {e}')
+            if dbdata.datatype != DBTYPE.file:
+                try:
+                    torch.save(db_embs, dbdata.poolpath)
+                except Exception as e:
+                    print(f'cannot write {dbdata.poolpath} due to: {e}')
         else:
+            print(f"loading database pre-screening cache from: {dbdata.poolpath}")
             db_embs: List[torch.Tensor] = torch.load(dbdata.poolpath)
     
         if args.verbose:
             print('Loading database for chunk cosine similarity screening...')
         # look for pooled emb file
         if querydata.poolpath is None:
-            if querydata.datatype == "dir":
-                query_embs_chunkcs = list()
+            query_embs_chunkcs = list()
+            if querydata.datatype == DBTYPE.dir:  
                 for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
                                                                 num_records=querydata.size,
                                                                 num_workers=0):
                     query_embs_chunkcs.extend(calculate_pool_embs(embs))
+            if querydata.datatype == DBTYPE.npy:
+                npyhandle = NPHandle(querydata.pathdata, mode="w+")
+                query_embs_chunkcs = [calculate_pool_embs(emb) for emb in npyhandle.read_all(True)]
             # file mode - pool file is not available
             else:
                 query_embs_chunkcs = torch.load(querydata.embeddingpath)
                 query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
         # file exists
         else:
+            print(f"loading query pre-screening cache from: {dbdata.poolpath}")
             query_embs_chunkcs = torch.load(querydata.poolpath)
 
-        seqlen_query = [q.shape[0] for q in query_embs_chunkcs]
-        seqlen_db = [q.shape[0] for q in db_embs]
+        seqlen_query: list[int] = [q.shape[0] for q in query_embs_chunkcs]
+        seqlen_db: list[int] = [q.shape[0] for q in db_embs]
         # check if embdim is same
         seq_embdim = [q.shape[1] for q in db_embs]
         if len(set(seq_embdim)) > 1:
@@ -90,7 +99,6 @@ def apply_database_screening(args: argparse.Namespace,
         kernel_size = min(min(seqlen_query + seqlen_db), args.cpc_kernel_size)
         # create unfolded db once per run - this will increase performence when dealing
         # with multiquery mode
-
         batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=args.cpc_stride, embdim=embdim)
         del db_embs
         # loop over all query embeddings
