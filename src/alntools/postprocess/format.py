@@ -155,7 +155,7 @@ def prepare_output(resdf: pd.DataFrame,
         alignment_desc = pd.DataFrame(alignment_desc, index=querydf.index)
         assert alignment_desc.shape[0] == querydf.shape[0]
         querydf = pd.concat((querydf, alignment_desc), axis=1)
-        # drop parsed above columns
+        # drop intermediate columns
         if col in ['index', 'indices', 'i', 'dbid']:
                 if col in querydf.columns:
                     querydf.drop(columns=col, inplace=True)

@@ -91,7 +91,7 @@ def create_parser() -> argparse.Namespace:
 		"""
 		output embeddings will be stored as hdf5 file with .h5
 		""",
-		action='store_true', default=False)
+		action='store_true', help=argparse.SUPPRESS, default=False)
 	store_group.add_argument("--npy", action='store_true', default=False)
 	start_group.add_argument('-truncate', '-t', default=1000, help=\
 		"""
