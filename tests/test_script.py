@@ -25,11 +25,19 @@ OUTPUT_MULTI = os.path.join(DIR, 'test_data/rossmanns.hits.csv')
 MULTI_QUERY_MULTI_FILE_PATH = os.path.join(DIR, 'test_data')
 
 
-def _validate_output_format(self, plmblast_df: pd.DataFrame):
+def _validate_output_format(plmblast_df_or_path: pd.DataFrame | str):
     
-    for col in ['ident', 'similarity', 'score', 'qid']:
-        if col not in plmblast_df.columns:
-            raise KeyError(f"{col} missing column in script output")
+	if isinstance(plmblast_df_or_path, str):
+		if not os.path.isfile(plmblast_df_or_path):
+			raise FileNotFoundError("missing plmblast results file")
+		plmblast_df = pd.read_csv(plmblast_df_or_path, sep=";")
+	else:
+		plmblast_df = plmblast_df_or_path.copy()
+	if plmblast_df.empty:
+		raise KeyError("empty plmblast output")
+	for col in ['ident', 'similarity', 'score', 'qid']:
+		if col not in plmblast_df.columns:
+			raise KeyError(f"{col} missing column in script output")
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -127,7 +135,7 @@ def test_results_reproducibility():
 @pytest.mark.parametrize("dbtype", ['npy', 'dir'])
 def test_multi_query(win: str, gap_ext: str, cpc: int, dbtype: str):
 	db = PLMBLAST_DB if dbtype == 'dir' else PLMBLAST_DB_NPY
-	cmd = f"plmblast {db} {INPUT_MULTI} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
+	cmd = f"plmblast {db} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext}"
 	cmd += f" -cpc {cpc} -alignment_cutoff 0.2"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code

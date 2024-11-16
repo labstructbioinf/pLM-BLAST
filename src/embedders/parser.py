@@ -7,22 +7,25 @@ def create_parser() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description =
 		"""
 		Embedding script create embeddings from sequences via desired embedder
-		by default `seq` column in used as embedder input. Records are stored
-		as list maintaining dataframe order.
+		For .csv or .pickle inputs program will use two columns `sequence` as a source of 
+		protein sequences (can be overwrited by -cname argument) and `description` 
+		which will be copied to `plmblast` program output
+		For .fasta input `description` will be produces from define line 
 		example use:
-			embeddings start data.csv data.pt -cname seqfull
+			embeddings start data.csv data.pt -cname sequences
 			# for fasta input
 			embeddings start data.fasta data.pt
 			# for file per embedding output
 			embeddings start data.fasta /path/to/db --asdir 
-            embeddings start data.fasta /path/to/db --npy
+			embeddings start data.fasta /path/to/db --npy
 			# resume interrupted calculations
 			embeddings resume /path/to/interrupted/db
 		""",
 		formatter_class=argparse.RawDescriptionHelpFormatter
 		)
 	parsers = parser.add_subparsers(title='options', required=True, dest='subparser_name')
-	start_group = parsers.add_parser(name='start', help='starting new calculations')
+	start_group = parsers.add_parser(name='start', help=\
+     'start new calculations type `embeddings start -h` to view manual')
 	resume_group = parsers.add_parser(name='resume', help=\
 	"""
 	continue calculations from checkpoint, checkpoint is automatically created and stored as
@@ -45,7 +48,7 @@ def create_parser() -> argparse.Namespace:
 		""",
 						dest='embedder', type=str, default='pt')
 	start_group.add_argument('-cname', '-col', help='sequence column name for .csv inputs (default: %(default)s)',
-						dest='cname', type=str, default='seq')
+						dest='cname', type=str, default='sequence')
 	start_group.add_argument('--cuda', '--gpu', help='if specified cuda device is used default False',
 						dest='gpu', default=False, action='store_true')
 	start_group.add_argument('-batch_size', '-b', '-bs', help=\

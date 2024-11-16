@@ -12,8 +12,8 @@ from ..settings import (RESIDUES,
 
 blosum62 = substitution_matrices.load("BLOSUM62")
 
-COLUMNS_DB = ['id', 'sequence']
-COLUMNS_QUERY = ['id', 'dbid', 'sequence']
+COLUMNS_DB = ['sequence']
+COLUMNS_QUERY = ['dbid', 'sequence']
 
 
 def calc_con(s1, s2):
@@ -79,8 +79,8 @@ def prepare_output(resdf: pd.DataFrame,
     add description to results based on extracted alignments and database frame records
     
     Args:
-        resdf (pd.DataFrame):
-        dbdf (pd.DataFrame):
+        resdf (pd.DataFrame): frame with plmblast main loop results
+        dbdf (pd.DataFrame): database index file
         alignment_cutoff: Optional (float) if > 0 results are filtred with this threshold
         verbose: (bool): 
     Returns:
@@ -88,8 +88,7 @@ def prepare_output(resdf: pd.DataFrame,
     '''
     # drop technical columns    
     querydf = resdf.drop(columns=['span_start', 'span_end', 'spanid', 'len'])
-    if 'index' in querydf.columns:
-         querydf.drop(columns=['index'], inplace=True)
+    dbdf['dbid'] = dbdf['plmblastid'].values
     if alignment_cutoff is None:
           alignment_cutoff = 0.0
 	# check columns
@@ -109,7 +108,7 @@ def prepare_output(resdf: pd.DataFrame,
             print(f'No matches found for given query! Try reducing the alignment_cutoff parameter. The current cutoff is {alignment_cutoff}')
         return pd.DataFrame()
     else:
-        querydf.rename(columns={'id' : 'qid'}, inplace=True)
+        querydf.rename(columns={'plmblastid' : 'qid'}, inplace=True)
         dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
         assert dbdf_matches.shape[0] == querydf.shape[0]
@@ -118,13 +117,13 @@ def prepare_output(resdf: pd.DataFrame,
              querydf['sdesc'] = dbdf_matches['description'].values
         querydf['sid'] = dbdf_matches['id'].values
         if 'seqlen' not in dbdf_matches.columns:
-            querydf['tlen'] = dbdf_matches['sequence'].str.len()
+            querydf['tlen'] = dbdf_matches['sequence'].str.len().values
         else:
             querydf['tlen'] = dbdf_matches['seqlen'].values
         if 'seqlen' not in querydf.columns:
-            querydf['qlen'] = querydf['sequence'].str.len()
+            querydf['qlen'] = querydf['sequence'].str.len().values
         else:
-            querydf['qlen'] = querydf['seqlen'].str.len()
+            querydf['qlen'] = querydf['seqlen'].str.len().values
         querydf['qstart'] =  [aln[0][1] for aln in aligmentlist]
         querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
         querydf['tstart'] = [aln[0][0] for aln in aligmentlist]

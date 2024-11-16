@@ -52,7 +52,7 @@ class DataObject:
                                   (--npy or --asdir in embeddings.py) it looks like you 
                                   passed as file datatabase'''
                                   )
-        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype.value} mode")
+        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype.value} mode  ({self.size}) seq total")
      
      @classmethod
      def from_dir(cls, pathdata: str, objtype: DataType):
@@ -61,28 +61,34 @@ class DataObject:
         """
         infile_with_extention = find_file_extention(pathdata)
         indexfile = read_input_file(infile_with_extention)
-        indexfile['run_index'] = list(range(0, indexfile.shape[0]))
+        if 'plmblastid' not in indexfile.columns:
+            indexfile['plmblastid'] = list(range(0, indexfile.shape[0]))
         return cls(indexdata=indexfile, pathdata=pathdata, objtype=objtype)
      
      def _find_datatype(self):
         """
-        determine dir, file or npy mode
+        determine input data format: dir, file or npy mode
         """
         self.embeddingpath = self.pathdata
         _dbnpy = os.path.join(self.pathdata, DBNPY)
         _dbnpy_index = os.path.join(self.pathdata, DBNPY_INDEX)
-        _dbemb = os.path.join(self.pathdata, "0.emb") # at least one embedding in a directory
+        _dbdir = os.path.join(self.pathdata, "0.emb") # at least one embedding in a directory
+        _dbdir_index = self.pathdata + ".csv"
         #breakpoint()
         if os.path.isfile(_dbnpy) and os.path.isfile(_dbnpy_index):
             self.datatype = DBTYPE.npy
-        elif os.path.isdir(self.pathdata) and os.path.isfile(_dbemb):
+        elif os.path.isdir(self.pathdata) and \
+            os.path.isfile(_dbdir) and os.path.isfile(_dbdir_index):
             self.datatype = DBTYPE.dir
         elif os.path.isfile(self.pathdata + ".pt"):
             self.datatype = DBTYPE.file
             self.embeddingpath += ".pt"
+        elif os.path.isfile(self.pathdata + ".emb"):
+            self.datatype = DBTYPE.file
+            self.embeddingpath += ".emb"
         else:
              FileNotFoundError(f'''no valid database in given location: {self.pathdata},
-                                make sure it contain {self.pathdata}.pt file, it is a 
+                                make sure it contain {self.pathdata}.pt file or is a 
                                 directory with .emb files or .npy file with .index.csv''')
         if self.datatype != DBTYPE.file:
             # only present in dir/npy mode
@@ -93,12 +99,12 @@ class DataObject:
           """
           return all files availabe for this dataobj
           """
-          run_index = self.indexdata['run_index'].tolist()
+          plmblastid = self.indexdata['plmblastid'].tolist()
           # find file locations
           if self.datatype == DBTYPE.dir:
-                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in run_index]
+                return [os.path.join(self.embeddingpath, f"{idx}{self.ext}") for idx in plmblastid]
           else:
-                return run_index
+                return plmblastid
           
                
 def find_file_extention(infile: str) -> str:
@@ -148,9 +154,6 @@ def read_input_file(file: str, cname: str = "sequence") -> pd.DataFrame:
 			if 'seq' in df.columns and cname != 'seq':
 				df.drop(columns=['seq'], inplace=True)
 			df.rename(columns={cname: 'sequence'}, inplace=True)
-	if 'id' not in df.columns or not df["id"].is_unique:
-		df["id"] = list(range(0, df.shape[0]))
-		warnings.warn("Id column is not unique, using index as id")
 	return df
 
 
@@ -180,7 +183,7 @@ class BatchLoader:
         
         self.mode = mode
         # prepare query data
-        self.query_ids = querydata.indexdata['run_index'].tolist()
+        self.query_ids = querydata.indexdata['plmblastid'].tolist()
         if dbdata.datatype == DBTYPE.file:
              self.dbasdir = False
              self.dbdata =  self._load_single_dir(dbdata.embeddingpath)

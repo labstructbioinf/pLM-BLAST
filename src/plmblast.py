@@ -115,8 +115,8 @@ def main():
 	# run postprocessing
 	results: List[pd.DataFrame] = list()
 	result_df = result_df.merge(
-		querydata.indexdata[['run_index', 'id', 'sequence']].copy(),
-		 left_on="queryid", right_on="run_index", how='left')
+		querydata.indexdata[['plmblastid', 'sequence']].copy(),
+		 left_on="queryid", right_on="plmblastid", how='left')
 	for qid, rows in result_df.groupby('queryid'):
 		query_result = aln.postprocess.prepare_output(rows, dbdata.indexdata, alignment_cutoff=args.alignment_cutoff)
 		results.append(query_result)

@@ -27,8 +27,9 @@ conda create --name plmblast python=3.10
 conda activate plmblast
 ```
 
-Install pLM-BLAST using:
+Install pLM-BLAST using
 ```bash
+cd pLM-BLAST
 pip install -e .
 ```
 
@@ -37,7 +38,7 @@ pip install -e .
 
 Pre-computed databases can be downloaded from [http://ftp.tuebingen.mpg.de/pub/protevo/toolkit/databases/plmblast_dbs](http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/). pLM-BLAST can use any kind of embeddings, which are in the form of `(seqlen, embdim)`.
 
-The `embeddings.py` script can be used to create a custom database based on pLM embeddings (`T5` based model such as `prott5`, `esm`-family or any model working with `transformers` `AutoModel` class) from a CSV or FASTA file. For example, the first lines of the CSV file for the ECOD database are:
+The `embeddings` program can be used to create a custom database based on pLM embeddings (`T5` based model such as `prott5`, `esm`-family or any model working with `transformers` `AutoModel` class) from a CSV or FASTA file with protein sequences. For example, the first lines of the CSV file for the ECOD database are:
 
 ```
 ,id,description,sequence
@@ -48,7 +49,7 @@ The `embeddings.py` script can be used to create a custom database based on pLM 
 
 If the input file is in CSV format, use `-cname` to specify in which column the sequences are stored. 
 
-It is recommended to sort the input sequences by length before running `embeddings.py`, when dealing with big databases.
+It is recommended to sort the input sequences by length before running `embeddings`, when dealing with big databases.
 By default `embeddings` uses ProtT5 (`-embedder pt` alias for `Rostlab/prot_t5_xl_half_uniref50-enc`), by typing `- embedder hf:modelname_or_path` will download or load locally stored 
 model supported by huggingface `AutoModel` class (same as calling: `AutoModel.from_pretrained(modelname_or_path)`).
 ```bash
@@ -80,7 +81,7 @@ To search a database `database` with a FASTA sequence in `query.fas`, we first n
 embeddings start query.fas query.pt
 ```
 
-Then the `plmblast` script can be used to search the database:
+Then the `plmblast` program can be used to search the database:
 
 ```bash
 plmblast database query output.csv -cpc 70
@@ -92,7 +93,7 @@ plmblast database database output.csv -cpc 70
 
 :sun_with_face: Note that only the base filename should be specified for the query and database (extensions are added automatically) :sun_with_face: 
 
-The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast.py -h` for more options. 
+The `-cpc X` with `X` > 0 option enables the use of cosine similarity pre-screening, which improves search speed. This option is recommended for typical applications, such as query vs database search. Follow [the link](examples/README.md) for more examples and run `plmblast -h` for more options. 
 
 ## Results visualisation
 

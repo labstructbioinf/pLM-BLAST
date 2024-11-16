@@ -11,14 +11,14 @@ OUTFILE="$OUTDIR/${case}.hits.csv"
 
 # Replace with a path to the database
 # Pre-calculated ECOD databased can be obtained from http://ftp.tuebingen.mpg.de/ebio/protevo/toolkit/databases/plmblast_dbs/
-DB_PATH="/home/users/sdunin/db/plmblast/data/ecod30db_20231201"
+DB_PATH=/home/nfs/kkaminski/PLMBLST/npydb/ecod30db_20240325
 
 # Return hits with scores >=0.3 (max score is 1)
 ALIGNMENT_CUTOFF="0.35"
 COSINE_CUTOFF=95
 
 # Customize according to your system specifications
-NUM_WORKERS=10
+NUM_WORKERS=5
 
 mkdir -p $OUTDIR
 

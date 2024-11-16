@@ -227,8 +227,9 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 6000) -> L
 		'requested resperbatch is lower then number of residues in single sequence'
 	num_seq_total = len(seqlen_list)
 	step: int = 4
-	# add zero at the begining
+	# residues in batch func
 	res_in_batch = lambda slc: len(slc)*max(slc)
+ 	# add zero at the begining
 	endbatch_index = list()
 	batchstart: int = 0
 	batchend: int = 0
@@ -241,7 +242,7 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 6000) -> L
 			# case when batch_size = step exeeds `resperbatch`
 			if num_seq == step:
 				batchend -= 2
-				num_res = sum(seqlen_list[batchstart:batchend])
+				num_res = res_in_batch(seqlen_list[batchstart:batchend])
 				if num_res > resperbatch:
 					batchend -= 1
 				endbatch_index.append(batchend)
@@ -292,8 +293,9 @@ def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str
 		cname (str): optional name of column with sequence string
 		plmblastid: (str, None) optional if for plmblast loop
 	Returns:
-		pd.DataFrame: columns: [queryid, id, sequence, description] if desription is not available they are filled
+		pd.DataFrame: columns: [plmblastid, sequence, description] if desription is not available they are filled
 	'''
+	COLUMNS_IN_USE = ['plmblastid', 'sequence', 'description']
 	# gather input file
 	if file.endswith('csv'):
 		df = pd.read_csv(file)
@@ -304,7 +306,7 @@ def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str
 		data = SeqIO.parse(file, 'fasta')
 		# unpack
 		data = [[i, record.description, str(record.seq)] for i, record in enumerate(data)]
-		df = pd.DataFrame(data, columns=['queryid', 'id', 'sequence'])
+		df = pd.DataFrame(data, columns=['plmblastid', 'description', 'sequence'])
 	elif file == "":
 		raise FileNotFoundError("empty string passed as input file")
 	else:
@@ -321,11 +323,6 @@ def read_input_file(file: str, cname: str = "sequence", plmblastid: Optional[str
 	# add missing columns
 	if 'description' not in df.columns:
 		df['description'] = ['na']*df.shape[0]
-	if 'id' not in df.columns:
-		df['id'] = list(range(df.shape[0]))
-	if plmblastid is not None:
-		assert plmblastid in ['queryid', 'dbid']
-		df[plmblastid] = list(range(df.shape[0]))
-	if 'queryid' not in df.columns:
-		df['queryid'] = list(range(df.shape[0]))
-	return df
+	if 'plmblastid' not in df.columns:
+		df['plmblastid'] = list(range(df.shape[0]))
+	return df[COLUMNS_IN_USE].copy()
