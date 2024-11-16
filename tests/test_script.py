@@ -25,6 +25,13 @@ OUTPUT_MULTI = os.path.join(DIR, 'test_data/rossmanns.hits.csv')
 MULTI_QUERY_MULTI_FILE_PATH = os.path.join(DIR, 'test_data')
 
 
+def _validate_output_format(self, plmblast_df: pd.DataFrame):
+    
+    for col in ['ident', 'similarity', 'score', 'qid']:
+        if col not in plmblast_df.columns:
+            raise KeyError(f"{col} missing column in script output")
+
+
 @pytest.fixture(scope='session', autouse=True)
 def remove_outputs():
 	# when testing separate output `--separate`
@@ -40,7 +47,6 @@ def remove_outputs():
 
 @pytest.mark.core
 def test_data_exists():
-	assert os.path.isfile(SCRIPT), f"missing main script {SCRIPT}"
 	assert os.path.isdir(PLMBLAST_DB), f"missing db directory: {PLMBLAST_DB}"
 	assert os.path.isfile(PLMBLAST_DB_CSV), f"missing index file: {PLMBLAST_DB_CSV}"
 	for ext in [".fas", ".pt"]:
@@ -79,12 +85,12 @@ def test_data_exists():
 @pytest.mark.core
 @pytest.mark.parametrize('win', [25])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
-@pytest.mark.parametrize("cosine_percentile_cutoff", [90])
+@pytest.mark.parametrize("cpc", [90])
 @pytest.mark.parametrize("dbtype", ['npy', 'dir'])
-def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, dbtype: str):
+def test_single_query(win: int, gap_ext: int, cpc: int, dbtype: str):
 	db = PLMBLAST_DB if dbtype == 'dir' else PLMBLAST_DB_NPY
-	cmd = f"python {SCRIPT} {db} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
-	cmd += f" -cpc {cosine_percentile_cutoff} -alignment_cutoff 0.2"
+	cmd = f"plmblast {db} {INPUT_SINGLE} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
+	cmd += f" -cpc {cpc} -alignment_cutoff 0.2"
 	proc = subprocess.run(args=cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
@@ -94,6 +100,7 @@ def test_single_query(win: int, gap_ext: int, cosine_percentile_cutoff: int, dbt
 	output = pd.read_csv(OUTPUT_SINGLE, sep=";")
 	if win < 20:
 		assert output.shape[0] > 0, "no results for given query"
+	_validate_output_format(output)
 
 
 @pytest.mark.skip(reason='it seams that results are not symmetric - they are almost symmetric')
@@ -113,20 +120,24 @@ def test_results_reproducibility():
 				continue
 			assert (resulti == resultj).all(), 'results are not identical'
 
-
+@pytest.mark.core
 @pytest.mark.parametrize('win', [10, 15])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
-def test_multi_query(win: str, gap_ext: str):
-	cmd = f"python {SCRIPT} {PLMBLAST_DB} {INPUT_MULTI} {OUTPUT_MULTI} -win {win} -gap_ext {gap_ext}"
-	cmd += f" -alignment_cutoff 0.2"
+@pytest.mark.parametrize("cpc", [90])
+@pytest.mark.parametrize("dbtype", ['npy', 'dir'])
+def test_multi_query(win: str, gap_ext: str, cpc: int, dbtype: str):
+	db = PLMBLAST_DB if dbtype == 'dir' else PLMBLAST_DB_NPY
+	cmd = f"plmblast {db} {INPUT_MULTI} {OUTPUT_SINGLE} -win {win} -gap_ext {gap_ext}"
+	cmd += f" -cpc {cpc} -alignment_cutoff 0.2"
 	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 	# check process error code
 	if proc.returncode != 0:
-		raise OSError(proc.stderr)
+		raise OSError(proc.stderr.decode())
 	if not os.path.isfile(OUTPUT_MULTI):
 		raise FileNotFoundError(f'missing output after plmblast run, err:\n {proc.stderr}')
 	output = pd.read_csv(OUTPUT_MULTI, sep=";")
 	assert output.shape[0] > 0
+	_validate_output_format(output)
 
 
 @pytest.mark.parametrize('win', [10, 20])

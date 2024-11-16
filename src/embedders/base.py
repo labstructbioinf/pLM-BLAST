@@ -26,89 +26,6 @@ def is_index_valid(dfindex) -> bool:
 		return True
 
 
-def create_parser() -> argparse.Namespace:
-	parser = argparse.ArgumentParser(description =
-		"""
-		Embedding script create embeddings from sequences via desired embedder
-		by default `seq` column in used as embedder input. Records are stored
-		as list maintaining dataframe order. 
-		In python load via: 
-		>>> import torch
-		>>> torch.load(..)
-		or 
-		>>> import pickle
-		>>> with open(.., 'rb') as f:
-		>>>	    embs = pickle.load(f)
-		
-		example use:
-			python embeddings.py start data.csv data.pt -cname seqfull
-			# for fasta input
-			python embeddings.py start data.fasta data.pt
-			# for file per embedding output
-			python embeddings.py start data.fasta data --asdir
-			# resume interrupted calculations
-			python embeddings.py resume data
-		""",
-		formatter_class=argparse.RawDescriptionHelpFormatter
-		)
-	parsers = parser.add_subparsers(title='options', required=True, dest='subparser_name')
-	start_group = parsers.add_parser(name='start', help='starting new calculations')
-	resume_group = parsers.add_parser(name='resume', help=\
-	"""
-	continue calculations from checkpoint, checkpoint is automatically created and stored as
-	emb_checkpoint.json in output directory this is only available when using asdir flag
-	""")
-	resume_group.add_argument('output', type=str, help=\
-						   'previous calculation directory or checkpoint file')
-	start_group.add_argument('input', help='csv/pickle (.csv or .p) with `seq` column',
-						type=str)
-	start_group.add_argument('output', help=\
-		'''resulting file with list of embeddings or directory if `--asdir` is specified''',
-						type=str)
-	start_group.add_argument('-embedder', '-e', help=\
-		"""
-		name of the embedder by default `pt` - prot_t5_xl_half_uniref50-enc, `esm`
-		for esm2_t33_650M_UR50D, `prost` for ProtT5-XL-U50 you can olso specify any model
-		 supported by huggingface `AutoModel` typing `hf:modelname` (eg. `hf:Rostlab/prot_bert` 
-		 for Rostlab/prot_bert, modelname may be also a path to pretrained model)
-		""",
-						dest='embedder', type=str, default='pt')
-	start_group.add_argument('-cname', '-col', help='custom sequence column name',
-						dest='cname', type=str, default='')
-	start_group.add_argument('--cuda', '--gpu', help='if specified cuda device is used default False',
-						dest='gpu', default=False, action='store_true')
-	start_group.add_argument('-batch_size', '-b', '-bs', help=\
-		'''batch size for loader longer sequences may require lower batch size set 0 to adaptive batch mode''',
-						dest='batch_size', type=int, default=32)
-	store_group = start_group.add_mutually_exclusive_group()
-	store_group.add_argument('--asdir', help=\
-		"""
-		whether save output as directory where each embedding is a separate file,
-		named as df index which is mandatory for large number of sequences
-		""",
-		action='store_true', default=False)
-	store_group.add_argument('--h5py', help=\
-		"""
-		output embeddings will be stored as hdf5 file with .h5
-		""",
-		action='store_true', help=argparse.SUPPRESS, default=False)
-	store_group.add_argument("--npy", action='store_true', default=False)
-	start_group.add_argument('-truncate', '-t', default=1000, help=\
-		"""
-		cut sequences longer then parameter, similar to sequence[:truncate], helps to prevent OOM errors
-		""",
-		type=int, dest='truncate')
-	start_group.add_argument('-res_per_batch', default=6000, type=int, help=\
-		"""
-		set the maximal number of residues in each batch, only used when batch_size is set to 0
-		""")
-	start_group.add_argument('--last_batch', help=argparse.SUPPRESS, type=int, default=0)
-	start_group.add_argument('-nproc', '-np', help='number of process to spawn', default=1,
-						  type=int)
-	args = parser.parse_args()
-	return args
-
-
 def validate_args(args: argparse.Namespace, verbose: bool = False) -> Tuple[argparse.Namespace, pd.DataFrame]:
 	'''
 	handle and validate parser arguments
@@ -200,15 +117,21 @@ def prepare_dataframe(df: pd.DataFrame,
 		if num_records == 1 and batch_size == 0:
 			batch_size = 1
 		# cut sequences
-		df['seqlens'] = df['sequence'].str.len()
+		df['seqlen'] = df['sequence'].str.len()
 		df['sequence'] = df.apply(lambda row: \
-					   row['sequence'][:args.truncate] if row['seqlens'] > args.truncate else row['sequence'], axis=1)
+					   row['sequence'][:args.truncate] if row['seqlen'] > args.truncate else row['sequence'], axis=1)
 		df['sequence'] = df['sequence'].str.upper()
 		# update size
-		df['seqlens'] = df['sequence'].str.len()
-		print(f'saving index file to: {args.output + ".csv"}')
-		df.to_csv(args.output + ".csv", index=False)
-		batch_list = make_iterator(df['seqlens'].tolist(), args.batch_size, args.res_per_batch)
+		df['seqlen'] = df['sequence'].str.len()
+		# add extension to index file
+		if args.output.endswith((".pt", ".emb")):
+			output = args.output.split(".")
+			output[-1] = "csv"
+			output = ".".join(output)
+		else:
+			output = args.output + ".csv"
+		df.to_csv(output, index=False)
+		batch_list = make_iterator(df['seqlen'].tolist(), args.batch_size, args.res_per_batch)
 		batch_iterator = BatchIterator(batch_list=batch_list, start_batch=args.last_batch)
 		if args.nproc > 1:
 			batch_iterator = BatchIterator(batch_list=batch_list)
@@ -222,7 +145,7 @@ def prepare_dataframe(df: pd.DataFrame,
 		print('num batches %d/%d' % (batch_iterator.current_batch, batch_iterator.total_batches))
 		print('avg seq per batch %d' % avg_batch_size)
 		print('num batches skipped:', args.last_batch)
-		print('sequence len dist: %d - %d - %d' % (df.seqlens.min(), int(df.seqlens.mean()),df.seqlens.max()))
+		print('sequence len dist: %d - %d - %d' % (df.seqlen.min(), int(df.seqlen.mean()),df.seqlen.max()))
 		return df, batch_iterator
 
 
@@ -292,7 +215,7 @@ def calculate_adaptive_batchsize(seqlen_list, resperbatch: int = 4000) -> Iterab
 def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 6000) -> List[slice]:
 	'''
 	create slice iterator over sequence list with conditions
-	* each batch have >= resperbatch residues
+	* each batch have >= resperbatch residues (after longest padding which is equivalent of max(seqlen)*batch_size)
 	* each batch size is dividable by 4
 	Returns:
 		endbatch_index: (List[slice]) iterator over start stop batch indices
@@ -305,12 +228,13 @@ def calculate_adaptive_batchsize_div4(seqlen_list, resperbatch: int = 6000) -> L
 	num_seq_total = len(seqlen_list)
 	step: int = 4
 	# add zero at the begining
+	res_in_batch = lambda slc: len(slc)*max(slc)
 	endbatch_index = list()
 	batchstart: int = 0
 	batchend: int = 0
 	while batchend <= num_seq_total:
 		batchend = min(batchend + step, num_seq_total)
-		num_res = sum(seqlen_list[batchstart:batchend])
+		num_res = res_in_batch(seqlen_list[batchstart:batchend])
 		num_seq = batchend - batchstart
 		#print(batchend, num_res, num_seq)
 		if (num_res >  resperbatch) or (batchend >= num_seq_total):

@@ -22,6 +22,7 @@ from alntools.postprocess.format import add_duplicates
 from alntools.filehandle import DataObject
 import alntools as aln
 
+
 def main():
 	start_time = datetime.datetime.now()
 	args = get_parser()

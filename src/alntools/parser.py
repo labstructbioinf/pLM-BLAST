@@ -76,9 +76,10 @@ def get_parser() -> argparse.Namespace:
 							 'The lower the value, the more sequences will be pre-screened and then aligned with pLM-BLAST. '
 							 'Setting the cutoff to 0 disables the pre-screening step.',
 						type=range0100, default=70, dest='COS_PER_CUT')    
-
-	parser.add_argument('--reduce_duplicates', 
-						help='Filter redundant hits (feature under development, use with caution).',
+	# not working at this time because plmblast runs may be slightly asymmetric
+	parser.add_argument('--reduce_duplicates',
+						help=argparse.SUPPRESS,
+						#help='Filter redundant hits (feature under development, use with caution).',
 						action='store_true', default=False)
 	
 	parser.add_argument('--only-scan', '-oc', 

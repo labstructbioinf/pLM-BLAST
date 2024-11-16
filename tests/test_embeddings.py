@@ -23,7 +23,7 @@ EMBEDDING_FASTA: str = os.path.join(DIR, "test_data/seq.fasta")
 EMBEDDING_OUTPUT: str = os.path.join(DIR, "test_data/output/seq.emb")
 EMBEDDING_NPY: str = os.path.join(DIR, "test_data/seq.npy")
 EMBEDDING_OUTPUT_DIR: str = os.path.join(DIR, 'test_data', 'output')
-NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
+#NUM_EMBEDDING_FILES: int = pd.read_pickle(EMBEDDING_DATA).shape[0]
 DEVICE: str = 'cuda' if th.cuda.is_available() else 'cpu'
 
 

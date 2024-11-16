@@ -44,11 +44,11 @@ def main_prottrans(df: pd.DataFrame,
 	model.to(device).eval()
 	print(f'model: {embedder_name} loaded on {device}')
 	gc.collect()
-	if df.seqlens.max() > 1000:
+	if df.seqlen.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
 	batch_files = []
 	seqlist_all = df['sequence'].tolist()
-	lenlist_all = df['seqlens'].tolist()
+	lenlist_all = df['seqlen'].tolist()
 	if args.asdir and not os.path.isdir(args.output):
 		os.mkdir(args.output)
 	elif args.npy:

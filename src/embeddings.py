@@ -13,6 +13,7 @@ from embedders import (main_esm,
                        main_automodel)
 from embedders.checkpoint import capture_checkpoint, find_and_load_checkpoint_file
 
+
 def mp_process(rank_id: int, nproc: int, args: argparse.Namespace):
 	# set env variables
 	os.environ['MASTER_ADDR'] = 'localhost'

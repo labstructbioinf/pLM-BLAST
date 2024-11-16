@@ -117,8 +117,14 @@ def prepare_output(resdf: pd.DataFrame,
         if "description" in dbdf_matches.columns:
              querydf['sdesc'] = dbdf_matches['description'].values
         querydf['sid'] = dbdf_matches['id'].values
-        querydf['tlen'] = dbdf_matches['sequence'].apply(len).values.astype(int)
-        querydf['qlen'] = querydf['sequence'].apply(len).values.astype(int)
+        if 'seqlen' not in dbdf_matches.columns:
+            querydf['tlen'] = dbdf_matches['sequence'].str.len()
+        else:
+            querydf['tlen'] = dbdf_matches['seqlen'].values
+        if 'seqlen' not in querydf.columns:
+            querydf['qlen'] = querydf['sequence'].str.len()
+        else:
+            querydf['qlen'] = querydf['seqlen'].str.len()
         querydf['qstart'] =  [aln[0][1] for aln in aligmentlist]
         querydf['qend'] =  [aln[-1][1] for aln in aligmentlist]
         querydf['tstart'] = [aln[0][0] for aln in aligmentlist]

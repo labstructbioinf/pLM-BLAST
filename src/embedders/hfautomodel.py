@@ -48,13 +48,13 @@ def main_automodel(df: pd.DataFrame,
 	model.eval()
 	print(f'model: {embedder_name} loaded on {device}')
 	gc.collect()
-	if df.seqlens.max() > 1000:
+	if df.seqlen.max() > 1000:
 		warnings.warn('''dataset poses sequences longer then 1000 aa, this may lead to memory overload and long running time''')
 	batch_files = []
 	if args.asdir and not os.path.isdir(args.output):
 		os.mkdir(args.output)
 	seqlist_all = df['sequence'].tolist()
-	lenlist_all = df['seqlens'].tolist()
+	lenlist_all = df['seqlen'].tolist()
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		for batch_id_filename, batchslice in tqdm(iterator, total=len(iterator)):
 			args.last_batch = batch_id_filename
