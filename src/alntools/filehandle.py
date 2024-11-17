@@ -55,15 +55,32 @@ class DataObject:
         print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype.value} mode  ({self.size}) seq total")
      
      @classmethod
-     def from_dir(cls, pathdata: str, objtype: DataType):
+     def from_dir(cls, 
+                  path_or_indices: str, 
+                  objtype: DataType, 
+                  dbobj: Optional[DataObject] = None):
         """
         find embeddings storage type
         """
-        infile_with_extention = find_file_extention(pathdata)
-        indexfile = read_input_file(infile_with_extention)
-        if 'plmblastid' not in indexfile.columns:
-            indexfile['plmblastid'] = list(range(0, indexfile.shape[0]))
-        return cls(indexdata=indexfile, pathdata=pathdata, objtype=objtype)
+        
+        infile_with_extention = find_file_extention(path_or_indices)
+        if infile_with_extention is None:
+            if objtype == DataType.query:
+                try:
+                    indices = [int(ind) for ind in infile_with_extention.split(",")]
+                except Exception as e:
+                    pass
+                # use slice of database as query
+                indexdata = dbobj.indexdata.iloc[indices, :].copy()
+                pathdata = 
+            raise PLMBlastDBError(f"""
+            input for {DataType.query.value} is invalid it should be a path
+            or a list of indices from {DataType.db.value}
+            """)
+        indexdata = read_input_file(infile_with_extention)
+        if 'plmblastid' not in indexdata.columns:
+            indexdata['plmblastid'] = list(range(0, indexdata.shape[0]))
+        return cls(indexdata=indexdata, pathdata=path_or_indices, objtype=objtype)
      
      def _find_datatype(self):
         """
@@ -107,8 +124,8 @@ class DataObject:
                 return plmblastid
           
                
-def find_file_extention(infile: str) -> str:
-    '''search for extension for query or index files'''
+def find_file_extention(infile: str) -> Optional[str]:
+    '''search for extension for query or index files if file not found return None'''
     assert isinstance(infile, str)
     infile_with_ext = infile
     for ext in EXTENSIONS:
@@ -116,7 +133,7 @@ def find_file_extention(infile: str) -> str:
             infile_with_ext = infile + ext
             break
     if infile_with_ext == "":
-        raise FileNotFoundError(f'no matching index file {infile}')
+        infile_with_ext = None
     return infile_with_ext
 
 
