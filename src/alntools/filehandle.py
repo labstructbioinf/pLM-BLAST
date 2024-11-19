@@ -29,6 +29,7 @@ class DataObject:
      core object to handle pLM-Blast script calls for either query or database
      """
      size: int = 0
+     total_size: int = 0
      indexfile: str
      indexdata: pd.DataFrame
      datatype: DBTYPE = "dir"
@@ -39,12 +40,17 @@ class DataObject:
      ext: str = ".emb"
      objtype: DataType = "query"
 
-     def __init__(self, indexdata: pd.DataFrame, pathdata: str, objtype: DataType):
+     def __init__(self, 
+                  indexdata: pd.DataFrame, 
+                  pathdata: str, 
+                  objtype: DataType,
+                  indices: Optional[List[int]]):
+
 
         self.pathdata = pathdata
         self.indexdata = indexdata
         self.objtype = objtype
-        self.size = indexdata.shape[0]
+        self.size = self.total_size = indexdata.shape[0]
         self._find_datatype()
         if objtype == DataType.db and self.dbtype == DBTYPE.file:
             raise PLMBlastDBError('''
@@ -52,35 +58,51 @@ class DataObject:
                                   (--npy or --asdir in embeddings.py) it looks like you 
                                   passed as file datatabase'''
                                   )
-        print(f"loaded {self.objtype}: {self.pathdata} - in {self.datatype.value} mode  ({self.size}) seq total")
+        print(indices)
+        if indices:
+            self.indexdata = indexdata.iloc[indices, ]
+            self.size = self.indexdata.shape[0]
+        print(f"loaded {self.objtype}: {self.pathdata}({self.datatype.value}) using {self.size}/{self.total_size} seq total")
      
      @classmethod
      def from_dir(cls, 
                   path_or_indices: str, 
-                  objtype: DataType, 
-                  dbobj: Optional[DataObject] = None):
+                  objtype: DataType):
         """
         find embeddings storage type
         """
-        
+        _splitted = path_or_indices.split(":")
+        indices = None
+        # example path:123-4154,143
+        # split into 123-4154,143
+        if len(_splitted) != 1:
+            try:
+                indices_groups = _splitted[1].split(",")
+                indices = []
+                for ig in indices_groups:
+                    if "-" not in ig: # single index
+                        indices.append(int(ig))
+                    else:
+                        start,stop = ig.split("-")
+                        indices.extend(list(range(int(start), int(stop))))
+                indices.sort()
+            except Exception as e:
+                raise PLMBlastDBError(f"""
+                    invalid indexing in given path: {path_or_indices}
+                    make sure that your indexing is in form of 
+                    path:idx1,idx2,idx3,idx_start,idx_stop
+                    """)
+            finally:
+                path_or_indices = _splitted[0]
         infile_with_extention = find_file_extention(path_or_indices)
-        if infile_with_extention is None:
-            if objtype == DataType.query:
-                try:
-                    indices = [int(ind) for ind in infile_with_extention.split(",")]
-                except Exception as e:
-                    pass
-                # use slice of database as query
-                indexdata = dbobj.indexdata.iloc[indices, :].copy()
-                pathdata = 
-            raise PLMBlastDBError(f"""
-            input for {DataType.query.value} is invalid it should be a path
-            or a list of indices from {DataType.db.value}
-            """)
         indexdata = read_input_file(infile_with_extention)
         if 'plmblastid' not in indexdata.columns:
             indexdata['plmblastid'] = list(range(0, indexdata.shape[0]))
-        return cls(indexdata=indexdata, pathdata=path_or_indices, objtype=objtype)
+        return cls(
+            indexdata=indexdata, 
+            pathdata=path_or_indices, 
+            objtype=objtype,
+            indices=indices)
      
      def _find_datatype(self):
         """
