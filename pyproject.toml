@@ -44,6 +44,7 @@ dev = [
 [project.scripts]
 plmblast = "plmblast:main"
 embeddings = "embeddings:main"
+pbmanager = "plmblast_aliases:main"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

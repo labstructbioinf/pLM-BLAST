@@ -13,6 +13,7 @@ pLM-BLAST is a sensitive remote homology detection tool based on the comparison 
     + [Searching a database](#searching-a-database)
     + [Results visualisation](#results-visualisation)
     + [Usage example](examples/README.md)
+    + [New Feature: Aliases](#aliases)
 * [ Remarks ](#Remarks)
     + [How to cite](#how-to-cite)
     + [Funding](#funding)
@@ -116,7 +117,19 @@ A visualization of the results of searching the ECOD30 database with the sequenc
     <img src="examples/data/figures/cupredoxin.hits_score_ecod.legend.png" style="width: 45%; display: inline-block;" />
 </div>
 
+# aliases
 
+use 
+```bash
+plmblast_aliases /path/to/db --view # to display available aliases 
+plmblast_aliases /path/to/db -add proteins1 1:200 # add alias to given db
+```
+after that you can use your alias search over part of database
+```bash
+plmblast /path/to/db:proteins1 /path/to/query results.csv
+```
+
+then you can 
 # Remarks
 
 ## How to cite?
