@@ -7,7 +7,14 @@ class PLMBlastAliasError(BaseException):
     pass
 
 class PBAliasManager:
+    '''
+    index structure
+    name: {
+        raw: # human alias defintion
+        indices: # indices of an alias
+    }
     
+    '''
     def __init__(self, dbpath: str | Path):
         if isinstance(dbpath, str):
             dbpath = Path(dbpath)
@@ -27,17 +34,24 @@ class PBAliasManager:
             raise PLMBlastAliasError(f"alias with name: {name} already exists")
         else:
             indices = PBAliasManager.decode_indices(indices_string)
+            print(f"registred new alias: {name} seqs: {len(indices)}")
             self.data[name] = {"indices": indices, "raw": indices_string}
             self._update()
+            
     def remove(self, name: str):
-        if name not in self.data:
-            aliases_str = ", ".join(self.data.keys())
-            raise PLMBlastAliasError(
-                f"alias with name: {name} dont exists, available are: {aliases_str}")
+        self._validate_alias(name)
+        del self.data[name]
+        self._update()
         
     def view(self):
+        if len(self.data):
+            print("no aliases registred yet")
         for name, idxdata in self.data.items():
             print(f"alias: {name} -> {idxdata['raw']}")
+    
+    def get(self, name: str) -> List[int]:
+        self._validate_alias(name)
+        return self.data[name]['indices']
         
     def _update(self):
         """save file with changes"""
@@ -60,4 +74,14 @@ class PBAliasManager:
             indices.sort()
         except Exception as e:
             raise BaseException(e)
+        return indices
         
+    def _validate_alias(self, name: str):
+        if name == "":
+            raise PLMBlastAliasError(
+                "empty string passed as an alias name"
+            )
+        if name not in self.data:
+            aliases_str = ", ".join(self.data.keys())
+            raise PLMBlastAliasError(
+                f"alias with name: {name} dont exists, available are: {aliases_str}")

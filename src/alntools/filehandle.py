@@ -10,6 +10,7 @@ from Bio import SeqIO
 import pandas as pd
 import torch
 
+from alntools.aliasmanager import PBAliasManager
 from alntools.settings import DBTYPE, DataType
 from alntools.settings import EXTENSIONS, DBNPY, DBNPY_INDEX, EMB64_EXT
 from embedders.dataset import NPHandle
@@ -44,7 +45,8 @@ class DataObject:
                   indexdata: pd.DataFrame, 
                   pathdata: str, 
                   objtype: DataType,
-                  indices: Optional[List[int]]):
+                  indices: Optional[List[int]],
+                  alias: Optional[str]):
 
 
         self.pathdata = pathdata
@@ -53,15 +55,24 @@ class DataObject:
         self.size = self.total_size = indexdata.shape[0]
         self._find_datatype()
         if objtype == DataType.db and self.dbtype == DBTYPE.file:
+            raise PLMBlastDBError(
+                '''
+                db argument must be a npy or directory database 
+                (--npy or --asdir in embeddings.py) it looks like you 
+                passed as file datatabase'''
+                )
+        if objtype == DBTYPE.file and (alias or indices):
             raise PLMBlastDBError('''
-                                  db argument must be a npy or directory database 
-                                  (--npy or --asdir in embeddings.py) it looks like you 
-                                  passed as file datatabase'''
-                                  )
-        print(indices)
+            aliases are only available for npy or dir mode
+            ''') 
         if indices:
-            self.indexdata = indexdata.iloc[indices, ]
+            # currently not supported
+            indices = PBAliasManager.decode_indices(indices)
             self.size = self.indexdata.shape[0]
+        elif alias:
+            indices = PBAliasManager(self.pathdata).get(alias)
+            self.indexdata = self.indexdata.iloc[indices, :]
+            print('using alias: ', alias)
         print(f"loaded {self.objtype}: {self.pathdata}({self.datatype.value}) using {self.size}/{self.total_size} seq total")
      
      @classmethod
@@ -72,28 +83,21 @@ class DataObject:
         find embeddings storage type
         """
         _splitted = path_or_indices.split(":")
-        indices = None
+        indices = []
         # example path:123-4154,143
         # split into 123-4154,143
-        if len(_splitted) != 1:
-            try:
-                indices_groups = _splitted[1].split(",")
-                indices = []
-                for ig in indices_groups:
-                    if "-" not in ig: # single index
-                        indices.append(int(ig))
-                    else:
-                        start,stop = ig.split("-")
-                        indices.extend(list(range(int(start), int(stop))))
-                indices.sort()
-            except Exception as e:
-                raise PLMBlastDBError(f"""
-                    invalid indexing in given path: {path_or_indices}
-                    make sure that your indexing is in form of 
-                    path:idx1,idx2,idx3,idx_start,idx_stop
-                    """)
-            finally:
-                path_or_indices = _splitted[0]
+        # no index
+        if len(_splitted) == 1:
+            path_or_indices = _splitted[0]
+        elif len(_splitted) == 2:
+            path_or_indices, alias = _splitted
+        else:
+            raise PLMBlastDBError(f"""
+                invalid indexing in given path: {path_or_indices}
+                make sure that your indexing is in form of 
+                path:idx1,idx2,idx3,idx_start,idx_stop
+                """)
+
         infile_with_extention = find_file_extention(path_or_indices)
         indexdata = read_input_file(infile_with_extention)
         if 'plmblastid' not in indexdata.columns:
@@ -102,7 +106,8 @@ class DataObject:
             indexdata=indexdata, 
             pathdata=path_or_indices, 
             objtype=objtype,
-            indices=indices)
+            indices=indices,
+            alias=alias)
      
      def _find_datatype(self):
         """

@@ -44,7 +44,8 @@ def main():
     print("looking for alias file", aliasfile)
     pbhandle = PBAliasManager(dbdir)
     if not args.view:
-        pbhandle.add(args.add[0], args.add[1])
+        name, indices_string = args.add
+        pbhandle.add(name, indices_string)
     else:
         pbhandle.view()
         
