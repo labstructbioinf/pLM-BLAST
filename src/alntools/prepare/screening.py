@@ -15,9 +15,49 @@ from embedders.dataset import NPHandle
 from .reduce_duplicates import reduce_duplicates_query_filedict
 
 
-def apply_database_screening(args: argparse.Namespace,
-                            querydata: DataObject,
-                            dbdata: DataObject) -> Dict[int, List[str]]:
+def read_embeddings_for_screening(
+        datahandle: DataObject,
+        workers: int = 4,
+        ) -> List[torch.Tensor]:
+    if not os.path.isfile(datahandle.poolpath):
+        print(
+            f'''missing pooled embedding file {datahandle.poolpath} for given database, it will be generated on fly,
+            and saved. Depending on run specification this may decrease performence of the first run,
+            especially for larger databases. It can be created manually by scripts/dbtofile.py''')
+        # load regular database and pool
+        # find db structure
+        if datahandle.datatype == DBTYPE.file:
+            embeddings_pooled = torch.load(datahandle.embeddingpath)
+            embeddings_pooled = calculate_pool_embs(embeddings_pooled)
+        elif datahandle.datatype == DBTYPE.dir:
+            # generator version to reduce RAM usage
+            embeddings_pooled = []
+            for embs in load_embeddings_parallel_generator(datahandle.embeddingpath,
+                                                            record=datahandle.plmblast_ids,
+                                                            num_workers=workers):
+                embeddings_pooled.extend(calculate_pool_embs(embs))
+        elif datahandle.datatype == DBTYPE.npy:
+            npyhandle = NPHandle(dbpath=datahandle.pathdata)
+            embeddings_pooled = [ calculate_pool_embs(npyhandle.read(pidx)) 
+                            for pidx in datahandle.plmblast_ids ]
+        # try to write emb.64 file
+        if datahandle.datatype != DBTYPE.file and datahandle.alias is None:
+            try:
+                torch.save(embeddings_pooled, datahandle.poolpath)
+            except Exception as e:
+                print(f'cannot write {datahandle.poolpath} due to: {e}')
+    else:
+        print(f"loading database pre-screening cache from: {datahandle.poolpath}")
+        embeddings_pooled: List[torch.Tensor] = torch.load(datahandle.poolpath)
+        if datahandle.alias is not None:
+            embeddings_pooled = [embeddings_pooled[pidx] for pidx in datahandle.plmblast_ids]
+    return embeddings_pooled
+
+
+def apply_database_screening(
+        args: argparse.Namespace,
+        querydata: DataObject,
+        dbdata: DataObject) -> Dict[int, List[str]]:
     '''
     apply pre-screening for database search
     
@@ -36,58 +76,10 @@ def apply_database_screening(args: argparse.Namespace,
     if (0 < percentile_factor < 1 and dbdata.size > 10) or args.only_scan:
         print(f"Pre-screening params: {args.COS_PER_CUT} quantile, kernel size: {args.cpc_kernel_size}, stride: {args.cpc_stride}")
         query_filedict = dict()
-        if not os.path.isfile(dbdata.poolpath):
-            print(
-                f'''missing pooled embedding file {dbdata.poolpath} for given database, it will be generated on fly,
-                and saved. Depending on run specification this may decrease performence of the first run,
-                especially for larger databases. It can be created manually by scripts/dbtofile.py''')
-            # load regular database and pool
-            # find db structure
-            if dbdata.datatype == DBTYPE.file:
-                db_embs = torch.load(dbdata.embeddingpath)
-                db_embs = calculate_pool_embs(db_embs)
-            elif dbdata.datatype == DBTYPE.dir:
-                # generator version to reduce RAM usage
-                db_embs = list()
-                for embs in load_embeddings_parallel_generator(dbdata.embeddingpath,
-                                                               num_records=dbdata.size,
-                                                               num_workers=num_workers_loader):
-                    db_embs.extend(calculate_pool_embs(embs))
-            elif dbdata.datatype == DBTYPE.npy:
-                npyhandle = NPHandle(dbdata.pathdata)
-                db_embs = calculate_pool_embs(npyhandle.read_all(True))
-            # try to write emb.64 file
-            if dbdata.datatype != DBTYPE.file:
-                try:
-                    torch.save(db_embs, dbdata.poolpath)
-                except Exception as e:
-                    print(f'cannot write {dbdata.poolpath} due to: {e}')
-        else:
-            print(f"loading database pre-screening cache from: {dbdata.poolpath}")
-            db_embs: List[torch.Tensor] = torch.load(dbdata.poolpath)
-    
+        db_embs = read_embeddings_for_screening(dbdata, 4)
         if args.verbose:
             print('Loading database for chunk cosine similarity screening...')
-        # look for pooled emb file
-        if querydata.poolpath is None:
-            query_embs_chunkcs = list()
-            if querydata.datatype == DBTYPE.dir:  
-                for embs in load_embeddings_parallel_generator(querydata.embeddingpath,
-                                                                num_records=querydata.size,
-                                                                num_workers=0):
-                    query_embs_chunkcs.extend(calculate_pool_embs(embs))
-            if querydata.datatype == DBTYPE.npy:
-                npyhandle = NPHandle(querydata.pathdata, mode="w+")
-                query_embs_chunkcs = [calculate_pool_embs(emb) for emb in npyhandle.read_all(True)]
-            # file mode - pool file is not available
-            else:
-                query_embs_chunkcs = torch.load(querydata.embeddingpath)
-                query_embs_chunkcs = calculate_pool_embs(query_embs_chunkcs)
-        # file exists
-        else:
-            print(f"loading query pre-screening cache from: {dbdata.poolpath}")
-            query_embs_chunkcs = torch.load(querydata.poolpath)
-
+        query_embs_chunkcs = read_embeddings_for_screening(querydata, 4)
         seqlen_query: list[int] = [q.shape[0] for q in query_embs_chunkcs]
         seqlen_db: list[int] = [q.shape[0] for q in db_embs]
         # check if embdim is same
@@ -102,19 +94,17 @@ def apply_database_screening(args: argparse.Namespace,
         batchdb = unfold_large_db(db_embs, kernel_size=kernel_size, stride=args.cpc_stride, embdim=embdim)
         del db_embs
         # loop over all query embeddings
-        curr_index = 0
         with tqdm(total=num_queries, desc='screening seqences') as pbar:
             for embslice in slice_iterator_with_seqlen(seqlen_query):
                 filedict_batch = chunk_cosine_similarity(
                                                     query=query_embs_chunkcs[embslice],
                                                     targets=batchdb,
                                                     quantile=percentile_factor,
-                                                    dataset_files=dbdata.dirfiles,
+                                                    dataset_files=dbdata.plmblast_ids,
                                                     stride=args.cpc_stride,
                                                     kernel_size=kernel_size)
-                for index, filedict in enumerate(filedict_batch, curr_index):
+                for index, filedict in zip(querydata.plmblast_ids[embslice], filedict_batch):
                     query_filedict[index] = filedict
-                curr_index = index + 1
                 pbar.update(len(filedict_batch))
                 gc.collect()
         #avg_hits = [len(v) for v in query_filedict.values()]
@@ -126,10 +116,10 @@ def apply_database_screening(args: argparse.Namespace,
         # no screening case
         print("Pre-screening skipped")
         filedict: Dict[int, int] = {
-            dbid: dict(file=file, score=1) 
-                for dbid, file in zip(range(dbdata.size), dbdata.dirfiles)
+            dbid: {"file": file, "score": 1} 
+                for dbid, file in zip(dbdata.plmblast_ids, dbdata.plmblast_ids)
                 }
-        query_filedict = {queryid : filedict.copy() for queryid in range(num_queries)}
+        query_filedict = {queryid : filedict.copy() for queryid in querydata.plmblast_ids}
 
     # remove redundancy from search space only usable when query is the same as db
     if args.reduce_duplicates:

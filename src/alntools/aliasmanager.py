@@ -44,10 +44,11 @@ class PBAliasManager:
         self._update()
         
     def view(self):
-        if len(self.data):
+        if self.data:
             print("no aliases registred yet")
-        for name, idxdata in self.data.items():
-            print(f"alias: {name} -> {idxdata['raw']}")
+        else:
+            for name, idxdata in self.data.items():
+                print(f"alias: {name} -> {idxdata['raw']}")
     
     def get(self, name: str) -> List[int]:
         self._validate_alias(name)
@@ -84,4 +85,4 @@ class PBAliasManager:
         if name not in self.data:
             aliases_str = ", ".join(self.data.keys())
             raise PLMBlastAliasError(
-                f"alias with name: {name} dont exists, available are: {aliases_str}")
+                f"alias with name: {name} is not registred, available are: {aliases_str}")

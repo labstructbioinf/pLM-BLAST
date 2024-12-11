@@ -118,18 +118,24 @@ A visualization of the results of searching the ECOD30 database with the sequenc
 </div>
 
 # aliases
+We added new feature called aliases, which allow to mark parts of the database
+sequences and further use them for search.
 
-use 
+assume that you know that sequences from 1 to 200 and from 400 to 600 poses some
+motif that futher you want to find in other sequences.
 ```bash
-plmblast_aliases /path/to/db --view # to display available aliases 
-plmblast_aliases /path/to/db -add proteins1 1:200 # add alias to given db
+plmblast_aliases /path/to/db -add motif1 1-200,400-600 # add alias to given db
 ```
-after that you can use your alias search over part of database
+type below command to check if you alias was registred properly
 ```bash
-plmblast /path/to/db:proteins1 /path/to/query results.csv
+plmblast_aliases /path/to/db --view # to display available aliases
+```
+after that you can use your alias to search over parts of database or use them as queries.
+For example use `motif1` as a query to search through database
+```bash
+plmblast /path/to/db /path/to/db:motif1 results_motif1.csv
 ```
 
-then you can 
 # Remarks
 
 ## How to cite?

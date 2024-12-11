@@ -47,13 +47,7 @@ def main():
 	batch_size = cfg.jobs_per_process*args.workers
 	query_filedict = apply_database_screening(args, querydata=querydata, dbdata=dbdata)
 	if args.only_scan:
-		# round float values in json 
-		# https://stackoverflow.com/questions/54370322/how-to-limit-the-number-of-float-digits-jsonencoder-produces
-		class RoundingFloat(float):
-			__repr__ = staticmethod(lambda x: format(x, '.3f'))
-		json.encoder.float = RoundingFloat
-		with open(args.output, "wt") as fp:
-			json.dump(query_filedict, fp)
+		aln.base.dump_json(args.output, query_filedict)
 		sys.exit(0)
 	else:
 		# simplify dictionary

@@ -56,14 +56,14 @@ class DatabaseChunk(torch.utils.data.Dataset):
 	'''
 	handle loading database composed from single files
 	'''
-	def __init__(self, path: List[os.PathLike], num_records: int, flatten: bool = False):
+	def __init__(self, path: List[os.PathLike], records: List[str], flatten: bool = False):
 
 		assert os.path.isdir(path), f"path {path} is no a valid directory"
 		dirname = os.path.dirname(path)
 		if not (dirname == ''):
 			if not os.path.isdir(dirname):
 				raise FileExistsError(f'directory: {dirname} is bad')
-		self.embedding_files = [os.path.join(path, f'{f}.emb') for f in range(0, num_records)]
+		self.embedding_files = records
 		# check if all file exists
 		for file in self.embedding_files:
 			if not os.path.isfile(file):
@@ -81,14 +81,14 @@ class DatabaseChunk(torch.utils.data.Dataset):
 
 
 def load_embeddings_parallel_generator(path: str, 
-									   num_records: int, 
+									   records: List[str], 
 									   batch_size: int = 1, 
 									   num_workers: Optional[int] = 0):
 	# TODO optimize this choice
 	if os.path.isfile(path):
 		dataset = torch.load(path)
 	elif os.path.isdir(path):
-		dataset = DatabaseChunk(path=path, num_records=num_records)
+		dataset = DatabaseChunk(path=path, records=records)
 	else:
 		raise FileNotFoundError(f"path is not valid directory: {path}")
 	

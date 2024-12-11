@@ -1,5 +1,6 @@
 '''module merging all extraction steps into user friendly functions'''
 from typing import List, Union
+import json
 
 import pandas as pd
 import numpy as np
@@ -9,6 +10,17 @@ from .alignment import gather_all_paths
 from .prepare import search_paths
 from .postprocess import filter_result_dataframe
 
+
+def dump_json(file: str, filedict: dict):
+	"""
+	save json with rounding float values
+	"""
+	# https://stackoverflow.com/questions/54370322/how-to-limit-the-number-of-float-digits-jsonencoder-produces
+	class RoundingFloat(float):
+		__repr__ = staticmethod(lambda x: format(x, '.3f'))
+	json.encoder.float = RoundingFloat
+	with open(file, "wt") as fp:
+		json.dump(filedict, fp)
 
 class PlmBlastParamError(Exception):
 	pass

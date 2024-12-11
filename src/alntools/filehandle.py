@@ -3,7 +3,6 @@ import math
 from typing import List, Dict, Tuple, Union, Optional, Literal
 from collections import namedtuple
 import itertools
-import warnings
 
 import numpy as np
 from Bio import SeqIO
@@ -38,6 +37,7 @@ class DataObject:
      # none if not exists
      poolpath: Optional[str] = None
      pathdata: str
+     alias: Optional[str] = None
      ext: str = ".emb"
      objtype: DataType = "query"
 
@@ -54,6 +54,7 @@ class DataObject:
         self.objtype = objtype
         self.size = self.total_size = indexdata.shape[0]
         self._find_datatype()
+        self.alias = alias
         if objtype == DataType.db and self.dbtype == DBTYPE.file:
             raise PLMBlastDBError(
                 '''
@@ -72,6 +73,7 @@ class DataObject:
         elif alias:
             indices = PBAliasManager(self.pathdata).get(alias)
             self.indexdata = self.indexdata.iloc[indices, :]
+            self.size = self.indexdata.shape[0]
             print('using alias: ', alias)
         print(f"loaded {self.objtype}: {self.pathdata}({self.datatype.value}) using {self.size}/{self.total_size} seq total")
      
@@ -139,7 +141,7 @@ class DataObject:
             self.poolpath = os.path.join(self.pathdata, EMB64_EXT)
     
      @property
-     def dirfiles(self) -> Union[List[str], List[int]]:
+     def plmblast_ids(self) -> Union[List[str], List[int]]:
           """
           return all files availabe for this dataobj
           """
@@ -237,7 +239,7 @@ class BatchLoader:
             self.qasdir = False
             self.qdata = self._load_single_dir(querydata.embeddingpath)
         else:
-             self.queryfiles = querydata.dirfiles
+             self.queryfiles = querydata.plmblast_ids
         # overwrite load methods depending on db type
         if querydata.datatype == DBTYPE.dir:
             setattr(self, "_load_single_query", self._load_single_dir)
@@ -251,7 +253,6 @@ class BatchLoader:
         elif dbdata.datatype == DBTYPE.npy:
             setattr(self, "_load_single_db", self._load_single_npy)
             setattr(self, "_load_batch_db", self._load_batch_npy)
-        #breakpoint()
         self.batch_size = batch_size
         self.filedict = filedict
         self.num_records = len(self.filedict)
@@ -292,7 +293,8 @@ class BatchLoader:
              qdata = self._qdata_record[self.current_iteration]
              # load query embeddings
              if self.qdata is None:
-                qembedding = self._load_single_query(self.queryfiles[qdata.qid]).pop()
+                #breakpoint()
+                qembedding = self._load_single_query(qdata.qid).pop()
              else:
                 qembedding = self.qdata[qdata.qid]
              # return embeddings
@@ -313,7 +315,9 @@ class BatchLoader:
         else:
              raise StopIteration
 
-    def _query_file_to_slice(self, query_id: int) -> Tuple[List[List[int]], List[List[str]]]:
+    def _query_file_to_slice(
+              self, 
+              query_id: int) -> Tuple[List[List[int]], List[List[str]]]:
         '''
         calculate file slices for each batch for given query_id
         '''

@@ -43,11 +43,14 @@ def main():
     aliasfile = dbdir.with_suffix(".json")
     print("looking for alias file", aliasfile)
     pbhandle = PBAliasManager(dbdir)
-    if not args.view:
+    if args.view:
+        pbhandle.view()
+    elif args.add:
         name, indices_string = args.add
         pbhandle.add(name, indices_string)
-    else:
-        pbhandle.view()
+    elif args.remove:
+        pbhandle.remove(args.name)
+        
         
 if __name__ == "__main__":
     main()

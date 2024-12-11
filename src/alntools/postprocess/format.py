@@ -109,7 +109,7 @@ def prepare_output(resdf: pd.DataFrame,
         return pd.DataFrame()
     else:
         querydf.rename(columns={'plmblastid' : 'qid'}, inplace=True)
-        dbdf_matches = dbdf.iloc[querydf['dbid']].copy()
+        dbdf_matches = dbdf.loc[querydf['dbid']].copy()
         aligmentlist: List[List[int, int]] = querydf['indices'].tolist()
         assert dbdf_matches.shape[0] == querydf.shape[0]
         # add description to target if exists
@@ -144,7 +144,7 @@ def prepare_output(resdf: pd.DataFrame,
         alignment_desc = list()
         for _, row in querydf.iterrows():
             tmp_aln = draw_alignment(row.indices,
-                                    dbdf.iloc[row.dbid].sequence,
+                                    dbdf.loc[row.dbid].sequence,
                                     row.sequence,
                                     output='str')
             tmp_aln = tmp_aln.split('\n')
