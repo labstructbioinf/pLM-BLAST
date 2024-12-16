@@ -59,6 +59,7 @@ testpaths = [
 markers = [
     "embedding: marks tests as slow (deselect with '-m \"not embedding\"') requires gpu",
     "core: test functionalities of `plmblast.py`",
+    "alias: related to alias and indexing"
 ]
 
 [tool.pytest_env]

@@ -90,7 +90,7 @@ class DataObject:
         # split into 123-4154,143
         # no index
         if len(_splitted) == 1:
-            path_or_indices = _splitted[0]
+            path_or_indices, alias = _splitted[0], None
         elif len(_splitted) == 2:
             path_or_indices, alias = _splitted
         else:

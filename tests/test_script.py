@@ -22,6 +22,7 @@ INPUT_MULTI = os.path.join(TESTDATA, 'rossmanns')
 # outputs
 OUTPUT_SINGLE = os.path.join(DIR, 'test_data/cupredoxin.hits.csv')
 OUTPUT_MULTI = os.path.join(DIR, 'test_data/rossmanns.hits.csv')
+OUTPUT_ALIAS = os.path.join(DIR, 'test_data/db.npy.alias.csv')
 MULTI_QUERY_MULTI_FILE_PATH = os.path.join(DIR, 'test_data')
 
 
@@ -128,6 +129,7 @@ def test_results_reproducibility():
 				continue
 			assert (resulti == resultj).all(), 'results are not identical'
 
+
 @pytest.mark.core
 @pytest.mark.parametrize('win', [10, 15])
 @pytest.mark.parametrize('gap_ext', [0, 0.1])
@@ -141,11 +143,43 @@ def test_multi_query(win: str, gap_ext: str, cpc: int, dbtype: str):
 	# check process error code
 	if proc.returncode != 0:
 		raise OSError(proc.stderr.decode())
-	if not os.path.isfile(OUTPUT_MULTI):
-		raise FileNotFoundError(f'missing output after plmblast run, err:\n {proc.stderr}')
-	output = pd.read_csv(OUTPUT_MULTI, sep=";")
-	assert output.shape[0] > 0
-	_validate_output_format(output)
+	_validate_output_format(OUTPUT_MULTI)
+
+
+@pytest.mark.alias
+@pytest.mark.dependency()
+def test_remove_alias_file():
+	file = PLMBLAST_DB_NPY + ".alias.json"
+	if os.path.isfile(file):
+		os.remove(file)
+
+
+@pytest.mark.alias
+@pytest.mark.dependency(depends=['test_remove_alias_file'])
+@pytest.mark.parametrize("alias_str", [
+	"proteins1 1-50", 
+	"proteins2 10,20,30,5000,5002-5005",
+	"proteins_small 5500-6000"])
+def test_alias_manager(alias_str):
+	cmd = f"pbmanager {PLMBLAST_DB_NPY} -add {alias_str}"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	if proc.returncode != 0:
+		raise OSError(proc.stderr.decode())
+	if not os.path.isfile(PLMBLAST_DB_NPY + ".alias.json"):
+		raise FileNotFoundError("missing alias file after adding new alias")
+
+
+@pytest.mark.alias
+@pytest.mark.dependency(depends_on=['test_alias_manager'])
+@pytest.mark.parametrize("cpc", [90, 0])
+@pytest.mark.parametrize("alias_name", ['poteins1', 'proteins2'])
+def test_alias_all_vs_all(cpc: int, alias_name: str):
+	cmd = f"plmblast {PLMBLAST_DB_NPY}:proteins_small {PLMBLAST_DB_NPY}:{alias_name} {OUTPUT_ALIAS}"
+	cmd += f" -cpc {cpc} -alignment_cutoff 0.2"
+	proc = subprocess.run(cmd.split(" "), stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+	if proc.returncode != 0:
+		raise OSError(proc.stderr.decode())
+	_validate_output_format(OUTPUT_ALIAS)
 
 
 @pytest.mark.parametrize('win', [10, 20])

@@ -15,13 +15,14 @@ class PBAliasManager:
     }
     
     '''
+    ext = ".alias.json"
     def __init__(self, dbpath: str | Path):
         if isinstance(dbpath, str):
             dbpath = Path(dbpath)
         self.dbpath = dbpath
         if not dbpath.is_dir():
             raise PLMBlastAliasError(f"no database at dir: {dbpath}")
-        self.aliasfile = dbpath.with_suffix(".json")
+        self.aliasfile = dbpath.with_suffix(self.ext)
         if not self.aliasfile.is_file():
             self.data = {}
         else:

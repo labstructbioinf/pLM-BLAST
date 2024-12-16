@@ -22,8 +22,8 @@ def read_embeddings_for_screening(
     if not os.path.isfile(datahandle.poolpath):
         print(
             f'''missing pooled embedding file {datahandle.poolpath} for given database, it will be generated on fly,
-            and saved. Depending on run specification this may decrease performence of the first run,
-            especially for larger databases. It can be created manually by scripts/dbtofile.py''')
+            and saved when alias is not specified. Depending on run specification this may decrease performence of the first run,
+            especially for larger databases. We suggest not to use aliases for the first run to increase performance in future''')
         # load regular database and pool
         # find db structure
         if datahandle.datatype == DBTYPE.file:
@@ -68,7 +68,6 @@ def apply_database_screening(
     Returns:
         (dict) each key is query_id, and values are embeddings above threshold
     '''
-    num_workers_loader = 0
     num_queries = querydata.size
     percentile_factor = args.COS_PER_CUT/100
     embdim: int = 64
@@ -107,9 +106,6 @@ def apply_database_screening(
                     query_filedict[index] = filedict
                 pbar.update(len(filedict_batch))
                 gc.collect()
-        #avg_hits = [len(v) for v in query_filedict.values()]
-        #avg_hits = int(sum(avg_hits)/len(avg_hits))
-        #print(f"{avg_hits} alignment candidates per query")
         del batchdb
         del query_embs_chunkcs
     else:
