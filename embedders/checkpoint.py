@@ -32,6 +32,7 @@ def find_and_load_checkpoint_file(output: str) -> argparse.Namespace:
         args: (arparse.Namespace)
     '''
     assert isinstance(output, str)
+    output = os.path.abspath(output)
 
     checkpoint_correct: str = ""
     checkpoint_mp = BASE_CHECKPOINT_NAME_MP.format(rank='0')
@@ -55,7 +56,7 @@ def find_and_load_checkpoint_file(output: str) -> argparse.Namespace:
             raise FileNotFoundError(f"no checkpoint file for given file: {output}")
     # directory case
     elif os.path.isdir(output):
-        filelist = os.listdir(output)
+        filelist = [os.path.join(output, file) for file in os.listdir(output)]
         checkpoint_mp_file = CHECKPOINT_DIR.format(basename=output, checkpoint=checkpoint_mp)
         checkpoint_file = CHECKPOINT_DIR.format(basename=output, checkpoint=BASE_CHECKPOINT_NAME)
         if checkpoint_mp_file in filelist and checkpoint_file in filelist:
@@ -108,7 +109,10 @@ def checkpoint_from_json(checkpoint_file: os.PathLike) -> argparse.Namespace:
         if not os.path.isfile(checkpoint_file):
             raise FileNotFoundError(f'no checkpoint file in path: {checkpoint_file}')
     if os.path.isfile(checkpoint_file) and checkpoint_file.endswith('.json'):
-        checkpoint_file = os.path.join(os.path.dirname(checkpoint_file), fname)
+        basename = os.path.basename(checkpoint_file)
+        if 'WORLD_SIZE' in os.environ and 'emb_checkpoint_mp_' in basename:
+            prefix = basename.split('emb_checkpoint_mp_')[0]
+            checkpoint_file = os.path.join(os.path.dirname(checkpoint_file), prefix + fname)
     temp_args = dict_to_namespace(checkpoint_file)
     return temp_args
 

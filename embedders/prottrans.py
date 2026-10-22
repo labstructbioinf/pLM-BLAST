@@ -32,8 +32,11 @@ def main_prottrans(df: pd.DataFrame,
 	# select appropriate embedding model
 	if args.embedder == 'pt':
 		embedder_name = DEFAULT_EMBEDDER_PT5
-	elif args.embedder == 'prost':
+	elif args.embedder in ('prost', 'prostt5'):
 		embedder_name = DEFAULT_EMBEDDER_PROST
+	is_prost = args.embedder in ('prost', 'prostt5')
+	if is_prost and args.use_fastt5:
+		raise ValueError('--use_fastt5 is only supported for ProtT5')
 	tokenizer = T5Tokenizer.from_pretrained(embedder_name, do_lower_case=False)
 	if args.use_fastt5:
 		# implementation based on https://github.com/Ki6an/fastT5/issues/70
@@ -66,6 +69,8 @@ def main_prottrans(df: pd.DataFrame,
 			# add empty character between all residues
 			# his is mandatory for pt5 embedders
 			seqlist = [' '.join(list(seq)).upper() for seq in seqlist]
+			if is_prost:
+				seqlist = ['<AA2fold> ' + regex_aa.sub('X', seq) for seq in seqlist]
 			batch_index = list(range(batchslice.start, batchslice.stop))
 			ids = tokenizer.batch_encode_plus(seqlist, add_special_tokens=True, padding="longest")
 			input_ids = torch.tensor(ids['input_ids']).to(device, non_blocking=True)
@@ -80,10 +85,11 @@ def main_prottrans(df: pd.DataFrame,
 			for i in range(num_batch_embeddings):
 				seq_len = lenlist[i]
 				emb = embeddings[i]
-				if emb.shape[0] < seq_len:
+				offset = 1 if is_prost else 0
+				if emb.shape[0] < seq_len + offset:
 					raise KeyError(f'sequence is longer then embedding {emb.shape} and {seq_len} ')
 				# clone unpadded tensor to aviod memory issues	   
-				embeddings_filt.append(emb[:seq_len].clone())
+				embeddings_filt.append(emb[offset:seq_len + offset].clone())
 			# store each batch depending on save mode
 			if args.asdir:
 				save_as_separate_files(embeddings_filt, batch_index=batch_index, directory=args.output)

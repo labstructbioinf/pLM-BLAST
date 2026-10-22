@@ -66,6 +66,39 @@ The batch size (number of sequences per batch) is set with the `-bs` option. Set
 
 The use of `--gpu` is highly recommended for large datasets. To run `embeddings.py` on multiple GPUs, specify `-nproc X` where `X` is the number of GPU devices you want to use.
 
+### ProstT5 and ESM3
+
+Use `-embedder prost` (alias `prostt5`) for ProstT5 or `-embedder esm3` for
+ESM3-open. Both take amino acid sequences and save one vector per residue;
+ESM3 does not use input structures. The default remains `-embedder pt`.
+
+```bash
+python embeddings.py start database.fasta database_prost -embedder prost --gpu -bs 0 --asdir
+python embeddings.py start database.fasta database_esm3 -embedder esm3 --gpu -bs 0 --asdir
+```
+
+The same output options (`--asdir`, `--h5py`, or a `.pt` file), adaptive batching,
+`-nproc`, and checkpoints apply. Embedding dimensions depend on the model;
+compare queries and databases generated with the same model.
+
+ProstT5 uses the existing Transformers dependencies. The `prost` backend now
+includes its required `<AA2fold>` token and excludes it from the saved vectors;
+recompute embeddings produced with the earlier implementation before mixing them.
+`--use_fastt5` is only supported for ProtT5.
+
+ESM3 additionally requires the [official esm SDK](https://github.com/Biohub/esm)
+and access to the [ESM3-open weights](https://huggingface.co/EvolutionaryScale/esm3-sm-open-v1).
+Use a separate Python >=3.10 environment for ESM3:
+
+```bash
+pip install -r requirements_esm3.txt
+```
+
+This installs the dependencies for embedding extraction, including a compatible
+SDK and PyTorch. Use the appropriate PyTorch CUDA wheel for your GPU.
+Keep the existing ProtT5 environment and its `requirements.txt` unchanged. The original `fair-esm` package is not
+the ESM3 SDK. Authenticate with Hugging Face after accepting the model terms if required.
+
 ### Checkpointing feature
 
 When dealing with large databases, it may be helpful to resume previously stopped or interrupted computations. When `embeddings.py` encounters an exception or keyboard interrupt, the main process captures the actual computation steps in the checkpoint file. If you want to resume, type:

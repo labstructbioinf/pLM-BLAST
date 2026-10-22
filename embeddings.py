@@ -12,6 +12,7 @@ from embedders import (main_esm,
                        main_ankh,
                        main_automodel)
 from embedders.checkpoint import capture_checkpoint, find_and_load_checkpoint_file
+from embedders.esm3 import main_esm3
 
 def mp_process(rank_id: int, nproc: int, args: argparse.Namespace):
 	# set env variables
@@ -23,7 +24,9 @@ def mp_process(rank_id: int, nproc: int, args: argparse.Namespace):
 	args, df = validate_args(args, verbose=True)
 	df, batch_iter = prepare_dataframe(df, args, rank_id=rank_id)
 	try:
-		if not args.embedder.startswith('esm'):
+		if args.embedder == 'esm3':
+			main_esm3(df, args, batch_iter, rank_id=rank_id)
+		elif not args.embedder.startswith('esm'):
 			main_prottrans(df, args, batch_iter, rank_id=rank_id)
 		else:
 			main_esm(df, args, batch_iter, rank_id=rank_id)
@@ -46,7 +49,9 @@ if __name__ == "__main__":
 		args, df = validate_args(args, verbose=True)
 		df, batch_iter = prepare_dataframe(df, args)
 		try:
-			if args.embedder.startswith('esm'):
+			if args.embedder == 'esm3':
+				main_esm3(df, args, batch_iter)
+			elif args.embedder.startswith('esm'):
 				main_esm(df, args, batch_iter)
 			elif args.embedder.startswith('ankh'):
 				main_ankh(df, args, batch_iter)

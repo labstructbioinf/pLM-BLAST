@@ -68,7 +68,8 @@ def create_parser() -> argparse.Namespace:
 	start_group.add_argument('-embedder', '-e', help=\
 		"""
 		name of the embedder by default `pt` - prot_t5_xl_half_uniref50-enc, `esm`
-		for esm2_t33_650M_UR50D, `prost` for ProtT5-XL-U50 you can olso specify any model
+		for esm2_t33_650M_UR50D, `prost` (or `prostt5`) for ProstT5,
+		`esm3` for sequence-only ESM3-open. You can also specify any model
 		 supported by huggingface `AutoModel` typing `hf:modelname` (eg. `hf:Rostlab/prot_bert` 
 		 for Rostlab/prot_bert, modelname may be also a path to pretrained model)
 		""",
